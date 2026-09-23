@@ -1,0 +1,42 @@
+# 1. Thư mục cài đặt thư viện
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 2. File cấu hình môi trường & thông tin nhạy cảm (TUYỆT ĐỐI KHÔNG PUSH)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# 3. Thư mục biên dịch (Build output của TypeScript)
+dist/
+build/
+*.tsbuildinfo
+
+# 4. Logs & Monitoring
+logs/
+*.log
+
+# 5. File backup / database dump nặng của SQL Server
+# Lưu ý: Script tạo bảng (.sql) trong thư mục database/ vẫn cần push,
+# chỉ chặn các file backup nhị phân dung lượng lớn (.bak, .mdf, .ldf)
+*.bak
+*.mdf
+*.ldf
+
+# 6. File rác từ hệ điều hành & IDE (VS Code, WebStorm)
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# 7. Test coverage & cache
+coverage/
+.nyc_output/
+.turbo/
