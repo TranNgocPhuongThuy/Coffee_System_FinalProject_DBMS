@@ -1,7 +1,7 @@
 USE CoffeeShopDB;
 GO
 --1. Tính thành tiền của 1 ly nước, dùng gán cho Computed Column
-CREATE OR ALTER FUNCTION fnc_TinhTongTienLy (
+CREATE OR ALTER FUNCTION fnc_CalculateItemTotalPrice (
     @quantity INT,
     @unitPrice DECIMAL(18, 2),
     @totalToppingPriceSnapshot DECIMAL(18, 2)
@@ -13,7 +13,7 @@ BEGIN
 END;
 GO
 --2. Tự động tính điểm thưởng hội viên nhận dựa trên tổng tiền, quy tắc 10.000 = 1 điểm 
-CREATE OR ALTER FUNCTION fnc_TinhDiemTichLuy (
+CREATE OR ALTER FUNCTION fnc_CalculateEarnedPoints (
     @totalAmount DECIMAL(18, 2)
 )
 RETURNS INT
@@ -21,31 +21,31 @@ AS
 BEGIN
     IF @totalAmount IS NULL OR @totalAmount < 10000
         RETURN 0;
-        
+
     RETURN FLOOR(@totalAmount / 10000.0);
 END;
 GO
 --3. Trả về tổng doanh thu thực thu trong một khoảng thời gian 
-CREATE OR ALTER FUNCTION fn_TinhTongDoanhThu (
-    @TuNgay DATETIME,
-    @DenNgay DATETIME
+CREATE OR ALTER FUNCTION fn_GetTotalRevenue (
+    @fromDate DATETIME,
+    @toDate DATETIME
 )
 RETURNS DECIMAL(18, 2)
 AS
 BEGIN
-    DECLARE @TongDoanhThu DECIMAL(18, 2);
+    DECLARE @totalRevenue DECIMAL(18, 2);
 
-    SELECT @TongDoanhThu = SUM(totalAmount)
+    SELECT @totalRevenue = SUM(totalAmount)
     FROM [Order]
     WHERE status = 'COMPLETED'
       AND deletedAt IS NULL
-      AND ISNULL(paidAt, createdAt) BETWEEN @TuNgay AND @DenNgay;
+      AND ISNULL(paidAt, createdAt) BETWEEN @fromDate AND @toDate;
 
-    RETURN ISNULL(@TongDoanhThu, 0);
+    RETURN ISNULL(@totalRevenue, 0);
 END;
 GO
 --4. Tính chiết khấu hội viên, quy đổi số điểm hội viên muốn dùng thành số tiền giảm giá
-CREATE OR ALTER FUNCTION fn_TinhChietKhauHoiVien (
+CREATE OR ALTER FUNCTION fn_CalculateMemberDiscount (
     @points INT
 )
 RETURNS DECIMAL(18, 2)
@@ -58,7 +58,7 @@ BEGIN
 END;
 GO
 --5. Kiểm tra thẻ rung, kiểm tra thiết bị ở trạng thái nào, đủ điều kiện phát cho khách không
-CREATE OR ALTER FUNCTION fn_KiemTraTheRungKhaDung (
+CREATE OR ALTER FUNCTION fn_IsPagerAvailable (
     @pagerId INT
 )
 RETURNS BIT
@@ -82,15 +82,15 @@ BEGIN
 END;
 GO
 --6. Danh sách N món bán chạy nhất trong khoảng thời gian 
-CREATE OR ALTER FUNCTION fn_TopSanPhamBanChay (
-    @TopN INT,
-    @TuNgay DATETIME,
-    @DenNgay DATETIME
+CREATE OR ALTER FUNCTION fn_GetTopSellingProducts (
+    @topN INT,
+    @fromDate DATETIME,
+    @toDate DATETIME
 )
 RETURNS TABLE
 AS
 RETURN (
-    SELECT TOP (@TopN)
+    SELECT TOP (@topN)
         p.id AS productId,
         p.name AS productName,
         SUM(od.quantity) AS totalQuantitySold,
@@ -102,16 +102,16 @@ RETURN (
     WHERE o.status = 'COMPLETED'
       AND o.deletedAt IS NULL
       AND p.deletedAt IS NULL
-      AND ISNULL(o.paidAt, o.createdAt) BETWEEN @TuNgay AND @DenNgay
+      AND ISNULL(o.paidAt, o.createdAt) BETWEEN @fromDate AND @toDate
     GROUP BY p.id, p.name
     ORDER BY totalQuantitySold DESC
 );
 GO
 --7. Lấy danh sách lịch sử tích/ đổi điểm của một hội viên theo thời gian
-CREATE OR ALTER FUNCTION fn_LichSuGiaoDichHoiVien (
+CREATE OR ALTER FUNCTION fn_GetMemberLoyaltyHistory (
     @customerId INT,
-    @TuNgay DATETIME,
-    @DenNgay DATETIME
+    @fromDate DATETIME,
+    @toDate DATETIME
 )
 RETURNS TABLE
 AS
@@ -129,6 +129,6 @@ RETURN (
     FROM LoyaltyTransaction lt
     LEFT JOIN [Order] o ON lt.orderId = o.id
     WHERE lt.customerId = @customerId
-      AND lt.createdAt BETWEEN @TuNgay AND @DenNgay
+      AND lt.createdAt BETWEEN @fromDate AND @toDate
 );
 GO
