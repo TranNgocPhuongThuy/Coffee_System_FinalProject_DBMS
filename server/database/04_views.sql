@@ -1,5 +1,5 @@
 --1. Cảnh báo nhanh các nguyên liệu sắp hết 
-CREATE OR ALTER VIEW v_NguyenLieuSapHet AS
+CREATE OR ALTER VIEW v_LowStockIngredients AS
 SELECT 
     id, 
     name, 
@@ -12,7 +12,7 @@ WHERE deletedAt IS NULL
   AND stockQuantity <= minimumThreshold;
 GO
 --2. Hiển thị công thức định lượng của từng size sp 
-CREATE OR ALTER VIEW v_ChiTietCongThucMon AS
+CREATE OR ALTER VIEW v_ProductRecipeDetails AS
 SELECT 
     p.name AS tenSanPham,
     pv.size AS size,
@@ -28,7 +28,7 @@ WHERE p.deletedAt IS NULL
   AND i.deletedAt IS NULL;
 GO
 --3. Phục vụ pos & in hóa đơn, sử dụng dữ liệu Snapshot 
-CREATE OR ALTER VIEW v_HoaDonChiTiet AS
+CREATE OR ALTER VIEW v_InvoiceDetails AS
 SELECT 
     o.id AS orderId,
     o.orderCode,
@@ -59,7 +59,7 @@ JOIN OrderDetail od ON o.id = od.orderId
 WHERE o.deletedAt IS NULL;
 GO
 --4. Thống kê tổng doanh thu thực thu theo từng ngày 
-CREATE OR ALTER VIEW v_DoanhThuTheoNgay AS
+CREATE OR ALTER VIEW v_DailyRevenue AS
 SELECT 
     CAST(ISNULL(paidAt, createdAt) AS DATE) AS ngay,
     COUNT(id) AS tongSoDon,
@@ -72,7 +72,7 @@ WHERE status = 'COMPLETED'
 GROUP BY CAST(ISNULL(paidAt, createdAt) AS DATE);
 GO
 --5. Tổng hợp số lượng doanh thu theo từng sản phẩm 
-CREATE OR ALTER VIEW v_TopSanPhamBanChay AS
+CREATE OR ALTER VIEW v_TopSellingProducts AS
 SELECT 
     p.id AS productId,
     p.name AS productName,
