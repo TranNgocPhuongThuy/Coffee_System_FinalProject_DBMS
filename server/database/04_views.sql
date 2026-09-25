@@ -14,11 +14,11 @@ GO
 --2. Hiển thị công thức định lượng của từng size sp 
 CREATE OR ALTER VIEW v_ProductRecipeDetails AS
 SELECT 
-    p.name AS tenSanPham,
-    pv.size AS size,
-    i.name AS tenNguyenLieu,
-    rb.consumedQuantity AS dinhLuong,
-    i.unit AS donVi
+    p.name AS productName,
+    pv.size AS productSize,
+    i.name AS ingredientName,
+    rb.consumedQuantity AS consumedQuantity,
+    i.unit AS ingredientUnit
 FROM RecipeBOM rb
 JOIN ProductVariant pv ON rb.variantId = pv.id
 JOIN Product p ON pv.productId = p.id
@@ -61,11 +61,11 @@ GO
 --4. Thống kê tổng doanh thu thực thu theo từng ngày 
 CREATE OR ALTER VIEW v_DailyRevenue AS
 SELECT 
-    CAST(ISNULL(paidAt, createdAt) AS DATE) AS ngay,
-    COUNT(id) AS tongSoDon,
-    SUM(subTotal) AS tongThanhTienGoc,
-    SUM(discountAmount) AS tongGiamGia,
-    SUM(totalAmount) AS doanhThuThucThu
+    CAST(ISNULL(paidAt, createdAt) AS DATE) AS revenueDate,
+    COUNT(id) AS totalOrders,
+    SUM(subTotal) AS totalOriginalAmount,
+    SUM(discountAmount) AS totalDiscountAmount,
+    SUM(totalAmount) AS totalNetRevenue
 FROM [Order]
 WHERE status = 'COMPLETED' 
   AND deletedAt IS NULL
