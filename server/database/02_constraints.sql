@@ -13,7 +13,7 @@ GO
 -- =========================================================
 -- 2. DEFAULT CONSTRAINTS
 -- =========================================================
-ALTER TABLE Category ADD CONSTRAINT DF_Category_displayStatus DEFAULT (1) FOR displayStatus;
+ALTER TABLE Category ADD CONSTRAINT DF_Category_displayStatus DEFAULT ('SHOW') FOR displayStatus;
 ALTER TABLE Category ADD CONSTRAINT DF_Category_createdAt DEFAULT (SYSDATETIME()) FOR createdAt;
 
 ALTER TABLE Topping ADD CONSTRAINT DF_Topping_price DEFAULT (0.00) FOR price;
@@ -41,7 +41,7 @@ ALTER TABLE [Order] ADD CONSTRAINT DF_Order_discountAmount DEFAULT (0.00) FOR di
 ALTER TABLE [Order] ADD CONSTRAINT DF_Order_totalAmount DEFAULT (0.00) FOR totalAmount;
 ALTER TABLE [Order] ADD CONSTRAINT DF_Order_paymentMethod DEFAULT ('CASH') FOR paymentMethod;
 ALTER TABLE [Order] ADD CONSTRAINT DF_Order_status DEFAULT ('PENDING') FOR status;
-ALTER TABLE [Order] ADD CONSTRAINT DF_Order_orderDate DEFAULT (SYSDATETIME()) FOR orderDate;
+ALTER TABLE [Order] ADD CONSTRAINT DF_Order_createdAt DEFAULT (SYSDATETIME()) FOR createdAt;
 
 ALTER TABLE OrderDetail ADD CONSTRAINT DF_OrderDetail_quantity DEFAULT (1) FOR quantity;
 ALTER TABLE OrderDetail ADD CONSTRAINT DF_OrderDetail_toppingPrice DEFAULT (0.00) FOR totalToppingPriceSnapshot;
@@ -61,15 +61,15 @@ GO
 -- Enum Checks
 ALTER TABLE Product ADD CONSTRAINT CK_Product_status CHECK (status IN ('ACTIVE', 'INACTIVE', 'OUT_OF_STOCK'));
 ALTER TABLE ProductVariant ADD CONSTRAINT CK_ProductVariant_size CHECK (size IN ('S', 'M', 'L', 'XL'));
-ALTER TABLE Topping ADD CONSTRAINT CK_Topping_status CHECK (status IN ('AVAILABLE', 'UNAVAILABLE'));
-ALTER TABLE Employee ADD CONSTRAINT CK_Employee_role CHECK (role IN ('ADMIN', 'MANAGER', 'CASHIER', 'BARISTA'));
+ALTER TABLE Topping ADD CONSTRAINT CK_Topping_status CHECK (status IN ('AVAILABLE', 'UNAVAILABLE', 'ACTIVE'));
+ALTER TABLE Employee ADD CONSTRAINT CK_Employee_role CHECK (role IN ('ADMIN', 'MANAGER', 'CASHIER', 'BARISTA', 'STOREKEEPER'));
 ALTER TABLE Employee ADD CONSTRAINT CK_Employee_status CHECK (status IN ('ACTIVE', 'INACTIVE'));
-ALTER TABLE Customer ADD CONSTRAINT CK_Customer_tier CHECK (membershipTier IN ('STANDARD', 'SILVER', 'GOLD', 'DIAMOND'));
-ALTER TABLE PagerDevice ADD CONSTRAINT CK_PagerDevice_status CHECK (status IN ('IDLE', 'IN_USE', 'CHARGING', 'MAINTENANCE'));
-ALTER TABLE [Order] ADD CONSTRAINT CK_Order_channel CHECK (orderChannel IN ('POS', 'APP', 'DELIVERY'));
+ALTER TABLE Customer ADD CONSTRAINT CK_Customer_tier CHECK (membershipTier IN ('STANDARD', 'SILVER', 'GOLD', 'DIAMOND', 'BRONZE'));
+ALTER TABLE PagerDevice ADD CONSTRAINT CK_PagerDevice_status CHECK (status IN ('IDLE', 'IN_USE', 'CHARGING', 'MAINTENANCE', 'AVAILABLE'));
+ALTER TABLE [Order] ADD CONSTRAINT CK_Order_channel CHECK (orderChannel IN ('POS', 'APP', 'DELIVERY', 'ORDER_AT_COUNTER'));
 ALTER TABLE [Order] ADD CONSTRAINT CK_Order_payment CHECK (paymentMethod IN ('CASH', 'BANK_TRANSFER', 'E_WALLET'));
-ALTER TABLE [Order] ADD CONSTRAINT CK_Order_status CHECK (status IN ('PENDING', 'PAID', 'READY', 'COMPLETED', 'CANCELLED'));
-ALTER TABLE OrderDetail ADD CONSTRAINT CK_OrderDetail_itemStatus CHECK (itemStatus IN ('PENDING', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED'));
+ALTER TABLE [Order] ADD CONSTRAINT CK_Order_status CHECK (status IN ('PENDING', 'PAID', 'READY', 'COMPLETED', 'CANCELLED', 'PENDING_PREP', 'READY_FOR_PICKUP'));
+ALTER TABLE OrderDetail ADD CONSTRAINT CK_OrderDetail_itemStatus CHECK (itemStatus IN ('PENDING', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED', 'DONE'));
 ALTER TABLE LoyaltyTransaction ADD CONSTRAINT CK_LoyaltyTransaction_type CHECK (transactionType IN ('EARN', 'REDEEM'));
 
 -- Value Checks
@@ -99,33 +99,33 @@ GO
 -- =========================================================
 -- 4. FOREIGN KEY CONSTRAINTS
 -- =========================================================
-ALTER TABLE Product ADD CONSTRAINT FK_Product_Category FOREIGN KEY (categoryId) REFERENCES Category(categoryId);
+ALTER TABLE Product ADD CONSTRAINT FK_Product_Category FOREIGN KEY (categoryId) REFERENCES Category(id);
 
-ALTER TABLE ProductVariant ADD CONSTRAINT FK_ProductVariant_Product FOREIGN KEY (productId) REFERENCES Product(productId) ON DELETE CASCADE;
+ALTER TABLE ProductVariant ADD CONSTRAINT FK_ProductVariant_Product FOREIGN KEY (productId) REFERENCES Product(id) ON DELETE CASCADE;
 
-ALTER TABLE RecipeBOM ADD CONSTRAINT FK_RecipeBOM_Variant FOREIGN KEY (variantId) REFERENCES ProductVariant(variantId) ON DELETE CASCADE;
-ALTER TABLE RecipeBOM ADD CONSTRAINT FK_RecipeBOM_Ingredient FOREIGN KEY (ingredientId) REFERENCES Ingredient(ingredientId);
+ALTER TABLE RecipeBOM ADD CONSTRAINT FK_RecipeBOM_Variant FOREIGN KEY (variantId) REFERENCES ProductVariant(id) ON DELETE CASCADE;
+ALTER TABLE RecipeBOM ADD CONSTRAINT FK_RecipeBOM_Ingredient FOREIGN KEY (ingredientId) REFERENCES Ingredient(id);
 
-ALTER TABLE ToppingBOM ADD CONSTRAINT FK_ToppingBOM_Topping FOREIGN KEY (toppingId) REFERENCES Topping(toppingId) ON DELETE CASCADE;
-ALTER TABLE ToppingBOM ADD CONSTRAINT FK_ToppingBOM_Ingredient FOREIGN KEY (ingredientId) REFERENCES Ingredient(ingredientId);
+ALTER TABLE ToppingBOM ADD CONSTRAINT FK_ToppingBOM_Topping FOREIGN KEY (toppingId) REFERENCES Topping(id) ON DELETE CASCADE;
+ALTER TABLE ToppingBOM ADD CONSTRAINT FK_ToppingBOM_Ingredient FOREIGN KEY (ingredientId) REFERENCES Ingredient(id);
 
-ALTER TABLE [Order] ADD CONSTRAINT FK_Order_Customer FOREIGN KEY (customerId) REFERENCES Customer(customerId);
-ALTER TABLE [Order] ADD CONSTRAINT FK_Order_PagerDevice FOREIGN KEY (pagerDeviceId) REFERENCES PagerDevice(pagerDeviceId);
-ALTER TABLE [Order] ADD CONSTRAINT FK_Order_Employee FOREIGN KEY (employeeId) REFERENCES Employee(employeeId);
+ALTER TABLE [Order] ADD CONSTRAINT FK_Order_Customer FOREIGN KEY (customerId) REFERENCES Customer(id);
+ALTER TABLE [Order] ADD CONSTRAINT FK_Order_PagerDevice FOREIGN KEY (pagerId) REFERENCES PagerDevice(id);
+ALTER TABLE [Order] ADD CONSTRAINT FK_Order_Employee FOREIGN KEY (employeeId) REFERENCES Employee(id);
 
-ALTER TABLE OrderDetail ADD CONSTRAINT FK_OrderDetail_Order FOREIGN KEY (orderId) REFERENCES [Order](orderId) ON DELETE CASCADE;
-ALTER TABLE OrderDetail ADD CONSTRAINT FK_OrderDetail_ProductVariant FOREIGN KEY (variantId) REFERENCES ProductVariant(variantId);
+ALTER TABLE OrderDetail ADD CONSTRAINT FK_OrderDetail_Order FOREIGN KEY (orderId) REFERENCES [Order](id) ON DELETE CASCADE;
+ALTER TABLE OrderDetail ADD CONSTRAINT FK_OrderDetail_ProductVariant FOREIGN KEY (variantId) REFERENCES ProductVariant(id);
 
-ALTER TABLE OrderDetailTopping ADD CONSTRAINT FK_OrderDetailTopping_OrderDetail FOREIGN KEY (orderDetailId) REFERENCES OrderDetail(orderDetailId) ON DELETE CASCADE;
-ALTER TABLE OrderDetailTopping ADD CONSTRAINT FK_OrderDetailTopping_Topping FOREIGN KEY (toppingId) REFERENCES Topping(toppingId);
+ALTER TABLE OrderDetailTopping ADD CONSTRAINT FK_OrderDetailTopping_OrderDetail FOREIGN KEY (orderDetailId) REFERENCES OrderDetail(id) ON DELETE CASCADE;
+ALTER TABLE OrderDetailTopping ADD CONSTRAINT FK_OrderDetailTopping_Topping FOREIGN KEY (toppingId) REFERENCES Topping(id);
 
-ALTER TABLE LoyaltyTransaction ADD CONSTRAINT FK_LoyaltyTransaction_Customer FOREIGN KEY (customerId) REFERENCES Customer(customerId);
-ALTER TABLE LoyaltyTransaction ADD CONSTRAINT FK_LoyaltyTransaction_Order FOREIGN KEY (orderId) REFERENCES [Order](orderId);
+ALTER TABLE LoyaltyTransaction ADD CONSTRAINT FK_LoyaltyTransaction_Customer FOREIGN KEY (customerId) REFERENCES Customer(id);
+ALTER TABLE LoyaltyTransaction ADD CONSTRAINT FK_LoyaltyTransaction_Order FOREIGN KEY (orderId) REFERENCES [Order](id);
 
-ALTER TABLE InventoryImport ADD CONSTRAINT FK_InventoryImport_Employee FOREIGN KEY (employeeId) REFERENCES Employee(employeeId);
-ALTER TABLE InventoryImportDetail ADD CONSTRAINT FK_InventoryImportDetail_Import FOREIGN KEY (importId) REFERENCES InventoryImport(importId) ON DELETE CASCADE;
-ALTER TABLE InventoryImportDetail ADD CONSTRAINT FK_InventoryImportDetail_Ingredient FOREIGN KEY (ingredientId) REFERENCES Ingredient(ingredientId);
+ALTER TABLE InventoryImport ADD CONSTRAINT FK_InventoryImport_Employee FOREIGN KEY (employeeId) REFERENCES Employee(id);
+ALTER TABLE InventoryImportDetail ADD CONSTRAINT FK_InventoryImportDetail_Import FOREIGN KEY (importId) REFERENCES InventoryImport(id) ON DELETE CASCADE;
+ALTER TABLE InventoryImportDetail ADD CONSTRAINT FK_InventoryImportDetail_Ingredient FOREIGN KEY (ingredientId) REFERENCES Ingredient(id);
 
-ALTER TABLE InventoryAdjustment ADD CONSTRAINT FK_InventoryAdjustment_Ingredient FOREIGN KEY (ingredientId) REFERENCES Ingredient(ingredientId);
-ALTER TABLE InventoryAdjustment ADD CONSTRAINT FK_InventoryAdjustment_Employee FOREIGN KEY (employeeId) REFERENCES Employee(employeeId);
+ALTER TABLE InventoryAdjustment ADD CONSTRAINT FK_InventoryAdjustment_Ingredient FOREIGN KEY (ingredientId) REFERENCES Ingredient(id);
+ALTER TABLE InventoryAdjustment ADD CONSTRAINT FK_InventoryAdjustment_Employee FOREIGN KEY (employeeId) REFERENCES Employee(id);
 GO

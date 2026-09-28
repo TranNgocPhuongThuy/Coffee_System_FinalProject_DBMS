@@ -2,15 +2,15 @@ USE CoffeeShopDB;
 GO
 
 -- 1. Lọc đơn hàng cho bảng điều khiển (Dashboard / POS)
-CREATE NONCLUSTERED INDEX IX_Order_orderDate_status 
-ON [Order] (orderDate DESC, status) 
+CREATE NONCLUSTERED INDEX IX_Order_createdAt_status 
+ON [Order] (createdAt DESC, status) 
 INCLUDE (totalAmount, customerId, paymentMethod);
 GO
 
 -- 2. Tối ưu khi join lịch sử mua hàng của Customer
 CREATE NONCLUSTERED INDEX IX_Order_customerId 
 ON [Order] (customerId) 
-INCLUDE (orderCode, totalAmount, orderDate, status) 
+INCLUDE (orderCode, totalAmount, createdAt, status) 
 WHERE customerId IS NOT NULL;
 GO
 
