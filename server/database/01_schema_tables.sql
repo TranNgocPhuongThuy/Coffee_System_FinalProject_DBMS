@@ -1,5 +1,3 @@
-USE CoffeeShopDB;
-GO
 
 -- 1. CÁC BẢNG DANH MỤC CƠ BẢN
 CREATE TABLE Category (

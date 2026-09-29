@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { CategoryController } from './category.controller';
 
-const router = Router();
+export const categoryRouter = Router(); // Đổi từ const router sang export const categoryRouter
 const controller = new CategoryController();
 
-router.get('/', controller.getAll);
-router.get('/:id', controller.getById);
-router.post('/', controller.create);
-router.put('/:id', controller.update);
-router.delete('/:id', controller.delete);
+categoryRouter.get('/', controller.getAll);
+categoryRouter.get('/:id', controller.getById);
+categoryRouter.post('/', controller.create);
+categoryRouter.put('/:id', controller.update);
+categoryRouter.delete('/:id', controller.delete);
 
-export default router;
+// Xóa bỏ hoặc thay thế dòng "export default router;"

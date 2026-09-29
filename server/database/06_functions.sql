@@ -1,5 +1,4 @@
-USE CoffeeShopDB;
-GO
+
 --1. Tính thành tiền của 1 ly nước, dùng gán cho Computed Column
 CREATE OR ALTER FUNCTION fnc_CalculateItemTotalPrice (
     @quantity INT,

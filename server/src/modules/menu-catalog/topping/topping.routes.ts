@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { ToppingController } from './topping.controller';
 
-const router = Router();
+export const toppingRouter = Router(); // Đổi từ const router sang export const toppingRouter
 const controller = new ToppingController();
 
-router.get('/', controller.getAll);
-router.get('/:id', controller.getById);
-router.post('/', controller.create);
-router.put('/:id', controller.update);
-router.delete('/:id', controller.delete);
+toppingRouter.get('/', controller.getAll);
+toppingRouter.get('/:id', controller.getById);
+toppingRouter.post('/', controller.create);
+toppingRouter.put('/:id', controller.update);
+toppingRouter.delete('/:id', controller.delete);
 
-export default router;
+// Xóa bỏ hoặc thay thế dòng "export default router;"

@@ -1,5 +1,3 @@
-USE CoffeeShopDB;
-GO
 
 -- 1. Lọc đơn hàng cho bảng điều khiển (Dashboard / POS)
 CREATE NONCLUSTERED INDEX IX_Order_createdAt_status 

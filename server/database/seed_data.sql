@@ -1,5 +1,3 @@
-USE coffee_ecom;
-GO
 
 -- Tắt kiểm tra khóa ngoại tạm thời để dọn dẹp và nạp dữ liệu sạch
 EXEC sp_MSforeachtable "ALTER TABLE ? NOCHECK CONSTRAINT all";
