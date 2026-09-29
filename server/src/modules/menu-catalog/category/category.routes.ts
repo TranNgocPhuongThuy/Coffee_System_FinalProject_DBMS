@@ -1,3 +1,13 @@
-import { Router } from 'express'
-export const categoryRouter = Router()
-categoryRouter.get('/',(_,res)=>{res.json({message:'categoryRouter ready'})})
+import { Router } from 'express';
+import { CategoryController } from './category.controller';
+
+const router = Router();
+const controller = new CategoryController();
+
+router.get('/', controller.getAll);
+router.get('/:id', controller.getById);
+router.post('/', controller.create);
+router.put('/:id', controller.update);
+router.delete('/:id', controller.delete);
+
+export default router;
