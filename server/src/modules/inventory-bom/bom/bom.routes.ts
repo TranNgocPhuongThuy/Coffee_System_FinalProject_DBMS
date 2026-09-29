@@ -1,20 +1,48 @@
 import { Router } from 'express'
 import { BOMController } from './bom.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  GetVariantBOMQuerySchema,
+  RecipeBOMSchema,
+  ToppingBOMSchema,
+} from './bom.schema'
 
 export const bomRouter = Router()
 const controller = new BOMController()
 
-// GET /api/v1/inventory/boms/recipes?variantId=1
-bomRouter.get('/recipes', controller.getRecipes)
+bomRouter.use(authGuard)
 
-// GET /api/v1/inventory/boms/toppings/:toppingId
-bomRouter.get('/toppings/:toppingId', controller.getToppingBOM)
+// Xem định lượng món và topping
+bomRouter.get(
+  '/recipes',
+  roleGuard('BARISTA', 'MANAGER'),
+  validatePipe(GetVariantBOMQuerySchema, 'query'),
+  controller.getRecipes
+)
 
-// POST /api/v1/inventory/boms/recipes (Cấu hình định lượng món)
-bomRouter.post('/recipes', controller.upsertRecipe)
+bomRouter.get(
+  '/toppings/:toppingId',
+  roleGuard('BARISTA', 'MANAGER'),
+  controller.getToppingBOM
+)
 
-// POST /api/v1/inventory/boms/toppings (Cấu hình định lượng topping)
-bomRouter.post('/toppings', controller.upsertTopping)
+// Cấu hình định mức tiêu hao
+bomRouter.post(
+  '/recipes',
+  roleGuard('MANAGER'),
+  validatePipe(RecipeBOMSchema, 'body'),
+  controller.upsertRecipe
+)
 
-// DELETE /api/v1/inventory/boms/recipes/:variantId/:ingredientId
-bomRouter.delete('/recipes/:variantId/:ingredientId', controller.deleteRecipe)
+bomRouter.post(
+  '/toppings',
+  roleGuard('MANAGER'),
+  validatePipe(ToppingBOMSchema, 'body'),
+  controller.upsertTopping
+)
+
+bomRouter.delete(
+  '/recipes/:variantId/:ingredientId',
+  roleGuard('MANAGER'),
+  controller.deleteRecipe
+)

@@ -2,9 +2,9 @@
 
 **Root:** `C:\Programing\hqtcsdl\Coffee_System_FinalProject_DBMS\server`
 
-**Generated:** 2026-09-29 22:45:22.058354
+**Generated:** 2026-09-29 23:25:48.185504
 
-**Files:** 92 | **Total size:** 216,293 bytes
+**Files:** 93 | **Total size:** 243,627 bytes
 
 ---
 
@@ -13,13 +13,11 @@
 | Property | Value |
 |----------|-------|
 | Path | `database\01_schema_tables.sql` |
-| Size | 5,630 bytes |
+| Size | 5,607 bytes |
 | Extension | `.sql` |
-| Modified | 2026-09-29 22:42:20.183004 |
+| Modified | 2026-09-29 23:02:53.860570 |
 
 ```sql
-USE CoffeeShopDB;
-GO
 
 -- 1. CÁC BẢNG DANH MỤC CƠ BẢN
 CREATE TABLE Category (
@@ -233,13 +231,11 @@ GO
 | Property | Value |
 |----------|-------|
 | Path | `database\02_constraints.sql` |
-| Size | 10,063 bytes |
+| Size | 10,040 bytes |
 | Extension | `.sql` |
-| Modified | 2026-09-29 22:42:20.184007 |
+| Modified | 2026-09-29 23:07:35.796109 |
 
 ```sql
-USE CoffeeShopDB;
-GO
 
 -- =========================================================
 -- 1. UNIQUE CONSTRAINTS
@@ -537,13 +533,12 @@ GO
 | Property | Value |
 |----------|-------|
 | Path | `database\06_functions.sql` |
-| Size | 3,644 bytes |
+| Size | 3,623 bytes |
 | Extension | `.sql` |
-| Modified | 2026-09-27 20:58:16.110055 |
+| Modified | 2026-09-29 23:02:21.139590 |
 
 ```sql
-USE CoffeeShopDB;
-GO
+
 --1. Tính thành tiền của 1 ly nước, dùng gán cho Computed Column
 CREATE OR ALTER FUNCTION fnc_CalculateItemTotalPrice (
     @quantity INT,
@@ -684,13 +679,11 @@ GO
 | Property | Value |
 |----------|-------|
 | Path | `database\07_indexes.sql` |
-| Size | 1,271 bytes |
+| Size | 1,248 bytes |
 | Extension | `.sql` |
-| Modified | 2026-09-29 22:42:20.185008 |
+| Modified | 2026-09-29 23:02:07.822240 |
 
 ```sql
-USE CoffeeShopDB;
-GO
 
 -- 1. Lọc đơn hàng cho bảng điều khiển (Dashboard / POS)
 CREATE NONCLUSTERED INDEX IX_Order_createdAt_status 
@@ -735,39 +728,38 @@ GO
 | Property | Value |
 |----------|-------|
 | Path | `database\08_security_roles.sql` |
-| Size | 5,520 bytes |
+| Size | 7,844 bytes |
 | Extension | `.sql` |
-| Modified | 2026-09-29 22:42:20.186004 |
+| Modified | 2026-09-29 23:23:59.403485 |
 
 ```sql
-USE coffee_ecom;
-GO
+
 
 -- ==============================================================
--- 1. TẠO CÁC DATABASE ROLES NẾU CHƯA TỒN TẠI
+-- 1. TẠO CÁC DATABASE ROLES
 -- ==============================================================
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'CASHIER' AND type = 'R')
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'role_ThuNgan' AND type = 'R')
     CREATE ROLE role_ThuNgan;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'BARISTA' AND type = 'R')
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'role_PhaChe' AND type = 'R')
     CREATE ROLE role_PhaChe;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'STOREKEEPER' AND type = 'R')
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'role_Kho' AND type = 'R')
     CREATE ROLE role_Kho;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'MANAGER' AND type = 'R')
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'role_QuanLy' AND type = 'R')
     CREATE ROLE role_QuanLy;
 GO
 
 -- ==============================================================
 -- 2. PHÂN QUYỀN CHO: role_ThuNgan (CASHIER)
--- Phạm vi: Bán hàng tại quầy, tra cứu menu, khách hàng, thẻ rung.
+-- Bán hàng tại quầy, tra cứu menu, khách hàng, thẻ rung.
 -- Chặn tuyệt đối quyền DELETE để phục vụ kiểm toán tài chính.
 -- ==============================================================
--- Quyền trên Bảng dữ liệu
+-- Cấp quyền thao tác bảng
 GRANT SELECT, INSERT, UPDATE ON [Order] TO role_ThuNgan;
 GRANT SELECT, INSERT, UPDATE ON OrderDetail TO role_ThuNgan;
 GRANT SELECT, INSERT, UPDATE ON OrderDetailTopping TO role_ThuNgan;
@@ -780,7 +772,7 @@ GRANT SELECT ON ProductVariant TO role_ThuNgan;
 GRANT SELECT ON Topping TO role_ThuNgan;
 GRANT SELECT ON Employee TO role_ThuNgan;
 
--- Quyền trên Views & Functions phục vụ POS
+-- Cấp quyền trên Views & Functions phục vụ POS
 GRANT SELECT ON v_InvoiceDetails TO role_ThuNgan;
 GRANT SELECT ON v_ActivePagerDashboard TO role_ThuNgan;
 GRANT SELECT ON v_CustomerLoyaltySummary TO role_ThuNgan;
@@ -790,11 +782,18 @@ DENY DELETE ON [Order] TO role_ThuNgan;
 DENY DELETE ON OrderDetail TO role_ThuNgan;
 DENY DELETE ON LoyaltyTransaction TO role_ThuNgan;
 DENY DELETE ON Customer TO role_ThuNgan;
+
+-- Cấp quyền Stored Procedures bán hàng
+GRANT EXECUTE ON sp_TaoDonHangTaiQuay TO role_ThuNgan;
+GRANT EXECUTE ON sp_ChotThanhToan TO role_ThuNgan;
+GRANT EXECUTE ON sp_HuyDonHang TO role_ThuNgan;
+GRANT EXECUTE ON sp_ApDungDoiDiem TO role_ThuNgan;
+GRANT EXECUTE ON sp_XoaMonKhoiDon TO role_ThuNgan;
 GO
 
 -- ==============================================================
 -- 3. PHÂN QUYỀN CHO: role_PhaChe (BARISTA)
--- Phạm vi: Xem màn hình KDS, tra cứu công thức, hoàn thành món.
+-- Xem màn hình KDS, tra cứu công thức, hoàn thành món.
 -- Ngăn chặn can thiệp giá bán, doanh thu và xóa dữ liệu.
 -- ==============================================================
 GRANT SELECT ON [Order] TO role_PhaChe;
@@ -808,6 +807,7 @@ GRANT SELECT, UPDATE (status) ON PagerDevice TO role_PhaChe;
 GRANT SELECT ON v_ProductRecipeDetails TO role_PhaChe;
 GRANT SELECT ON v_ActivePagerDashboard TO role_PhaChe;
 
+-- Chặn quyền tài chính & xóa dữ liệu
 DENY INSERT, DELETE ON [Order] TO role_PhaChe;
 DENY INSERT, DELETE ON OrderDetail TO role_PhaChe;
 DENY UPDATE ([subTotal], [discountAmount], [totalAmount]) ON [Order] TO role_PhaChe;
@@ -815,7 +815,7 @@ GO
 
 -- ==============================================================
 -- 4. PHÂN QUYỀN CHO: role_Kho (STOREKEEPER)
--- Phạm vi: Nhập kho nguyên liệu, kiểm kê cân kho, cảnh báo tồn.
+-- Nhập kho nguyên liệu, kiểm kê cân kho, cảnh báo tồn.
 -- Tách biệt hoàn toàn với hóa đơn bán hàng và doanh thu.
 -- ==============================================================
 GRANT SELECT, INSERT, UPDATE ON Ingredient TO role_Kho;
@@ -825,9 +825,11 @@ GRANT SELECT, INSERT ON InventoryAdjustment TO role_Kho;
 
 GRANT SELECT ON v_LowStockIngredients TO role_Kho;
 
--- Quyền thực thi Stored Procedure kho
+-- Quyền thủ tục kho
 GRANT EXECUTE ON sp_DieuChinhTonKho TO role_Kho;
+GRANT EXECUTE ON sp_LapPhieuNhapKho TO role_Kho;
 
+-- Chặn can thiệp đơn bán hàng
 DENY DELETE ON Ingredient TO role_Kho;
 DENY DELETE ON InventoryImport TO role_Kho;
 DENY DELETE ON InventoryAdjustment TO role_Kho;
@@ -836,7 +838,7 @@ GO
 
 -- ==============================================================
 -- 5. PHÂN QUYỀN CHO: role_QuanLy (MANAGER)
--- Phạm vi: Toàn quyền cấu hình thực đơn, BOM, xem báo cáo doanh thu.
+-- Toàn quyền cấu hình thực đơn, BOM, xem báo cáo doanh thu.
 -- ==============================================================
 GRANT SELECT, INSERT, UPDATE, DELETE ON Category TO role_QuanLy;
 GRANT SELECT, INSERT, UPDATE, DELETE ON Product TO role_QuanLy;
@@ -849,7 +851,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON Employee TO role_QuanLy;
 GRANT SELECT, INSERT, UPDATE, DELETE ON Ingredient TO role_QuanLy;
 GRANT SELECT, INSERT, UPDATE, DELETE ON [Order] TO role_QuanLy;
 
--- Xem tất cả Views báo cáo quản trị
+-- Xem tất cả Views báo cáo
 GRANT SELECT ON v_DailyRevenue TO role_QuanLy;
 GRANT SELECT ON v_TopSellingProducts TO role_QuanLy;
 GRANT SELECT ON v_CustomerLoyaltySummary TO role_QuanLy;
@@ -860,6 +862,53 @@ GRANT SELECT ON v_InvoiceDetails TO role_QuanLy;
 -- Thực thi toàn bộ Stored Procedures
 GRANT EXECUTE ON sp_CauHinhDinhLuongBOM TO role_QuanLy;
 GRANT EXECUTE ON sp_DieuChinhTonKho TO role_QuanLy;
+GRANT EXECUTE ON sp_LapPhieuNhapKho TO role_QuanLy;
+GRANT EXECUTE ON sp_TaoDanhMuc TO role_QuanLy;
+GRANT EXECUTE ON sp_TaoTopping TO role_QuanLy;
+GRANT EXECUTE ON sp_TaoSanPhamVaBienThe TO role_QuanLy;
+GO
+
+-- ==============================================================
+-- 6. TẠO 4 SERVER LOGINS & DATABASE USERS MINH HỌA (ĐÁP ỨNG RUBRIC)
+-- ==============================================================
+-- 1. Quản lý
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'login_manager')
+    CREATE LOGIN login_manager WITH PASSWORD = 'Password@123', CHECK_POLICY = OFF;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_manager')
+    CREATE USER user_manager FOR LOGIN login_manager;
+GO
+ALTER ROLE role_QuanLy ADD MEMBER user_manager;
+GO
+
+-- 2. Thu ngân
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'login_cashier')
+    CREATE LOGIN login_cashier WITH PASSWORD = 'Password@123', CHECK_POLICY = OFF;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_cashier')
+    CREATE USER user_cashier FOR LOGIN login_cashier;
+GO
+ALTER ROLE role_ThuNgan ADD MEMBER user_cashier;
+GO
+
+-- 3. Pha chế
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'login_barista')
+    CREATE LOGIN login_barista WITH PASSWORD = 'Password@123', CHECK_POLICY = OFF;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_barista')
+    CREATE USER user_barista FOR LOGIN login_barista;
+GO
+ALTER ROLE role_PhaChe ADD MEMBER user_barista;
+GO
+
+-- 4. Thủ kho
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'login_storekeeper')
+    CREATE LOGIN login_storekeeper WITH PASSWORD = 'Password@123', CHECK_POLICY = OFF;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_storekeeper')
+    CREATE USER user_storekeeper FOR LOGIN login_storekeeper;
+GO
+ALTER ROLE role_Kho ADD MEMBER user_storekeeper;
 GO
 ```
 
@@ -868,13 +917,11 @@ GO
 | Property | Value |
 |----------|-------|
 | Path | `database\seed_data.sql` |
-| Size | 12,433 bytes |
+| Size | 12,411 bytes |
 | Extension | `.sql` |
-| Modified | 2026-09-29 22:42:20.188005 |
+| Modified | 2026-09-29 23:02:13.230580 |
 
 ```sql
-USE coffee_ecom;
-GO
 
 -- Tắt kiểm tra khóa ngoại tạm thời để dọn dẹp và nạp dữ liệu sạch
 EXEC sp_MSforeachtable "ALTER TABLE ? NOCHECK CONSTRAINT all";
@@ -4118,12 +4165,104 @@ export const envConfig = parseResult.data
 | Property | Value |
 |----------|-------|
 | Path | `src\middlewares\auth.guard.ts` |
-| Size | 0 bytes |
+| Size | 2,721 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:06:24.036300 |
+| Modified | 2026-09-29 23:17:24.990902 |
 
 ```typescript
+import { Request, Response, NextFunction } from 'express'
+import jwt from 'jsonwebtoken'
+import { envConfig } from '@/config/env.config'
+import { getPool, sql } from '@/config/database'
 
+// Mở rộng kiểu dữ liệu của Express Request để chứa thông tin User đăng nhập
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: number
+        username: string
+        fullName: string
+        role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER'
+      }
+    }
+  }
+}
+
+interface JwtPayload {
+  id: number
+  username: string
+  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER'
+}
+
+export const authGuard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({
+        success: false,
+        message: 'Yêu cầu đăng nhập để truy cập tài nguyên này (Thiếu Bearer Token).',
+      })
+      return
+    }
+
+    const token = authHeader.split(' ')[1]
+
+    // 1. Xác thực tính hợp lệ của Token
+    let decoded: JwtPayload
+    try {
+      decoded = jwt.verify(token, envConfig.JWT_SECRET) as JwtPayload
+    } catch (err: any) {
+      res.status(401).json({
+        success: false,
+        message: err.name === 'TokenExpiredError' ? 'Phiên đăng nhập đã hết hạn.' : 'Token xác thực không hợp lệ.',
+      })
+      return
+    }
+
+    // 2. Kiểm tra tài khoản nhân viên trực tiếp dưới SQL Server (Chống dùng token khi đã bị deactive)
+    const pool = await getPool()
+    const dbReq = pool.request()
+    dbReq.input('id', sql.Int, decoded.id)
+
+    const result = await dbReq.query(`
+      SELECT id, username, fullName, role, status 
+      FROM Employee 
+      WHERE id = @id AND deletedAt IS NULL
+    `)
+
+    if (result.recordset.length === 0) {
+      res.status(401).json({
+        success: false,
+        message: 'Tài khoản nhân viên không tồn tại hoặc đã bị xóa.',
+      })
+      return
+    }
+
+    const employee = result.recordset[0]
+
+    if (employee.status !== 'ACTIVE') {
+      res.status(403).json({
+        success: false,
+        message: 'Tài khoản nhân viên đã bị khóa hoặc ngừng hoạt động.',
+      })
+      return
+    }
+
+    // Gắn thông tin tài khoản đã xác thực vào request
+    req.user = {
+      id: employee.id,
+      username: employee.username,
+      fullName: employee.fullName,
+      role: employee.role,
+    }
+
+    next()
+  } catch (error) {
+    next(error)
+  }
+}
 ```
 
 # src\middlewares\error.filter.ts
@@ -4144,17 +4283,72 @@ export const errorFilter = (err: any, req: Request, res: Response, next: NextFun
 
 ```
 
+# src\middlewares\index.ts
+
+| Property | Value |
+|----------|-------|
+| Path | `src\middlewares\index.ts` |
+| Size | 123 bytes |
+| Extension | `.ts` |
+| Modified | 2026-09-29 23:18:30.318218 |
+
+```typescript
+export * from './auth.guard'
+export * from './role.guard'
+export * from './validate.pipe'
+export * from './error.filter'
+```
+
 # src\middlewares\role.guard.ts
 
 | Property | Value |
 |----------|-------|
 | Path | `src\middlewares\role.guard.ts` |
-| Size | 0 bytes |
+| Size | 1,209 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:06:24.039301 |
+| Modified | 2026-09-29 23:17:59.888469 |
 
 ```typescript
+import { Request, Response, NextFunction } from 'express'
 
+type EmployeeRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER'
+
+/**
+ * Middleware kiểm tra quyền (RBAC)
+ * @param allowedRoles Danh sách các role được phép gọi API
+ * Ví dụ: roleGuard('MANAGER', 'CASHIER')
+ */
+export const roleGuard = (...allowedRoles: EmployeeRole[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    // Luôn kiểm tra authGuard trước đó
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: 'Chưa xác thực người dùng.',
+      })
+      return
+    }
+
+    const userRole = req.user.role
+
+    // Role ADMIN luôn có quyền tối cao truy cập tất cả tài nguyên
+    if (userRole === 'ADMIN') {
+      next()
+      return
+    }
+
+    // Kiểm tra role hiện tại có nằm trong danh sách cho phép không
+    if (!allowedRoles.includes(userRole)) {
+      res.status(403).json({
+        success: false,
+        message: `Truy cập bị từ chối: Vai trò [${userRole}] không có quyền thực hiện nghiệp vụ này.`,
+      })
+      return
+    }
+
+    next()
+  }
+}
 ```
 
 # src\middlewares\validate.pipe.ts
@@ -4162,12 +4356,47 @@ export const errorFilter = (err: any, req: Request, res: Response, next: NextFun
 | Property | Value |
 |----------|-------|
 | Path | `src\middlewares\validate.pipe.ts` |
-| Size | 0 bytes |
+| Size | 1,171 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:06:24.061800 |
+| Modified | 2026-09-29 23:18:07.163617 |
 
 ```typescript
+import { Request, Response, NextFunction } from 'express'
+import { ZodError, ZodSchema } from 'zod'
 
+type RequestPart = 'body' | 'query' | 'params'
+
+/**
+ * Middleware validate request schema
+ * @param schema Zod Schema cần kiểm tra
+ * @param part Bộ phận request cần validate (mặc định là 'body')
+ */
+export const validatePipe = (schema: ZodSchema, part: RequestPart = 'body') => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      // Validate và gán lại dữ liệu đã qua tiền xử lý / ép kiểu của Zod
+      req[part] = await schema.parseAsync(req[part])
+      next()
+    } catch (error) {
+      if (error instanceof ZodError) {
+        // Gom các lỗi validate thành object chi tiết
+        const formattedErrors = error.errors.map((err) => ({
+          field: err.path.join('.'),
+          message: err.message,
+        }))
+
+        res.status(400).json({
+          success: false,
+          message: 'Dữ liệu yêu cầu không hợp lệ.',
+          errors: formattedErrors,
+        })
+        return
+      }
+
+      next(error)
+    }
+  }
+}
 ```
 
 # src\modules\customer-loyalty\customer\customer.controller.ts
@@ -4921,12 +5150,49 @@ export class AdjustmentController {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\inventory-bom\adjustment\adjustment.repo.ts` |
-| Size | 0 bytes |
+| Size | 1,453 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-27 21:38:21.999076 |
+| Modified | 2026-09-29 22:51:25.479671 |
 
 ```typescript
+import { getPool, sql } from '@/config/database'
+import { CreateAdjustmentType, FilterAdjustmentQueryType } from './adjustment.schema'
 
+export class AdjustmentRepo {
+  async getAdjustments(filter: FilterAdjustmentQueryType) {
+    const pool = await getPool()
+    const req = pool.request()
+    let query = `
+      SELECT 
+        ia.id, ia.ingredientId, i.name AS ingredientName, i.unit,
+        ia.employeeId, e.fullName AS employeeName,
+        ia.oldQuantity, ia.newQuantity, ia.difference, ia.reason, ia.adjustmentDate
+      FROM InventoryAdjustment ia
+      JOIN Ingredient i ON ia.ingredientId = i.id
+      JOIN Employee e ON ia.employeeId = e.id
+      WHERE 1=1
+    `
+    if (filter.ingredientId) {
+      req.input('ingredientId', sql.Int, filter.ingredientId)
+      query += ' AND ia.ingredientId = @ingredientId'
+    }
+    query += ' ORDER BY ia.adjustmentDate DESC'
+    const result = await req.query(query)
+    return result.recordset
+  }
+
+  async createAdjustmentWithTransaction(data: CreateAdjustmentType) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('ingredientId', sql.Int, data.ingredientId)
+    req.input('employeeId', sql.Int, data.employeeId)
+    req.input('newQuantity', sql.Decimal(18, 3), data.newQuantity)
+    req.input('reason', sql.NVarChar(500), data.reason)
+
+    const result = await req.execute('sp_DieuChinhTonKho')
+    return result.recordset[0]
+  }
+}
 ```
 
 # src\modules\inventory-bom\adjustment\adjustment.routes.ts
@@ -5086,12 +5352,88 @@ export class BOMController {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\inventory-bom\bom\bom.repo.ts` |
-| Size | 0 bytes |
+| Size | 2,983 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-27 21:38:28.661129 |
+| Modified | 2026-09-29 22:50:29.603734 |
 
 ```typescript
+import { getPool, sql } from '@/config/database'
+import { RecipeBOMType, ToppingBOMType } from './bom.schema'
 
+export class BOMRepo {
+  async getAllRecipeDetails(variantId?: number) {
+    const pool = await getPool()
+    const req = pool.request()
+    let query = 'SELECT * FROM v_ProductRecipeDetails'
+    if (variantId) {
+      req.input('variantId', sql.Int, variantId)
+      query = `
+        SELECT 
+          p.name AS productName, pv.size AS productSize,
+          i.name AS ingredientName, rb.consumedQuantity, i.unit AS ingredientUnit
+        FROM RecipeBOM rb
+        JOIN ProductVariant pv ON rb.variantId = pv.id
+        JOIN Product p ON pv.productId = p.id
+        JOIN Ingredient i ON rb.ingredientId = i.id
+        WHERE rb.variantId = @variantId
+      `
+    }
+    const result = await req.query(query)
+    return result.recordset
+  }
+
+  async getToppingBOM(toppingId: number) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('toppingId', sql.Int, toppingId)
+    const query = `
+      SELECT t.name AS toppingName, i.name AS ingredientName, tb.consumedQuantity, i.unit
+      FROM ToppingBOM tb
+      JOIN Topping t ON tb.toppingId = t.id
+      JOIN Ingredient i ON tb.ingredientId = i.id
+      WHERE tb.toppingId = @toppingId
+    `
+    const result = await req.query(query)
+    return result.recordset
+  }
+
+  async upsertRecipeBOM(data: RecipeBOMType) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('variantId', sql.Int, data.variantId)
+    req.input('ingredientId', sql.Int, data.ingredientId)
+    req.input('consumedQuantity', sql.Decimal(18, 4), data.consumedQuantity)
+    return await req.execute('sp_CauHinhDinhLuongBOM')
+  }
+
+  async upsertToppingBOM(data: ToppingBOMType) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('toppingId', sql.Int, data.toppingId)
+    req.input('ingredientId', sql.Int, data.ingredientId)
+    req.input('consumedQuantity', sql.Decimal(18, 4), data.consumedQuantity)
+
+    const query = `
+      MERGE INTO ToppingBOM AS target
+      USING (SELECT @toppingId AS toppingId, @ingredientId AS ingredientId) AS src
+      ON (target.toppingId = src.toppingId AND target.ingredientId = src.ingredientId)
+      WHEN MATCHED THEN
+        UPDATE SET target.consumedQuantity = @consumedQuantity
+      WHEN NOT MATCHED THEN
+        INSERT (toppingId, ingredientId, consumedQuantity) VALUES (@toppingId, @ingredientId, @consumedQuantity);
+    `
+    return await req.query(query)
+  }
+
+  async deleteRecipeBOM(variantId: number, ingredientId: number) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('variantId', sql.Int, variantId)
+    req.input('ingredientId', sql.Int, ingredientId)
+    const result = await req.query('DELETE FROM RecipeBOM WHERE variantId = @variantId AND ingredientId = @ingredientId')
+    return result.rowsAffected[0]
+  }
+}
 ```
 
 # src\modules\inventory-bom\bom\bom.routes.ts
@@ -5274,12 +5616,97 @@ export class ImportController {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\inventory-bom\import\import.repo.ts` |
-| Size | 0 bytes |
+| Size | 3,308 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:32.947577 |
+| Modified | 2026-09-29 22:51:41.030498 |
 
 ```typescript
+import { getPool, sql } from '@/config/database'
+import { QueryImportTicketType } from './import.schema'
 
+export class ImportRepo {
+  async findAll(query: QueryImportTicketType) {
+    const pool = await getPool()
+    const req = pool.request()
+    let sqlStr = `
+      SELECT ii.*, e.fullName AS employeeName 
+      FROM InventoryImport ii
+      JOIN Employee e ON ii.employeeId = e.id
+      WHERE 1=1
+    `
+    if (query.supplierName) {
+      req.input('supplierName', sql.NVarChar(255), `%${query.supplierName}%`)
+      sqlStr += ' AND ii.supplierName LIKE @supplierName'
+    }
+    sqlStr += ' ORDER BY ii.importDate DESC'
+    const result = await req.query(sqlStr)
+    return result.recordset
+  }
+
+  async findById(id: number) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+    const result = await req.query('SELECT * FROM InventoryImport WHERE id = @id')
+    return result.recordset[0] || null
+  }
+
+  async findDetailsByImportId(importId: number) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('importId', sql.Int, importId)
+    const query = `
+      SELECT iid.*, i.name AS ingredientName, i.unit
+      FROM InventoryImportDetail iid
+      JOIN Ingredient i ON iid.ingredientId = i.id
+      WHERE iid.importId = @importId
+    `
+    const result = await req.query(query)
+    return result.recordset
+  }
+
+  async createImportTicketWithProcedure(data: any) {
+    const pool = await getPool()
+    const transaction = new sql.Transaction(pool)
+    await transaction.begin()
+    try {
+      const headerReq = new sql.Request(transaction)
+      headerReq.input('employeeId', sql.Int, data.employeeId)
+      headerReq.input('supplierName', sql.NVarChar(255), data.supplierName)
+      headerReq.input('totalAmount', sql.Decimal(18, 2), data.totalAmount)
+      headerReq.input('note', sql.NVarChar(sql.MAX), data.note || null)
+
+      const headerRes = await headerReq.query(`
+        INSERT INTO InventoryImport (employeeId, supplierName, totalAmount, importDate, note)
+        OUTPUT INSERTED.id
+        VALUES (@employeeId, @supplierName, @totalAmount, SYSDATETIME(), @note)
+      `)
+      const importId = headerRes.recordset[0].id
+
+      for (const item of data.details) {
+        const detailReq = new sql.Request(transaction)
+        const lineTotal = item.quantity * item.unitPrice
+        detailReq.input('importId', sql.Int, importId)
+        detailReq.input('ingredientId', sql.Int, item.ingredientId)
+        detailReq.input('quantity', sql.Decimal(18, 3), item.quantity)
+        detailReq.input('unitPrice', sql.Decimal(18, 2), item.unitPrice)
+        detailReq.input('totalLineAmount', sql.Decimal(18, 2), lineTotal)
+
+        // Trigger trg_Ingredient_CongKho_KhiNhapHang sẽ tự động cộng dồn kho sau câu lệnh INSERT này
+        await detailReq.query(`
+          INSERT INTO InventoryImportDetail (importId, ingredientId, quantity, unitPrice, totalLineAmount)
+          VALUES (@importId, @ingredientId, @quantity, @unitPrice, @totalLineAmount)
+        `)
+      }
+
+      await transaction.commit()
+      return { importId, ...data }
+    } catch (err) {
+      await transaction.rollback()
+      throw err
+    }
+  }
+}
 ```
 
 # src\modules\inventory-bom\import\import.routes.ts
@@ -5495,12 +5922,103 @@ export class IngredientController {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\inventory-bom\ingredient\ingredient.repo.ts` |
-| Size | 0 bytes |
+| Size | 3,440 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-27 21:33:12.924497 |
+| Modified | 2026-09-29 22:51:16.082873 |
 
 ```typescript
+import { getPool, sql } from '@/config/database'
+import { CreateIngredientType, UpdateIngredientType } from './ingredient.schema'
 
+export class IngredientRepo {
+  async findAll(name?: string) {
+    const pool = await getPool()
+    const req = pool.request()
+    let query = 'SELECT id, name, unit, stockQuantity, minimumThreshold, createdAt, updatedAt FROM Ingredient WHERE deletedAt IS NULL'
+    if (name) {
+      req.input('name', sql.NVarChar(150), `%${name}%`)
+      query += ' AND name LIKE @name'
+    }
+    query += ' ORDER BY name ASC'
+    const result = await req.query(query)
+    return result.recordset
+  }
+
+  async findById(id: number) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+    const result = await req.query('SELECT * FROM Ingredient WHERE id = @id AND deletedAt IS NULL')
+    return result.recordset[0] || null
+  }
+
+  async findByName(name: string) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(150), name)
+    const result = await req.query('SELECT id FROM Ingredient WHERE name = @name AND deletedAt IS NULL')
+    return result.recordset[0] || null
+  }
+
+  async getLowStockIngredients() {
+    const pool = await getPool()
+    const result = await pool.request().query('SELECT * FROM v_LowStockIngredients')
+    return result.recordset
+  }
+
+  async create(data: CreateIngredientType) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(150), data.name)
+    req.input('unit', sql.NVarChar(50), data.unit)
+    req.input('stockQuantity', sql.Decimal(18, 3), data.stockQuantity)
+    req.input('minimumThreshold', sql.Decimal(18, 3), data.minimumThreshold)
+
+    const query = `
+      INSERT INTO Ingredient (name, unit, stockQuantity, minimumThreshold, createdAt)
+      OUTPUT INSERTED.*
+      VALUES (@name, @unit, @stockQuantity, @minimumThreshold, SYSDATETIME())
+    `
+    const result = await req.query(query)
+    return result.recordset[0]
+  }
+
+  async update(id: number, data: UpdateIngredientType) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+
+    const sets: string[] = ['updatedAt = SYSDATETIME()']
+    if (data.name !== undefined) {
+      req.input('name', sql.NVarChar(150), data.name)
+      sets.push('name = @name')
+    }
+    if (data.unit !== undefined) {
+      req.input('unit', sql.NVarChar(50), data.unit)
+      sets.push('unit = @unit')
+    }
+    if (data.stockQuantity !== undefined) {
+      req.input('stockQuantity', sql.Decimal(18, 3), data.stockQuantity)
+      sets.push('stockQuantity = @stockQuantity')
+    }
+    if (data.minimumThreshold !== undefined) {
+      req.input('minimumThreshold', sql.Decimal(18, 3), data.minimumThreshold)
+      sets.push('minimumThreshold = @minimumThreshold')
+    }
+
+    const query = `UPDATE Ingredient SET ${sets.join(', ')} OUTPUT INSERTED.* WHERE id = @id AND deletedAt IS NULL`
+    const result = await req.query(query)
+    return result.recordset[0] || null
+  }
+
+  async softDelete(id: number) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+    const result = await req.query('UPDATE Ingredient SET deletedAt = SYSDATETIME() WHERE id = @id AND deletedAt IS NULL')
+    return result.rowsAffected[0] > 0
+  }
+}
 ```
 
 # src\modules\inventory-bom\ingredient\ingredient.routes.ts
@@ -5664,12 +6182,54 @@ inventoryRouter.use('/adjustments', adjustmentRouter)
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\kds\kds.controller.ts` |
-| Size | 0 bytes |
+| Size | 1,394 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:33.004577 |
+| Modified | 2026-09-29 23:07:23.066945 |
 
 ```typescript
+import { Request, Response, NextFunction } from 'express'
+import { KDSService } from './kds.service'
+import {
+  KdsParamSchema,
+  NotifyOrderReadySchema,
+  QueryKdsQueueSchema,
+  UpdateItemStatusSchema,
+} from './kds.schema'
 
+export class KDSController {
+  private kdsService = new KDSService()
+
+  getQueue = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const query = QueryKdsQueueSchema.parse(req.query)
+      const data = await this.kdsService.getQueue(query)
+      res.status(200).json({ success: true, count: data.length, data })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  updateItemStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { orderDetailId } = KdsParamSchema.parse(req.params)
+      const body = UpdateItemStatusSchema.parse(req.body)
+      const result = await this.kdsService.updateItemStatus(orderDetailId, body)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  notifyReady = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { orderId } = NotifyOrderReadySchema.parse(req.params)
+      const result = await this.kdsService.notifyOrderReady(orderId)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+}
 ```
 
 # src\modules\kds\kds.repo.ts
@@ -5677,12 +6237,155 @@ inventoryRouter.use('/adjustments', adjustmentRouter)
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\kds\kds.repo.ts` |
-| Size | 0 bytes |
+| Size | 4,664 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:33.011577 |
+| Modified | 2026-09-29 23:07:00.676929 |
 
 ```typescript
+import { getPool, sql } from '@/config/database'
+import { QueryKdsQueueType, UpdateItemStatusType } from './kds.schema'
 
+export class KDSRepo {
+  // 1. Lấy danh sách hàng đợi các món cần pha chế trên KDS (UC17)
+  async getKdsQueue(query: QueryKdsQueueType) {
+    const pool = await getPool()
+    const req = pool.request()
+
+    const conditions: string[] = [
+      "o.status IN ('PENDING_PREP', 'READY_FOR_PICKUP')",
+      "od.itemStatus NOT IN ('DONE', 'CANCELLED')",
+      "o.deletedAt IS NULL"
+    ]
+
+    if (query.status !== 'ALL') {
+      req.input('itemStatus', sql.NVarChar(50), query.status)
+      conditions.push('od.itemStatus = @itemStatus')
+    }
+
+    const sqlStr = `
+      SELECT 
+        o.id AS orderId,
+        o.orderCode,
+        o.orderChannel,
+        p.pagerCode,
+        p.batteryLevel,
+        od.id AS orderDetailId,
+        od.itemSnapshotName,
+        od.sizeSnapshot,
+        od.quantity,
+        od.note,
+        od.itemStatus,
+        od.createdAt AS itemCreatedAt,
+        DATEDIFF(MINUTE, od.createdAt, SYSDATETIME()) AS waitingMinutes
+      FROM OrderDetail od
+      JOIN [Order] o ON od.orderId = o.id
+      LEFT JOIN PagerDevice p ON o.pagerId = p.id
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY od.createdAt ASC
+    `
+    const itemsResult = await req.query(sqlStr)
+
+    // Nếu không có món nào
+    if (itemsResult.recordset.length === 0) {
+      return []
+    }
+
+    // Lấy kèm topping cho từng ly
+    const detailIds = itemsResult.recordset.map((item) => item.orderDetailId)
+    const toppingResult = await pool.request().query(`
+      SELECT 
+        orderDetailId, 
+        toppingSnapshotName, 
+        quantity 
+      FROM OrderDetailTopping
+      WHERE orderDetailId IN (${detailIds.join(',')})
+    `)
+
+    const toppingsByDetailId = toppingResult.recordset.reduce((acc: any, top: any) => {
+      if (!acc[top.orderDetailId]) acc[top.orderDetailId] = []
+      acc[top.orderDetailId].push({
+        name: top.toppingSnapshotName,
+        quantity: top.quantity,
+      })
+      return acc
+    }, {})
+
+    // Ghép topping vào từng dòng ly nước
+    return itemsResult.recordset.map((item) => ({
+      ...item,
+      toppings: toppingsByDetailId[item.orderDetailId] || [],
+    }))
+  }
+
+  // 2. Barista cập nhật trạng thái món -> Nếu chuyển sang 'DONE', 
+  // Trigger trg_Ingredient_TruKho_KhiHoanThanhMon dưới CSDL sẽ tự động trừ kho BOM!
+  async updateItemStatus(orderDetailId: number, data: UpdateItemStatusType) {
+    const pool = await getPool()
+    const req = pool.request()
+
+    req.input('orderDetailId', sql.Int, orderDetailId)
+    req.input('itemStatus', sql.NVarChar(50), data.itemStatus)
+
+    const result = await req.query(`
+      UPDATE OrderDetail
+      SET itemStatus = @itemStatus,
+          updatedAt = SYSDATETIME()
+      OUTPUT 
+        INSERTED.id,
+        INSERTED.orderId,
+        INSERTED.itemSnapshotName,
+        INSERTED.sizeSnapshot,
+        INSERTED.itemStatus,
+        INSERTED.updatedAt
+      WHERE id = @orderDetailId
+    `)
+
+    return result.recordset[0] || null
+  }
+
+  // 3. Rung chuông thẻ rung & Chuyển trạng thái Order sang READY_FOR_PICKUP (UC18, UC19)
+  async triggerReadyAlarm(orderId: number) {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('orderId', sql.Int, orderId)
+
+    // Kiểm tra xem tất cả các ly trong đơn đã xong (DONE) chưa
+    const checkResult = await req.query(`
+      SELECT 
+        COUNT(CASE WHEN itemStatus <> 'DONE' AND itemStatus <> 'CANCELLED' THEN 1 END) AS pendingCount,
+        MAX(pagerId) AS pagerId
+      FROM OrderDetail od
+      JOIN [Order] o ON od.orderId = o.id
+      WHERE o.id = @orderId
+      GROUP BY o.id
+    `)
+
+    if (checkResult.recordset.length === 0) {
+      throw new Error(`Đơn hàng #${orderId} không tồn tại`)
+    }
+
+    const { pendingCount, pagerId } = checkResult.recordset[0]
+    if (pendingCount > 0) {
+      throw new Error(`Đơn hàng vẫn còn ${pendingCount} món chưa pha chế xong, chưa thể rung chuông báo khách!`)
+    }
+
+    // Cập nhật Order sang READY_FOR_PICKUP
+    await req.query(`
+      UPDATE [Order]
+      SET status = 'READY_FOR_PICKUP',
+          updatedAt = SYSDATETIME()
+      WHERE id = @orderId
+    `)
+
+    return {
+      orderId,
+      status: 'READY_FOR_PICKUP',
+      pagerId,
+      alarmTriggered: true,
+      message: 'Đã kích hoạt thẻ rung và thông báo đơn sẵn sàng để nhận đồ uống',
+    }
+  }
+}
 ```
 
 # src\modules\kds\kds.routes.ts
@@ -5690,15 +6393,25 @@ inventoryRouter.use('/adjustments', adjustmentRouter)
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\kds\kds.routes.ts` |
-| Size | 135 bytes |
+| Size | 641 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-27 21:08:02.904626 |
+| Modified | 2026-09-29 23:07:30.664148 |
 
 ```typescript
 import { Router } from 'express'
-export const kdsRouter = Router()
-kdsRouter.get('/',(_,res)=>{res.json({message:'kdsRouter ready'})})
+import { KDSController } from './kds.controller'
 
+export const kdsRouter = Router()
+const controller = new KDSController()
+
+// GET /api/v1/kds/queue?status=PENDING (Lấy hàng đợi KDS cho Barista)
+kdsRouter.get('/queue', controller.getQueue)
+
+// PATCH /api/v1/kds/items/:orderDetailId/status (Cập nhật hoàn thành món -> Kích hoạt Trigger trừ kho)
+kdsRouter.patch('/items/:orderDetailId/status', controller.updateItemStatus)
+
+// POST /api/v1/kds/orders/:orderId/notify-ready (Bấm chuông rung báo khách lấy nước)
+kdsRouter.post('/orders/:orderId/notify-ready', controller.notifyReady)
 ```
 
 # src\modules\kds\kds.schema.ts
@@ -5706,12 +6419,35 @@ kdsRouter.get('/',(_,res)=>{res.json({message:'kdsRouter ready'})})
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\kds\kds.schema.ts` |
-| Size | 0 bytes |
+| Size | 860 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:33.013575 |
+| Modified | 2026-09-29 23:06:51.078593 |
 
 ```typescript
+import { z } from 'zod'
 
+// Query lọc màn hình KDS
+export const QueryKdsQueueSchema = z.object({
+  status: z.enum(['ALL', 'PENDING', 'PREPARING']).default('ALL'),
+})
+
+// Cập nhật trạng thái từng ly nước
+export const UpdateItemStatusSchema = z.object({
+  itemStatus: z.enum(['PREPARING', 'DONE', 'CANCELLED'], {
+    errorMap: () => ({ message: 'Trạng thái món phải là PREPARING, DONE hoặc CANCELLED' }),
+  }),
+})
+
+export const KdsParamSchema = z.object({
+  orderDetailId: z.coerce.number().int().positive('orderDetailId không hợp lệ'),
+})
+
+export const NotifyOrderReadySchema = z.object({
+  orderId: z.coerce.number().int().positive('orderId không hợp lệ'),
+})
+
+export type QueryKdsQueueType = z.infer<typeof QueryKdsQueueSchema>
+export type UpdateItemStatusType = z.infer<typeof UpdateItemStatusSchema>
 ```
 
 # src\modules\kds\kds.service.ts
@@ -5719,12 +6455,36 @@ kdsRouter.get('/',(_,res)=>{res.json({message:'kdsRouter ready'})})
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\kds\kds.service.ts` |
-| Size | 0 bytes |
+| Size | 839 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:33.006577 |
+| Modified | 2026-09-29 23:07:15.306226 |
 
 ```typescript
+import { KDSRepo } from './kds.repo'
+import { QueryKdsQueueType, UpdateItemStatusType } from './kds.schema'
 
+export class KDSService {
+  private kdsRepo = new KDSRepo()
+
+  async getQueue(query: QueryKdsQueueType) {
+    return await this.kdsRepo.getKdsQueue(query)
+  }
+
+  async updateItemStatus(orderDetailId: number, data: UpdateItemStatusType) {
+    const item = await this.kdsRepo.updateItemStatus(orderDetailId, data)
+    if (!item) {
+      throw new Error('Không tìm thấy dòng món trong đơn hàng')
+    }
+    return {
+      message: `Cập nhật trạng thái món sang [${data.itemStatus}] thành công. Kho nguyên liệu đã được đồng bộ tự động.`,
+      data: item,
+    }
+  }
+
+  async notifyOrderReady(orderId: number) {
+    return await this.kdsRepo.triggerReadyAlarm(orderId)
+  }
+}
 ```
 
 # src\modules\menu-catalog\category\category.controller.ts
@@ -5886,24 +6646,24 @@ export class CategoryRepository {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\category\category.routes.ts` |
-| Size | 395 bytes |
+| Size | 550 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.274444 |
+| Modified | 2026-09-29 23:12:58.844942 |
 
 ```typescript
 import { Router } from 'express';
 import { CategoryController } from './category.controller';
 
-const router = Router();
+export const categoryRouter = Router(); // Đổi từ const router sang export const categoryRouter
 const controller = new CategoryController();
 
-router.get('/', controller.getAll);
-router.get('/:id', controller.getById);
-router.post('/', controller.create);
-router.put('/:id', controller.update);
-router.delete('/:id', controller.delete);
+categoryRouter.get('/', controller.getAll);
+categoryRouter.get('/:id', controller.getById);
+categoryRouter.post('/', controller.create);
+categoryRouter.put('/:id', controller.update);
+categoryRouter.delete('/:id', controller.delete);
 
-export default router;
+// Xóa bỏ hoặc thay thế dòng "export default router;"
 ```
 
 # src\modules\menu-catalog\category\category.schema.ts
@@ -6209,24 +6969,24 @@ export class ProductRepository {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\product\product.routes.ts` |
-| Size | 419 bytes |
+| Size | 567 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.280444 |
+| Modified | 2026-09-29 23:13:10.533446 |
 
 ```typescript
 import { Router } from 'express';
 import { ProductController } from './product.controller';
 
-const router = Router();
+export const productRouter = Router(); // Đổi từ const router sang export const productRouter
 const controller = new ProductController();
 
-router.get('/', controller.getAll);
-router.get('/:id', controller.getById);
-router.post('/', controller.create);
-router.patch('/:id/availability', controller.toggleAvailability);
-router.delete('/:id', controller.delete);
+productRouter.get('/', controller.getAll);
+productRouter.get('/:id', controller.getById);
+productRouter.post('/', controller.create);
+productRouter.patch('/:id/availability', controller.toggleAvailability);
+productRouter.delete('/:id', controller.delete);
 
-export default router;
+// Xóa bỏ hoặc thay thế dòng "export default router;"
 ```
 
 # src\modules\menu-catalog\product\product.schema.ts
@@ -6437,24 +7197,24 @@ export class ToppingRepository {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\topping\topping.routes.ts` |
-| Size | 392 bytes |
+| Size | 540 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.286443 |
+| Modified | 2026-09-29 23:13:18.987650 |
 
 ```typescript
 import { Router } from 'express';
 import { ToppingController } from './topping.controller';
 
-const router = Router();
+export const toppingRouter = Router(); // Đổi từ const router sang export const toppingRouter
 const controller = new ToppingController();
 
-router.get('/', controller.getAll);
-router.get('/:id', controller.getById);
-router.post('/', controller.create);
-router.put('/:id', controller.update);
-router.delete('/:id', controller.delete);
+toppingRouter.get('/', controller.getAll);
+toppingRouter.get('/:id', controller.getById);
+toppingRouter.post('/', controller.create);
+toppingRouter.put('/:id', controller.update);
+toppingRouter.delete('/:id', controller.delete);
 
-export default router;
+// Xóa bỏ hoặc thay thế dòng "export default router;"
 ```
 
 # src\modules\menu-catalog\topping\topping.schema.ts

@@ -1,11 +1,26 @@
 import { Router } from 'express'
 import { AdjustmentController } from './adjustment.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  CreateAdjustmentSchema,
+  FilterAdjustmentQuerySchema,
+} from './adjustment.schema'
 
 export const adjustmentRouter = Router()
 const controller = new AdjustmentController()
 
-// GET /api/v1/inventory/adjustments
-adjustmentRouter.get('/', controller.list)
+adjustmentRouter.use(authGuard, roleGuard('STOREKEEPER', 'MANAGER'))
 
-// POST /api/v1/inventory/adjustments (Cân kho, điều chỉnh hao hụt)
-adjustmentRouter.post('/', controller.create)
+// GET /api/v1/inventory/adjustments - Xem lịch sử điều chỉnh cân kho
+adjustmentRouter.get(
+  '/',
+  validatePipe(FilterAdjustmentQuerySchema, 'query'),
+  controller.list
+)
+
+// POST /api/v1/inventory/adjustments - Lập phiếu cân kho hao hụt
+adjustmentRouter.post(
+  '/',
+  validatePipe(CreateAdjustmentSchema, 'body'),
+  controller.create
+)

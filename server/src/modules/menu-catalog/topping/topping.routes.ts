@@ -1,13 +1,45 @@
-import { Router } from 'express';
-import { ToppingController } from './topping.controller';
+import { Router } from 'express'
+import { ToppingController } from './topping.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  CreateToppingSchema,
+  ToppingParamSchema,
+  UpdateToppingSchema,
+} from './topping.schema'
 
-export const toppingRouter = Router(); // Đổi từ const router sang export const toppingRouter
-const controller = new ToppingController();
+export const toppingRouter = Router()
+const controller = new ToppingController()
 
-toppingRouter.get('/', controller.getAll);
-toppingRouter.get('/:id', controller.getById);
-toppingRouter.post('/', controller.create);
-toppingRouter.put('/:id', controller.update);
-toppingRouter.delete('/:id', controller.delete);
+// Xem danh sách topping: Public
+toppingRouter.get('/', controller.getAll)
+toppingRouter.get(
+  '/:id',
+  validatePipe(ToppingParamSchema, 'params'),
+  controller.getById
+)
 
-// Xóa bỏ hoặc thay thế dòng "export default router;"
+// Cấu hình topping: Chỉ MANAGER
+toppingRouter.post(
+  '/',
+  authGuard,
+  roleGuard('MANAGER'),
+  validatePipe(CreateToppingSchema, 'body'),
+  controller.create
+)
+
+toppingRouter.put(
+  '/:id',
+  authGuard,
+  roleGuard('MANAGER'),
+  validatePipe(ToppingParamSchema, 'params'),
+  validatePipe(UpdateToppingSchema, 'body'),
+  controller.update
+)
+
+toppingRouter.delete(
+  '/:id',
+  authGuard,
+  roleGuard('MANAGER'),
+  validatePipe(ToppingParamSchema, 'params'),
+  controller.delete
+)

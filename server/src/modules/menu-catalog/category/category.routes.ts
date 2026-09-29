@@ -1,13 +1,45 @@
-import { Router } from 'express';
-import { CategoryController } from './category.controller';
+import { Router } from 'express'
+import { CategoryController } from './category.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  CategoryParamSchema,
+  CreateCategorySchema,
+  UpdateCategorySchema,
+} from './category.schema'
 
-export const categoryRouter = Router(); // Đổi từ const router sang export const categoryRouter
-const controller = new CategoryController();
+export const categoryRouter = Router()
+const controller = new CategoryController()
 
-categoryRouter.get('/', controller.getAll);
-categoryRouter.get('/:id', controller.getById);
-categoryRouter.post('/', controller.create);
-categoryRouter.put('/:id', controller.update);
-categoryRouter.delete('/:id', controller.delete);
+// Xem danh mục: Public cho Customer tra cứu menu và Cashier bán hàng
+categoryRouter.get('/', controller.getAll)
+categoryRouter.get(
+  '/:id',
+  validatePipe(CategoryParamSchema, 'params'),
+  controller.getById
+)
 
-// Xóa bỏ hoặc thay thế dòng "export default router;"
+// Quản lý danh mục: Yêu cầu quyền MANAGER
+categoryRouter.post(
+  '/',
+  authGuard,
+  roleGuard('MANAGER'),
+  validatePipe(CreateCategorySchema, 'body'),
+  controller.create
+)
+
+categoryRouter.put(
+  '/:id',
+  authGuard,
+  roleGuard('MANAGER'),
+  validatePipe(CategoryParamSchema, 'params'),
+  validatePipe(UpdateCategorySchema, 'body'),
+  controller.update
+)
+
+categoryRouter.delete(
+  '/:id',
+  authGuard,
+  roleGuard('MANAGER'),
+  validatePipe(CategoryParamSchema, 'params'),
+  controller.delete
+)

@@ -1,14 +1,30 @@
 import { Router } from 'express'
 import { ReportController } from './report.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import { DateRangeReportSchema, TopProductsQuerySchema } from './report.schema'
 
 export const reportRouter = Router()
 const controller = new ReportController()
 
-// GET /api/v1/report/revenue (Thống kê doanh thu theo mốc ngày)
-reportRouter.get('/revenue', controller.getRevenue)
+// Chặn toàn bộ: Chỉ MANAGER và ADMIN
+reportRouter.use(authGuard, roleGuard('MANAGER'))
 
-// GET /api/v1/report/top-products (Món bán chạy nhất)
-reportRouter.get('/top-products', controller.getTopProducts)
+// GET /api/v1/reports/revenue - Thống kê doanh thu theo khoảng ngày
+reportRouter.get(
+  '/revenue',
+  validatePipe(DateRangeReportSchema, 'query'),
+  controller.getRevenue
+)
 
-// GET /api/v1/report/low-stock (Cảnh báo hết nguyên liệu kho)
-reportRouter.get('/low-stock', controller.getLowStock)
+// GET /api/v1/reports/top-products - Báo cáo top món bán chạy nhất
+reportRouter.get(
+  '/top-products',
+  validatePipe(TopProductsQuerySchema, 'query'),
+  controller.getTopProducts
+)
+
+// GET /api/v1/reports/low-stock - Cảnh báo nguyên liệu sắp hết trong kho
+reportRouter.get(
+  '/low-stock',
+  controller.getLowStock
+)

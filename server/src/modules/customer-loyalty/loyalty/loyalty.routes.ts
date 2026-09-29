@@ -1,11 +1,28 @@
 import { Router } from 'express'
 import { LoyaltyController } from './loyalty.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  AdjustPointsSchema,
+  FilterLoyaltyHistoryQuerySchema,
+} from './loyalty.schema'
 
 export const loyaltyRouter = Router()
 const controller = new LoyaltyController()
 
-// GET /api/v1/customer-loyalty/loyalty/history
-loyaltyRouter.get('/history', controller.getHistory)
+loyaltyRouter.use(authGuard)
 
-// POST /api/v1/customer-loyalty/loyalty/adjust (Tích / Tiêu điểm thưởng)
-loyaltyRouter.post('/adjust', controller.adjustPoints)
+// Tra cứu lịch sử biến động điểm
+loyaltyRouter.get(
+  '/history',
+  roleGuard('CUSTOMER', 'CASHIER', 'MANAGER'),
+  validatePipe(FilterLoyaltyHistoryQuerySchema, 'query'),
+  controller.getHistory
+)
+
+// Điều chỉnh tăng/giảm điểm thủ công: Chỉ MANAGER
+loyaltyRouter.post(
+  '/adjust',
+  roleGuard('MANAGER'),
+  validatePipe(AdjustPointsSchema, 'body'),
+  controller.adjustPoints
+)

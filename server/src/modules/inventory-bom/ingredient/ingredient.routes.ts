@@ -1,20 +1,53 @@
 import { Router } from 'express'
 import { IngredientController } from './ingredient.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  CreateIngredientSchema,
+  IngredientParamsSchema,
+  QueryIngredientSchema,
+  UpdateIngredientSchema,
+} from './ingredient.schema'
 
 export const ingredientRouter = Router()
 const controller = new IngredientController()
 
-// GET /api/v1/inventory/ingredients?isLowStock=true
-ingredientRouter.get('/', controller.getIngredients)
+ingredientRouter.use(authGuard)
 
-// GET /api/v1/inventory/ingredients/:ingredientId
-ingredientRouter.get('/:ingredientId', controller.getIngredientById)
+// Xem nguyên liệu
+ingredientRouter.get(
+  '/',
+  roleGuard('STOREKEEPER', 'MANAGER', 'BARISTA'),
+  validatePipe(QueryIngredientSchema, 'query'),
+  controller.getIngredients
+)
 
-// POST /api/v1/inventory/ingredients
-ingredientRouter.post('/', controller.createIngredient)
+ingredientRouter.get(
+  '/:ingredientId',
+  roleGuard('STOREKEEPER', 'MANAGER', 'BARISTA'),
+  validatePipe(IngredientParamsSchema, 'params'),
+  controller.getIngredientById
+)
 
-// PUT /api/v1/inventory/ingredients/:ingredientId
-ingredientRouter.put('/:ingredientId', controller.updateIngredient)
+// Tạo mới & cập nhật nguyên liệu
+ingredientRouter.post(
+  '/',
+  roleGuard('STOREKEEPER', 'MANAGER'),
+  validatePipe(CreateIngredientSchema, 'body'),
+  controller.createIngredient
+)
 
-// DELETE /api/v1/inventory/ingredients/:ingredientId
-ingredientRouter.delete('/:ingredientId', controller.deleteIngredient)
+ingredientRouter.put(
+  '/:ingredientId',
+  roleGuard('STOREKEEPER', 'MANAGER'),
+  validatePipe(IngredientParamsSchema, 'params'),
+  validatePipe(UpdateIngredientSchema, 'body'),
+  controller.updateIngredient
+)
+
+// Xóa mềm nguyên liệu
+ingredientRouter.delete(
+  '/:ingredientId',
+  roleGuard('MANAGER'),
+  validatePipe(IngredientParamsSchema, 'params'),
+  controller.deleteIngredient
+)
