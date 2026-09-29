@@ -4,19 +4,19 @@ GO
 -- ==============================================================
 -- 1. TẠO CÁC DATABASE ROLES NẾU CHƯA TỒN TẠI
 -- ==============================================================
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'role_ThuNgan' AND type = 'R')
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'CASHIER' AND type = 'R')
     CREATE ROLE role_ThuNgan;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'role_PhaChe' AND type = 'R')
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'BARISTA' AND type = 'R')
     CREATE ROLE role_PhaChe;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'role_Kho' AND type = 'R')
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'STOREKEEPER' AND type = 'R')
     CREATE ROLE role_Kho;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'role_QuanLy' AND type = 'R')
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'MANAGER' AND type = 'R')
     CREATE ROLE role_QuanLy;
 GO
 
