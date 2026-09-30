@@ -103,7 +103,7 @@ export class CustomerRepo {
         request.input('password', sql.VarChar(255), data.password || null)
 
         const query = `
-      INSERT INTO Customer (fullName, phoneNumber, password)
+      INSERT INTO Customer (fullName, phoneNumber, password, rewardPoints, membershipTier, createdAt)
       OUTPUT 
         INSERTED.id, 
         INSERTED.fullName, 
@@ -111,10 +111,19 @@ export class CustomerRepo {
         INSERTED.rewardPoints, 
         INSERTED.membershipTier, 
         INSERTED.createdAt
-      VALUES (@fullName, @phoneNumber, @password)
+      VALUES (@fullName, @phoneNumber, @password, 0, 'STANDARD', SYSDATETIME())
     `
-        const result = await request.query(query)
-        return result.recordset[0]
+        try {
+            const result = await request.query(query)
+            return result.recordset[0]
+        } catch (error: any) {
+            if (error.number === 2627 || error.number === 2601) {
+                const err = new Error('Số điện thoại khách hàng đã tồn tại trên hệ thống')
+                ;(err as any).status = 409
+                throw err
+            }
+            throw error
+        }
     }
 
     async updateCustomer(id: number, data: UpdateCustomerType) {
@@ -156,8 +165,17 @@ export class CustomerRepo {
         INSERTED.updatedAt
       WHERE id = @id AND deletedAt IS NULL
     `
-        const result = await request.query(query)
-        return result.recordset[0] || null
+        try {
+            const result = await request.query(query)
+            return result.recordset[0] || null
+        } catch (error: any) {
+            if (error.number === 2627 || error.number === 2601) {
+                const err = new Error('Số điện thoại này đã được sử dụng bởi khách hàng khác')
+                ;(err as any).status = 409
+                throw err
+            }
+            throw error
+        }
     }
 
     async softDeleteCustomer(id: number) {
