@@ -1,46 +1,20 @@
 import { Router } from 'express'
 import { CustomerController } from './customer.controller'
-import { authGuard, roleGuard, validatePipe } from '@/middlewares'
-import {
-  CreateCustomerSchema,
-  CustomerParamSchema,
-  FilterCustomerQuerySchema,
-  UpdateCustomerSchema,
-} from './customer.schema'
 
 export const customerRouter = Router()
 const controller = new CustomerController()
 
-// Đăng ký hội viên mới: Cho phép khách tự đăng ký (Public) hoặc Thu ngân tạo hộ tại quầy
-customerRouter.post(
-  '/',
-  validatePipe(CreateCustomerSchema, 'body'),
-  controller.create
-)
+// GET /api/v1/customer-loyalty/customers
+customerRouter.get('/', controller.list)
 
-// Các thao tác quản lý yêu cầu đăng nhập
-customerRouter.use(authGuard)
+// GET /api/v1/customer-loyalty/customers/:id
+customerRouter.get('/:id', controller.detail)
 
-// Tra cứu danh sách và chi tiết: CASHIER, MANAGER hoặc chính CUSTOMER xem thông tin
-customerRouter.get(
-  '/',
-  roleGuard('CASHIER', 'MANAGER'),
-  validatePipe(FilterCustomerQuerySchema, 'query'),
-  controller.list
-)
+// POST /api/v1/customer-loyalty/customers
+customerRouter.post('/', controller.create)
 
-customerRouter.get(
-  '/:id',
-  roleGuard('CASHIER', 'MANAGER', 'CUSTOMER'),
-  validatePipe(CustomerParamSchema, 'params'),
-  controller.detail
-)
+// PUT /api/v1/customer-loyalty/customers/:id
+customerRouter.put('/:id', controller.update)
 
-// Cập nhật thông tin hội viên
-customerRouter.put(
-  '/:id',
-  roleGuard('CASHIER', 'MANAGER', 'CUSTOMER'),
-  validatePipe(CustomerParamSchema, 'params'),
-  validatePipe(UpdateCustomerSchema, 'body'),
-  controller.update
-)
+// DELETE /api/v1/customer-loyalty/customers/:id (Xóa mềm khách hàng)
+customerRouter.delete('/:id', controller.delete)
