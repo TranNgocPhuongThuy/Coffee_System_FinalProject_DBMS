@@ -1,111 +1,271 @@
-import pool from '../../../config/database';
+import { getPool, sql } from '@/config/database'
+import {
+  CreateProductType,
+  FilterProductQueryType,
+  UpdateProductType,
+} from './product.schema'
+
+export interface ProductVariantRow {
+  id: number
+  productId: number
+  size: 'S' | 'M' | 'L' | 'XL'
+  price: number
+  createdAt: Date
+  updatedAt?: Date | null
+}
+
+export interface ProductDetail {
+  id: number
+  categoryId: number
+  categoryName?: string
+  name: string
+  description?: string | null
+  image?: string | null
+  status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK'
+  createdAt: Date
+  updatedAt?: Date | null
+  variants: ProductVariantRow[]
+}
 
 export class ProductRepository {
-  async findAll(categoryId?: string, isAvailable?: boolean) {
-    let query = `
-      SELECT p.*, c.name as category_name
-      FROM products p
-      JOIN categories c ON p.category_id = c.id
-      WHERE p.is_active = true
-    `;
-    const params: any[] = [];
+  async findAll(filter: FilterProductQueryType): Promise<ProductDetail[]> {
+    const pool = await getPool()
+    const req = pool.request()
 
-    if (categoryId) {
-      params.push(categoryId);
-      query += ` AND p.category_id = $${params.length}`;
-    }
-    if (isAvailable !== undefined) {
-      params.push(isAvailable);
-      query += ` AND p.is_available = $${params.length}`;
+    const conditions: string[] = ['p.deletedAt IS NULL']
+
+    if (filter.categoryId) {
+      req.input('categoryId', sql.Int, filter.categoryId)
+      conditions.push('p.categoryId = @categoryId')
     }
 
-    query += ` ORDER BY p.created_at DESC`;
-    const { rows } = await pool.query(query, params);
-    return rows;
+    if (filter.status) {
+      req.input('status', sql.NVarChar(50), filter.status)
+      conditions.push('p.status = @status')
+    }
+
+    if (filter.search) {
+      req.input('search', sql.NVarChar(200), `%${filter.search}%`)
+      conditions.push('p.name LIKE @search')
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`
+
+    // 1. Lấy danh sách sản phẩm
+    const productQuery = `
+      SELECT 
+        p.id, 
+        p.categoryId, 
+        c.name AS categoryName, 
+        p.name, 
+        p.description, 
+        p.image, 
+        p.status, 
+        p.createdAt, 
+        p.updatedAt
+      FROM Product p
+      JOIN Category c ON p.categoryId = c.id
+      ${whereClause}
+      ORDER BY p.id DESC
+    `
+    const productsRes = await req.query<any>(productQuery)
+    const products = productsRes.recordset
+
+    if (products.length === 0) return []
+
+    // 2. Lấy các biến thể kích cỡ của các sản phẩm trên
+    const productIds = products.map((p) => p.id)
+    const variantsRes = await pool.request().query<ProductVariantRow>(`
+      SELECT id, productId, size, price, createdAt, updatedAt
+      FROM ProductVariant
+      WHERE productId IN (${productIds.join(',')}) AND deletedAt IS NULL
+      ORDER BY price ASC
+    `)
+
+    const variantsByProductId = variantsRes.recordset.reduce((acc: Record<number, ProductVariantRow[]>, v) => {
+      if (!acc[v.productId]) acc[v.productId] = []
+      acc[v.productId].push(v)
+      return acc
+    }, {})
+
+    return products.map((p) => ({
+      ...p,
+      variants: variantsByProductId[p.id] || [],
+    }))
   }
 
-  async findById(id: string) {
-    const productQuery = `SELECT * FROM products WHERE id = $1 AND is_active = true`;
-    const variantsQuery = `SELECT * FROM product_variants WHERE product_id = $1`;
-    const toppingsQuery = `
-      SELECT t.* 
-      FROM topping_options t
-      JOIN product_toppings pt ON t.id = pt.topping_id
-      WHERE pt.product_id = $1 AND t.is_available = true
-    `;
+  async findById(id: number): Promise<ProductDetail | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
 
-    const productRes = await pool.query(productQuery, [id]);
-    if (productRes.rows.length === 0) return null;
+    const productRes = await req.query<any>(`
+      SELECT 
+        p.id, 
+        p.categoryId, 
+        c.name AS categoryName, 
+        p.name, 
+        p.description, 
+        p.image, 
+        p.status, 
+        p.createdAt, 
+        p.updatedAt
+      FROM Product p
+      JOIN Category c ON p.categoryId = c.id
+      WHERE p.id = @id AND p.deletedAt IS NULL
+    `)
 
-    const variantsRes = await pool.query(variantsQuery, [id]);
-    const toppingsRes = await pool.query(toppingsQuery, [id]);
+    if (productRes.recordset.length === 0) return null
+    const product = productRes.recordset[0]
+
+    const variantsRes = await pool.request().input('productId', sql.Int, id).query<ProductVariantRow>(`
+      SELECT id, productId, size, price, createdAt, updatedAt
+      FROM ProductVariant
+      WHERE productId = @productId AND deletedAt IS NULL
+      ORDER BY price ASC
+    `)
 
     return {
-      ...productRes.rows[0],
-      variants: variantsRes.rows,
-      toppings: toppingsRes.rows,
-    };
+      ...product,
+      variants: variantsRes.recordset,
+    }
   }
 
-  async findByCode(code: string) {
-    const query = `SELECT * FROM products WHERE code = $1`;
-    const { rows } = await pool.query(query, [code]);
-    return rows[0] || null;
+  async findByName(name: string): Promise<any | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(200), name)
+    const result = await req.query(`
+      SELECT id FROM Product WHERE name = @name AND deletedAt IS NULL
+    `)
+    return result.recordset[0] || null
   }
 
-  async createWithDetails(data: any) {
-    const client = await pool.connect();
+  async createWithVariants(data: CreateProductType): Promise<ProductDetail> {
+    const pool = await getPool()
+    const transaction = new sql.Transaction(pool)
+    await transaction.begin()
+
     try {
-      await client.query('BEGIN');
+      const productReq = new sql.Request(transaction)
+      productReq.input('categoryId', sql.Int, data.categoryId)
+      productReq.input('name', sql.NVarChar(200), data.name)
+      productReq.input('description', sql.NVarChar(sql.MAX), data.description || null)
+      productReq.input('image', sql.NVarChar(500), data.image || null)
+      productReq.input('status', sql.NVarChar(50), data.status || 'ACTIVE')
 
-      const productQuery = `
-        INSERT INTO products (category_id, code, name, base_price, image_url, description, is_available)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *
-      `;
-      const productValues = [
-        data.categoryId, data.code, data.name, data.basePrice,
-        data.imageUrl || null, data.description || null, data.isAvailable ?? true
-      ];
-      const productRes = await client.query(productQuery, productValues);
-      const product = productRes.rows[0];
+      const productRes = await productReq.query(`
+        INSERT INTO Product (categoryId, name, description, image, status, createdAt)
+        OUTPUT INSERTED.id, INSERTED.categoryId, INSERTED.name, INSERTED.description, INSERTED.image, INSERTED.status, INSERTED.createdAt
+        VALUES (@categoryId, @name, @description, @image, @status, SYSDATETIME())
+      `)
+      const newProduct = productRes.recordset[0]
+      const createdVariants: ProductVariantRow[] = []
 
       for (const v of data.variants) {
-        await client.query(
-          `INSERT INTO product_variants (product_id, size_name, price_adjustment, is_default)
-           VALUES ($1, $2, $3, $4)`,
-          [product.id, v.sizeName, v.priceAdjustment, v.isDefault ?? false]
-        );
+        const variantReq = new sql.Request(transaction)
+        variantReq.input('productId', sql.Int, newProduct.id)
+        variantReq.input('size', sql.NVarChar(20), v.size)
+        variantReq.input('price', sql.Decimal(18, 2), v.price)
+
+        const variantRes = await variantReq.query<ProductVariantRow>(`
+          INSERT INTO ProductVariant (productId, size, price, createdAt)
+          OUTPUT INSERTED.id, INSERTED.productId, INSERTED.size, INSERTED.price, INSERTED.createdAt, INSERTED.updatedAt
+          VALUES (@productId, @size, @price, SYSDATETIME())
+        `)
+        createdVariants.push(variantRes.recordset[0])
       }
 
-      if (data.toppingIds && data.toppingIds.length > 0) {
-        for (const toppingId of data.toppingIds) {
-          await client.query(
-            `INSERT INTO product_toppings (product_id, topping_id) VALUES ($1, $2)`,
-            [product.id, toppingId]
-          );
+      await transaction.commit()
+
+      return {
+        ...newProduct,
+        variants: createdVariants,
+      }
+    } catch (error) {
+      await transaction.rollback()
+      throw error
+    }
+  }
+
+  async update(id: number, data: UpdateProductType): Promise<ProductDetail | null> {
+    const pool = await getPool()
+    const transaction = new sql.Transaction(pool)
+    await transaction.begin()
+
+    try {
+      const updateClauses: string[] = ['updatedAt = SYSDATETIME()']
+      const updateReq = new sql.Request(transaction)
+      updateReq.input('id', sql.Int, id)
+
+      if (data.categoryId !== undefined) {
+        updateReq.input('categoryId', sql.Int, data.categoryId)
+        updateClauses.push('categoryId = @categoryId')
+      }
+      if (data.name !== undefined) {
+        updateReq.input('name', sql.NVarChar(200), data.name)
+        updateClauses.push('name = @name')
+      }
+      if (data.description !== undefined) {
+        updateReq.input('description', sql.NVarChar(sql.MAX), data.description)
+        updateClauses.push('description = @description')
+      }
+      if (data.image !== undefined) {
+        updateReq.input('image', sql.NVarChar(500), data.image)
+        updateClauses.push('image = @image')
+      }
+      if (data.status !== undefined) {
+        updateReq.input('status', sql.NVarChar(50), data.status)
+        updateClauses.push('status = @status')
+      }
+
+      await updateReq.query(`
+        UPDATE Product
+        SET ${updateClauses.join(', ')}
+        WHERE id = @id AND deletedAt IS NULL
+      `)
+
+      // Nếu có cập nhật biến thể size
+      if (data.variants && data.variants.length > 0) {
+        const delVarReq = new sql.Request(transaction)
+        delVarReq.input('productId', sql.Int, id)
+        await delVarReq.query(`DELETE FROM ProductVariant WHERE productId = @productId`)
+
+        for (const v of data.variants) {
+          const addVarReq = new sql.Request(transaction)
+          addVarReq.input('productId', sql.Int, id)
+          addVarReq.input('size', sql.NVarChar(20), v.size)
+          addVarReq.input('price', sql.Decimal(18, 2), v.price)
+          await addVarReq.query(`
+            INSERT INTO ProductVariant (productId, size, price, createdAt)
+            VALUES (@productId, @size, @price, SYSDATETIME())
+          `)
         }
       }
 
-      await client.query('COMMIT');
-      return product;
+      await transaction.commit()
+      return await this.findById(id)
     } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+      await transaction.rollback()
+      throw error
     }
   }
 
-  async updateAvailability(id: string, isAvailable: boolean) {
-    const query = `UPDATE products SET is_available = $1 WHERE id = $2 RETURNING *`;
-    const { rows } = await pool.query(query, [isAvailable, id]);
-    return rows[0] || null;
-  }
+  async softDelete(id: number): Promise<boolean> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
 
-  async softDelete(id: string) {
-    const query = `UPDATE products SET is_active = false WHERE id = $1`;
-    const res = await pool.query(query, [id]);
-    return (res.rowCount ?? 0) > 0;
+    const result = await req.query(`
+      UPDATE Product
+      SET deletedAt = SYSDATETIME(), updatedAt = SYSDATETIME()
+      WHERE id = @id AND deletedAt IS NULL;
+
+      UPDATE ProductVariant
+      SET deletedAt = SYSDATETIME(), updatedAt = SYSDATETIME()
+      WHERE productId = @id AND deletedAt IS NULL;
+    `)
+
+    return (result.rowsAffected[0] ?? 0) > 0
   }
 }

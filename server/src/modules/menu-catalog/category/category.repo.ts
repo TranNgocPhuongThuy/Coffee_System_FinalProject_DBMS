@@ -1,76 +1,94 @@
-import pool from '../../../config/database';
+import { getPool, sql } from '@/config/database'
+import { CreateCategoryType, UpdateCategoryType } from './category.schema'
 
 export interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  sort_order: number;
-  is_active: boolean;
-  created_at?: Date;
+  id: number
+  name: string
+  displayStatus: 'SHOW' | 'HIDE'
+  createdAt: Date
+  updatedAt?: Date | null
 }
 
 export class CategoryRepository {
   async findAll(): Promise<Category[]> {
+    const pool = await getPool()
+    const result = await pool.request().query<Category>(`
+      SELECT id, name, displayStatus, createdAt, updatedAt
+      FROM Category
+      ORDER BY id ASC
+    `)
+    return result.recordset
+  }
+
+  async findById(id: number): Promise<Category | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+    const result = await req.query<Category>(`
+      SELECT id, name, displayStatus, createdAt, updatedAt
+      FROM Category
+      WHERE id = @id
+    `)
+    return result.recordset[0] || null
+  }
+
+  async findByName(name: string): Promise<Category | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(150), name)
+    const result = await req.query<Category>(`
+      SELECT id, name, displayStatus, createdAt, updatedAt
+      FROM Category
+      WHERE name = @name
+    `)
+    return result.recordset[0] || null
+  }
+
+  async create(data: CreateCategoryType): Promise<Category> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(150), data.name)
+    req.input('displayStatus', sql.NVarChar(50), data.displayStatus || 'SHOW')
+
+    const result = await req.query<Category>(`
+      INSERT INTO Category (name, displayStatus, createdAt)
+      OUTPUT INSERTED.id, INSERTED.name, INSERTED.displayStatus, INSERTED.createdAt, INSERTED.updatedAt
+      VALUES (@name, @displayStatus, SYSDATETIME())
+    `)
+    return result.recordset[0]
+  }
+
+  async update(id: number, data: UpdateCategoryType): Promise<Category | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+
+    const setClauses: string[] = ['updatedAt = SYSDATETIME()']
+
+    if (data.name !== undefined) {
+      req.input('name', sql.NVarChar(150), data.name)
+      setClauses.push('name = @name')
+    }
+    if (data.displayStatus !== undefined) {
+      req.input('displayStatus', sql.NVarChar(50), data.displayStatus)
+      setClauses.push('displayStatus = @displayStatus')
+    }
+
     const query = `
-      SELECT id, name, slug, description, sort_order, is_active 
-      FROM categories 
-      ORDER BY sort_order ASC, name ASC
-    `;
-    const { rows } = await pool.query(query);
-    return rows;
+      UPDATE Category
+      SET ${setClauses.join(', ')}
+      OUTPUT INSERTED.id, INSERTED.name, INSERTED.displayStatus, INSERTED.createdAt, INSERTED.updatedAt
+      WHERE id = @id
+    `
+    const result = await req.query<Category>(query)
+    return result.recordset[0] || null
   }
 
-  async findById(id: string): Promise<Category | null> {
-    const query = `SELECT * FROM categories WHERE id = $1`;
-    const { rows } = await pool.query(query, [id]);
-    return rows[0] || null;
-  }
-
-  async findBySlug(slug: string): Promise<Category | null> {
-    const query = `SELECT * FROM categories WHERE slug = $1`;
-    const { rows } = await pool.query(query, [slug]);
-    return rows[0] || null;
-  }
-
-  async create(data: Partial<Category>): Promise<Category> {
-    const query = `
-      INSERT INTO categories (name, slug, description, sort_order, is_active)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *
-    `;
-    const values = [data.name, data.slug, data.description || null, data.sort_order ?? 0, data.is_active ?? true];
-    const { rows } = await pool.query(query, values);
-    return rows[0];
-  }
-
-  async update(id: string, data: Partial<Category>): Promise<Category | null> {
-    const fields: string[] = [];
-    const values: any[] = [];
-    let idx = 1;
-
-    if (data.name !== undefined) { fields.push(`name = $${idx++}`); values.push(data.name); }
-    if (data.slug !== undefined) { fields.push(`slug = $${idx++}`); values.push(data.slug); }
-    if (data.description !== undefined) { fields.push(`description = $${idx++}`); values.push(data.description); }
-    if (data.sort_order !== undefined) { fields.push(`sort_order = $${idx++}`); values.push(data.sort_order); }
-    if (data.is_active !== undefined) { fields.push(`is_active = $${idx++}`); values.push(data.is_active); }
-
-    if (fields.length === 0) return this.findById(id);
-
-    values.push(id);
-    const query = `
-      UPDATE categories 
-      SET ${fields.join(', ')} 
-      WHERE id = $${idx} 
-      RETURNING *
-    `;
-    const { rows } = await pool.query(query, values);
-    return rows[0] || null;
-  }
-
-  async delete(id: string): Promise<boolean> {
-    const query = `DELETE FROM categories WHERE id = $1`;
-    const result = await pool.query(query, [id]);
-    return (result.rowCount ?? 0) > 0;
+  async delete(id: number): Promise<boolean> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+    const result = await req.query(`DELETE FROM Category WHERE id = @id`)
+    return (result.rowsAffected[0] ?? 0) > 0
   }
 }

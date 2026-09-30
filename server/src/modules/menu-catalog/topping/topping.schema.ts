@@ -1,12 +1,23 @@
-import { z } from 'zod';
+import { z } from 'zod'
 
-export const createToppingSchema = z.object({
-  name: z.string().min(1, 'Tên topping không được để trống'),
-  price: z.number().nonnegative('Giá topping không được âm'),
-  isAvailable: z.boolean().optional().default(true),
-});
+export const CreateToppingSchema = z.object({
+  name: z.string().min(1, 'Tên topping không được để trống').max(150),
+  price: z.coerce.number().min(0, 'Giá topping phải lớn hơn hoặc bằng 0'),
+  status: z.enum(['AVAILABLE', 'UNAVAILABLE', 'ACTIVE']).default('AVAILABLE'),
+})
 
-export const updateToppingSchema = createToppingSchema.partial();
+export const UpdateToppingSchema = CreateToppingSchema.partial()
 
-export type CreateToppingDto = z.infer<typeof createToppingSchema>;
-export type UpdateToppingDto = z.infer<typeof updateToppingSchema>;
+export const ToppingParamSchema = z.object({
+  id: z.coerce.number().int().positive('ID topping không hợp lệ'),
+})
+
+export const FilterToppingQuerySchema = z.object({
+  status: z.enum(['AVAILABLE', 'UNAVAILABLE', 'ACTIVE']).optional(),
+  search: z.string().optional(),
+})
+
+export type CreateToppingType = z.infer<typeof CreateToppingSchema>
+export type UpdateToppingType = z.infer<typeof UpdateToppingSchema>
+export type ToppingParamType = z.infer<typeof ToppingParamSchema>
+export type FilterToppingQueryType = z.infer<typeof FilterToppingQuerySchema>

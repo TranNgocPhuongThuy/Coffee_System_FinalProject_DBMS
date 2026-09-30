@@ -1,45 +1,105 @@
-import pool from '../../../config/database';
+import { getPool, sql } from '@/config/database'
+import { CreateToppingType, UpdateToppingType } from './topping.schema'
+
+export interface Topping {
+  id: number
+  name: string
+  price: number
+  status: 'AVAILABLE' | 'UNAVAILABLE' | 'ACTIVE'
+  createdAt?: Date
+  updatedAt?: Date | null
+}
 
 export class ToppingRepository {
-  async findAll() {
-    const { rows } = await pool.query(`SELECT * FROM topping_options ORDER BY name ASC`);
-    return rows;
+  async findAll(status?: string): Promise<Topping[]> {
+    const pool = await getPool()
+    const req = pool.request()
+    let query = `SELECT id, name, price, status, createdAt, updatedAt FROM Topping`
+
+    if (status) {
+      req.input('status', sql.NVarChar(50), status)
+      query += ` WHERE status = @status`
+    }
+
+    query += ` ORDER BY name ASC`
+    const result = await req.query<Topping>(query)
+    return result.recordset
   }
 
-  async findById(id: string) {
-    const { rows } = await pool.query(`SELECT * FROM topping_options WHERE id = $1`, [id]);
-    return rows[0] || null;
+  async findById(id: number): Promise<Topping | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+    const result = await req.query<Topping>(`
+      SELECT id, name, price, status, createdAt, updatedAt 
+      FROM Topping 
+      WHERE id = @id
+    `)
+    return result.recordset[0] || null
   }
 
-  async create(data: { name: string; price: number; isAvailable?: boolean }) {
+  async findByName(name: string): Promise<Topping | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(150), name)
+    const result = await req.query<Topping>(`
+      SELECT id, name, price, status, createdAt, updatedAt 
+      FROM Topping 
+      WHERE name = @name
+    `)
+    return result.recordset[0] || null
+  }
+
+  async create(data: CreateToppingType): Promise<Topping> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(150), data.name)
+    req.input('price', sql.Decimal(18, 2), data.price)
+    req.input('status', sql.NVarChar(50), data.status || 'AVAILABLE')
+
+    const result = await req.query<Topping>(`
+      INSERT INTO Topping (name, price, status, createdAt)
+      OUTPUT INSERTED.id, INSERTED.name, INSERTED.price, INSERTED.status, INSERTED.createdAt, INSERTED.updatedAt
+      VALUES (@name, @price, @status, SYSDATETIME())
+    `)
+    return result.recordset[0]
+  }
+
+  async update(id: number, data: UpdateToppingType): Promise<Topping | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+
+    const setClauses: string[] = ['updatedAt = SYSDATETIME()']
+
+    if (data.name !== undefined) {
+      req.input('name', sql.NVarChar(150), data.name)
+      setClauses.push('name = @name')
+    }
+    if (data.price !== undefined) {
+      req.input('price', sql.Decimal(18, 2), data.price)
+      setClauses.push('price = @price')
+    }
+    if (data.status !== undefined) {
+      req.input('status', sql.NVarChar(50), data.status)
+      setClauses.push('status = @status')
+    }
+
     const query = `
-      INSERT INTO topping_options (name, price, is_available)
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `;
-    const { rows } = await pool.query(query, [data.name, data.price, data.isAvailable ?? true]);
-    return rows[0];
+      UPDATE Topping
+      SET ${setClauses.join(', ')}
+      OUTPUT INSERTED.id, INSERTED.name, INSERTED.price, INSERTED.status, INSERTED.createdAt, INSERTED.updatedAt
+      WHERE id = @id
+    `
+    const result = await req.query<Topping>(query)
+    return result.recordset[0] || null
   }
 
-  async update(id: string, data: Partial<{ name: string; price: number; isAvailable: boolean }>) {
-    const fields: string[] = [];
-    const values: any[] = [];
-    let idx = 1;
-
-    if (data.name !== undefined) { fields.push(`name = $${idx++}`); values.push(data.name); }
-    if (data.price !== undefined) { fields.push(`price = $${idx++}`); values.push(data.price); }
-    if (data.isAvailable !== undefined) { fields.push(`is_available = $${idx++}`); values.push(data.isAvailable); }
-
-    if (fields.length === 0) return this.findById(id);
-
-    values.push(id);
-    const query = `UPDATE topping_options SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`;
-    const { rows } = await pool.query(query, values);
-    return rows[0] || null;
-  }
-
-  async delete(id: string) {
-    const res = await pool.query(`DELETE FROM topping_options WHERE id = $1`, [id]);
-    return (res.rowCount ?? 0) > 0;
+  async delete(id: number): Promise<boolean> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+    const result = await req.query(`DELETE FROM Topping WHERE id = @id`)
+    return (result.rowsAffected[0] ?? 0) > 0
   }
 }
