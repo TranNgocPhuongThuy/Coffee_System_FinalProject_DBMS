@@ -1,7 +1,11 @@
 import { z } from 'zod'
 
 export const CreateToppingSchema = z.object({
-  name: z.string().min(1, 'Tên topping không được để trống').max(150),
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Tên topping không được để trống')
+    .max(150, 'Tên topping tối đa 150 ký tự'),
   price: z.coerce.number().min(0, 'Giá topping phải lớn hơn hoặc bằng 0'),
   status: z.enum(['AVAILABLE', 'UNAVAILABLE', 'ACTIVE']).default('AVAILABLE'),
 })
@@ -14,7 +18,7 @@ export const ToppingParamSchema = z.object({
 
 export const FilterToppingQuerySchema = z.object({
   status: z.enum(['AVAILABLE', 'UNAVAILABLE', 'ACTIVE']).optional(),
-  search: z.string().optional(),
+  search: z.string().trim().optional(),
 })
 
 export type CreateToppingType = z.infer<typeof CreateToppingSchema>

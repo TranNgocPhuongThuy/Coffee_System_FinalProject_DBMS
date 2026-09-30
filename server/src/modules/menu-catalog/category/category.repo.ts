@@ -1,5 +1,9 @@
 import { getPool, sql } from '@/config/database'
-import { CreateCategoryType, UpdateCategoryType } from './category.schema'
+import {
+  CreateCategoryType,
+  FilterCategoryQueryType,
+  UpdateCategoryType,
+} from './category.schema'
 
 export interface Category {
   id: number
@@ -7,19 +11,47 @@ export interface Category {
   displayStatus: 'SHOW' | 'HIDE'
   createdAt: Date
   updatedAt?: Date | null
+  deletedAt?: Date | null
 }
 
 export class CategoryRepository {
-  async findAll(): Promise<Category[]> {
+  /**
+   * Lấy danh sách danh mục (hỗ trợ lọc displayStatus & tìm kiếm name)
+   */
+  async findAll(filters?: FilterCategoryQueryType): Promise<Category[]> {
     const pool = await getPool()
-    const result = await pool.request().query<Category>(`
+    const req = pool.request()
+    const conditions: string[] = ['deletedAt IS NULL']
+
+    const displayStatus =
+      typeof filters?.displayStatus === 'string' ? filters.displayStatus : undefined
+    const search =
+      typeof filters?.search === 'string' ? filters.search : undefined
+
+    if (displayStatus) {
+      req.input('displayStatus', sql.NVarChar(50), displayStatus)
+      conditions.push('displayStatus = @displayStatus')
+    }
+
+    if (search) {
+      req.input('search', sql.NVarChar(150), `%${search}%`)
+      conditions.push('name LIKE @search')
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`
+    const query = `
       SELECT id, name, displayStatus, createdAt, updatedAt
       FROM Category
+      ${whereClause}
       ORDER BY id ASC
-    `)
+    `
+    const result = await req.query<Category>(query)
     return result.recordset
   }
 
+  /**
+   * Lấy chi tiết danh mục theo ID
+   */
   async findById(id: number): Promise<Category | null> {
     const pool = await getPool()
     const req = pool.request()
@@ -27,23 +59,52 @@ export class CategoryRepository {
     const result = await req.query<Category>(`
       SELECT id, name, displayStatus, createdAt, updatedAt
       FROM Category
-      WHERE id = @id
+      WHERE id = @id AND deletedAt IS NULL
     `)
     return result.recordset[0] || null
   }
 
-  async findByName(name: string): Promise<Category | null> {
+  /**
+   * Tìm danh mục theo tên (hỗ trợ loại trừ ID khi update)
+   */
+  async findByName(name: string, excludeId?: number): Promise<Category | null> {
     const pool = await getPool()
     const req = pool.request()
     req.input('name', sql.NVarChar(150), name)
-    const result = await req.query<Category>(`
+
+    let query = `
       SELECT id, name, displayStatus, createdAt, updatedAt
       FROM Category
-      WHERE name = @name
-    `)
+      WHERE name = @name AND deletedAt IS NULL
+    `
+
+    if (excludeId) {
+      req.input('excludeId', sql.Int, excludeId)
+      query += ` AND id <> @excludeId`
+    }
+
+    const result = await req.query<Category>(query)
     return result.recordset[0] || null
   }
 
+  /**
+   * Đếm số lượng sản phẩm thuộc danh mục
+   */
+  async countProductsByCategoryId(categoryId: number): Promise<number> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('categoryId', sql.Int, categoryId)
+    const result = await req.query<{ count: number }>(`
+      SELECT COUNT(1) AS count 
+      FROM Product 
+      WHERE categoryId = @categoryId AND deletedAt IS NULL
+    `)
+    return result.recordset[0]?.count || 0
+  }
+
+  /**
+   * Tạo danh mục mới
+   */
   async create(data: CreateCategoryType): Promise<Category> {
     const pool = await getPool()
     const req = pool.request()
@@ -58,6 +119,9 @@ export class CategoryRepository {
     return result.recordset[0]
   }
 
+  /**
+   * Cập nhật thông tin danh mục
+   */
   async update(id: number, data: UpdateCategoryType): Promise<Category | null> {
     const pool = await getPool()
     const req = pool.request()
@@ -78,17 +142,24 @@ export class CategoryRepository {
       UPDATE Category
       SET ${setClauses.join(', ')}
       OUTPUT INSERTED.id, INSERTED.name, INSERTED.displayStatus, INSERTED.createdAt, INSERTED.updatedAt
-      WHERE id = @id
+      WHERE id = @id AND deletedAt IS NULL
     `
     const result = await req.query<Category>(query)
     return result.recordset[0] || null
   }
 
+  /**
+   * Xóa mềm danh mục
+   */
   async delete(id: number): Promise<boolean> {
     const pool = await getPool()
     const req = pool.request()
     req.input('id', sql.Int, id)
-    const result = await req.query(`DELETE FROM Category WHERE id = @id`)
+    const result = await req.query(`
+      UPDATE Category 
+      SET deletedAt = SYSDATETIME() 
+      WHERE id = @id AND deletedAt IS NULL
+    `)
     return (result.rowsAffected[0] ?? 0) > 0
   }
 }

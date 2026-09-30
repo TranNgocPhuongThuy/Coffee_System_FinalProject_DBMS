@@ -4,6 +4,7 @@ import { authGuard, roleGuard, validatePipe } from '@/middlewares'
 import {
   CategoryParamSchema,
   CreateCategorySchema,
+  FilterCategoryQuerySchema,
   UpdateCategorySchema,
 } from './category.schema'
 
@@ -11,7 +12,12 @@ export const categoryRouter = Router()
 const controller = new CategoryController()
 
 // Xem danh mục: Public cho Customer tra cứu menu và Cashier bán hàng
-categoryRouter.get('/', controller.getAll)
+categoryRouter.get(
+  '/',
+  validatePipe(FilterCategoryQuerySchema, 'query'),
+  controller.getAll
+)
+
 categoryRouter.get(
   '/:id',
   validatePipe(CategoryParamSchema, 'params'),

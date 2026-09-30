@@ -28,6 +28,9 @@ export interface ProductDetail {
 }
 
 export class ProductRepository {
+  /**
+   * Lấy danh sách sản phẩm kèm mảng biến thể (Dùng FOR JSON PATH - 1 query duy nhất)
+   */
   async findAll(filter: FilterProductQueryType): Promise<ProductDetail[]> {
     const pool = await getPool()
     const req = pool.request()
@@ -51,8 +54,7 @@ export class ProductRepository {
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`
 
-    // 1. Lấy danh sách sản phẩm
-    const productQuery = `
+    const query = `
       SELECT 
         p.id, 
         p.categoryId, 
@@ -62,44 +64,45 @@ export class ProductRepository {
         p.image, 
         p.status, 
         p.createdAt, 
-        p.updatedAt
+        p.updatedAt,
+        (
+          SELECT id, productId, size, price, createdAt, updatedAt
+          FROM ProductVariant pv
+          WHERE pv.productId = p.id AND pv.deletedAt IS NULL
+          ORDER BY pv.price ASC
+          FOR JSON PATH
+        ) AS variantsJson
       FROM Product p
       JOIN Category c ON p.categoryId = c.id
       ${whereClause}
       ORDER BY p.id DESC
     `
-    const productsRes = await req.query<any>(productQuery)
-    const products = productsRes.recordset
 
-    if (products.length === 0) return []
+    const result = await req.query<any>(query)
 
-    // 2. Lấy các biến thể kích cỡ của các sản phẩm trên
-    const productIds = products.map((p) => p.id)
-    const variantsRes = await pool.request().query<ProductVariantRow>(`
-      SELECT id, productId, size, price, createdAt, updatedAt
-      FROM ProductVariant
-      WHERE productId IN (${productIds.join(',')}) AND deletedAt IS NULL
-      ORDER BY price ASC
-    `)
-
-    const variantsByProductId = variantsRes.recordset.reduce((acc: Record<number, ProductVariantRow[]>, v) => {
-      if (!acc[v.productId]) acc[v.productId] = []
-      acc[v.productId].push(v)
-      return acc
-    }, {})
-
-    return products.map((p) => ({
-      ...p,
-      variants: variantsByProductId[p.id] || [],
+    return result.recordset.map((row) => ({
+      id: row.id,
+      categoryId: row.categoryId,
+      categoryName: row.categoryName,
+      name: row.name,
+      description: row.description,
+      image: row.image,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      variants: row.variantsJson ? JSON.parse(row.variantsJson) : [],
     }))
   }
 
+  /**
+   * Lấy chi tiết sản phẩm theo ID
+   */
   async findById(id: number): Promise<ProductDetail | null> {
     const pool = await getPool()
     const req = pool.request()
     req.input('id', sql.Int, id)
 
-    const productRes = await req.query<any>(`
+    const query = `
       SELECT 
         p.id, 
         p.categoryId, 
@@ -109,38 +112,58 @@ export class ProductRepository {
         p.image, 
         p.status, 
         p.createdAt, 
-        p.updatedAt
+        p.updatedAt,
+        (
+          SELECT id, productId, size, price, createdAt, updatedAt
+          FROM ProductVariant pv
+          WHERE pv.productId = p.id AND pv.deletedAt IS NULL
+          ORDER BY pv.price ASC
+          FOR JSON PATH
+        ) AS variantsJson
       FROM Product p
       JOIN Category c ON p.categoryId = c.id
       WHERE p.id = @id AND p.deletedAt IS NULL
-    `)
+    `
 
-    if (productRes.recordset.length === 0) return null
-    const product = productRes.recordset[0]
+    const result = await req.query<any>(query)
+    if (result.recordset.length === 0) return null
 
-    const variantsRes = await pool.request().input('productId', sql.Int, id).query<ProductVariantRow>(`
-      SELECT id, productId, size, price, createdAt, updatedAt
-      FROM ProductVariant
-      WHERE productId = @productId AND deletedAt IS NULL
-      ORDER BY price ASC
-    `)
-
+    const row = result.recordset[0]
     return {
-      ...product,
-      variants: variantsRes.recordset,
+      id: row.id,
+      categoryId: row.categoryId,
+      categoryName: row.categoryName,
+      name: row.name,
+      description: row.description,
+      image: row.image,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      variants: row.variantsJson ? JSON.parse(row.variantsJson) : [],
     }
   }
 
-  async findByName(name: string): Promise<any | null> {
+  /**
+   * Tìm sản phẩm theo tên (Phục vụ check trùng tên)
+   */
+  async findByName(name: string, excludeId?: number): Promise<any | null> {
     const pool = await getPool()
     const req = pool.request()
     req.input('name', sql.NVarChar(200), name)
-    const result = await req.query(`
-      SELECT id FROM Product WHERE name = @name AND deletedAt IS NULL
-    `)
+
+    let query = `SELECT id FROM Product WHERE name = @name AND deletedAt IS NULL`
+    if (excludeId) {
+      req.input('excludeId', sql.Int, excludeId)
+      query += ` AND id != @excludeId`
+    }
+
+    const result = await req.query(query)
     return result.recordset[0] || null
   }
 
+  /**
+   * Tạo món mới kèm các biến thể size
+   */
   async createWithVariants(data: CreateProductType): Promise<ProductDetail> {
     const pool = await getPool()
     const transaction = new sql.Transaction(pool)
@@ -160,7 +183,6 @@ export class ProductRepository {
         VALUES (@categoryId, @name, @description, @image, @status, SYSDATETIME())
       `)
       const newProduct = productRes.recordset[0]
-      const createdVariants: ProductVariantRow[] = []
 
       for (const v of data.variants) {
         const variantReq = new sql.Request(transaction)
@@ -168,26 +190,23 @@ export class ProductRepository {
         variantReq.input('size', sql.NVarChar(20), v.size)
         variantReq.input('price', sql.Decimal(18, 2), v.price)
 
-        const variantRes = await variantReq.query<ProductVariantRow>(`
+        await variantReq.query(`
           INSERT INTO ProductVariant (productId, size, price, createdAt)
-          OUTPUT INSERTED.id, INSERTED.productId, INSERTED.size, INSERTED.price, INSERTED.createdAt, INSERTED.updatedAt
           VALUES (@productId, @size, @price, SYSDATETIME())
         `)
-        createdVariants.push(variantRes.recordset[0])
       }
 
       await transaction.commit()
-
-      return {
-        ...newProduct,
-        variants: createdVariants,
-      }
+      return (await this.findById(newProduct.id))!
     } catch (error) {
       await transaction.rollback()
       throw error
     }
   }
 
+  /**
+   * Cập nhật món dùng cơ chế Smart Upsert (An toàn tuyệt đối cho Khóa ngoại)
+   */
   async update(id: number, data: UpdateProductType): Promise<ProductDetail | null> {
     const pool = await getPool()
     const transaction = new sql.Transaction(pool)
@@ -219,26 +238,62 @@ export class ProductRepository {
         updateClauses.push('status = @status')
       }
 
-      await updateReq.query(`
+      const productUpdateResult = await updateReq.query(`
         UPDATE Product
         SET ${updateClauses.join(', ')}
         WHERE id = @id AND deletedAt IS NULL
       `)
 
-      // Nếu có cập nhật biến thể size
-      if (data.variants && data.variants.length > 0) {
-        const delVarReq = new sql.Request(transaction)
-        delVarReq.input('productId', sql.Int, id)
-        await delVarReq.query(`DELETE FROM ProductVariant WHERE productId = @productId`)
+      if (productUpdateResult.rowsAffected[0] === 0) {
+        await transaction.rollback()
+        return null
+      }
 
+      // Smart Upsert biến thể Size
+      if (data.variants && data.variants.length > 0) {
+        const incomingSizes = data.variants.map((v) => v.size)
+
+        // 1. Xóa mềm các size không còn nằm trong danh sách mới
+        const softDelReq = new sql.Request(transaction)
+        softDelReq.input('productId', sql.Int, id)
+        const sizeParams = incomingSizes.map((s, idx) => {
+          softDelReq.input(`s${idx}`, sql.NVarChar(20), s)
+          return `@s${idx}`
+        })
+
+        await softDelReq.query(`
+          UPDATE ProductVariant
+          SET deletedAt = SYSDATETIME(), updatedAt = SYSDATETIME()
+          WHERE productId = @productId 
+            AND deletedAt IS NULL 
+            AND size NOT IN (${sizeParams.join(',')})
+        `)
+
+        // 2. Loop qua danh sách mới: Cập nhật nếu đã có, Thêm mới nếu chưa có
         for (const v of data.variants) {
-          const addVarReq = new sql.Request(transaction)
-          addVarReq.input('productId', sql.Int, id)
-          addVarReq.input('size', sql.NVarChar(20), v.size)
-          addVarReq.input('price', sql.Decimal(18, 2), v.price)
-          await addVarReq.query(`
-            INSERT INTO ProductVariant (productId, size, price, createdAt)
-            VALUES (@productId, @size, @price, SYSDATETIME())
+          const upsertReq = new sql.Request(transaction)
+          upsertReq.input('productId', sql.Int, id)
+          upsertReq.input('size', sql.NVarChar(20), v.size)
+          upsertReq.input('price', sql.Decimal(18, 2), v.price)
+
+          await upsertReq.query(`
+            IF EXISTS (SELECT 1 FROM ProductVariant WHERE productId = @productId AND size = @size AND deletedAt IS NULL)
+            BEGIN
+              UPDATE ProductVariant 
+              SET price = @price, updatedAt = SYSDATETIME()
+              WHERE productId = @productId AND size = @size AND deletedAt IS NULL
+            END
+            ELSE IF EXISTS (SELECT 1 FROM ProductVariant WHERE productId = @productId AND size = @size AND deletedAt IS NOT NULL)
+            BEGIN
+              UPDATE ProductVariant 
+              SET price = @price, deletedAt = NULL, updatedAt = SYSDATETIME()
+              WHERE productId = @productId AND size = @size
+            END
+            ELSE
+            BEGIN
+              INSERT INTO ProductVariant (productId, size, price, createdAt)
+              VALUES (@productId, @size, @price, SYSDATETIME())
+            END
           `)
         }
       }
@@ -251,6 +306,9 @@ export class ProductRepository {
     }
   }
 
+  /**
+   * Xóa mềm Sản phẩm và toàn bộ Biến thể liên quan
+   */
   async softDelete(id: number): Promise<boolean> {
     const pool = await getPool()
     const req = pool.request()

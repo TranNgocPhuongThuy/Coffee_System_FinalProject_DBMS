@@ -15,12 +15,15 @@ export const CreateProductSchema = z.object({
 })
 
 export const UpdateProductSchema = z.object({
-  categoryId: z.coerce.number().int().positive().optional(),
-  name: z.string().min(1).max(200).optional(),
+  categoryId: z.coerce.number().int().positive('Mã danh mục không hợp lệ').optional(),
+  name: z.string().min(1, 'Tên món không được để trống').max(200, 'Tên món tối đa 200 ký tự').optional(),
   description: z.string().optional().nullable(),
-  image: z.string().max(500).optional().nullable(),
+  image: z.string().max(500, 'Đường dẫn hình ảnh quá dài').optional().nullable(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']).optional(),
-  variants: z.array(VariantItemSchema).optional(),
+  variants: z
+    .array(VariantItemSchema)
+    .min(1, 'Nếu cập nhật biến thể, sản phẩm phải có ít nhất 1 kích thước/biến thể')
+    .optional(),
 })
 
 export const ProductParamSchema = z.object({

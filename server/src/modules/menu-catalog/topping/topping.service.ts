@@ -1,11 +1,15 @@
 import { ToppingRepository } from './topping.repo'
-import { CreateToppingType, UpdateToppingType } from './topping.schema'
+import {
+  CreateToppingType,
+  FilterToppingQueryType,
+  UpdateToppingType,
+} from './topping.schema'
 
 export class ToppingService {
   private toppingRepo = new ToppingRepository()
 
-  async getAllToppings(status?: string) {
-    return await this.toppingRepo.findAll(status)
+  async getAllToppings(filters?: FilterToppingQueryType) {
+    return await this.toppingRepo.findAll(filters)
   }
 
   async getToppingById(id: number) {
@@ -26,6 +30,14 @@ export class ToppingService {
 
   async updateTopping(id: number, dto: UpdateToppingType) {
     await this.getToppingById(id)
+
+    if (dto.name) {
+      const existing = await this.toppingRepo.findByName(dto.name, id)
+      if (existing) {
+        throw new Error('Tên topping đã tồn tại')
+      }
+    }
+
     return await this.toppingRepo.update(id, dto)
   }
 
