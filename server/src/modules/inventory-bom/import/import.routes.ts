@@ -1,14 +1,34 @@
 import { Router } from 'express'
 import { ImportController } from './import.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  CreateImportTicketSchema,
+  ImportTicketParamsSchema,
+  QueryImportTicketSchema,
+} from './import.schema'
 
 export const importRouter = Router()
 const controller = new ImportController()
 
-// GET /api/v1/inventory/imports (Danh sách phiếu nhập)
-importRouter.get('/', controller.getImportTickets)
+importRouter.use(authGuard, roleGuard('STOREKEEPER', 'MANAGER'))
 
-// GET /api/v1/inventory/imports/:importId (Chi tiết phiếu nhập kèm danh sách hàng hóa)
-importRouter.get('/:importId', controller.getImportDetailById)
+// GET /api/v1/inventory/imports - Lấy danh sách phiếu nhập
+importRouter.get(
+  '/',
+  validatePipe(QueryImportTicketSchema, 'query'),
+  controller.getImportTickets
+)
 
-// POST /api/v1/inventory/imports (Tạo phiếu nhập mới)
-importRouter.post('/', controller.createImportTicket)
+// GET /api/v1/inventory/imports/:importId - Xem chi tiết phiếu nhập
+importRouter.get(
+  '/:importId',
+  validatePipe(ImportTicketParamsSchema, 'params'),
+  controller.getImportDetailById
+)
+
+// POST /api/v1/inventory/imports - Tạo phiếu nhập kho mới
+importRouter.post(
+  '/',
+  validatePipe(CreateImportTicketSchema, 'body'),
+  controller.createImportTicket
+)

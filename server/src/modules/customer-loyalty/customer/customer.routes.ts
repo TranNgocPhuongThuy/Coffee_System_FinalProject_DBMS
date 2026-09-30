@@ -1,17 +1,46 @@
 import { Router } from 'express'
-export const customerRouter = Router()
 import { CustomerController } from './customer.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  CreateCustomerSchema,
+  CustomerParamSchema,
+  FilterCustomerQuerySchema,
+  UpdateCustomerSchema,
+} from './customer.schema'
 
+export const customerRouter = Router()
 const controller = new CustomerController()
 
-// GET /api/v1/customer-loyalty/customers
-customerRouter.get('/', controller.list)
+// Đăng ký hội viên mới: Cho phép khách tự đăng ký (Public) hoặc Thu ngân tạo hộ tại quầy
+customerRouter.post(
+  '/',
+  validatePipe(CreateCustomerSchema, 'body'),
+  controller.create
+)
 
-// GET /api/v1/customer-loyalty/customers/:id
-customerRouter.get('/:id', controller.detail)
+// Các thao tác quản lý yêu cầu đăng nhập
+customerRouter.use(authGuard)
 
-// POST /api/v1/customer-loyalty/customers
-customerRouter.post('/', controller.create)
+// Tra cứu danh sách và chi tiết: CASHIER, MANAGER hoặc chính CUSTOMER xem thông tin
+customerRouter.get(
+  '/',
+  roleGuard('CASHIER', 'MANAGER'),
+  validatePipe(FilterCustomerQuerySchema, 'query'),
+  controller.list
+)
 
-// PUT /api/v1/customer-loyalty/customers/:id
-customerRouter.put('/:id', controller.update)
+customerRouter.get(
+  '/:id',
+  roleGuard('CASHIER', 'MANAGER', 'CUSTOMER'),
+  validatePipe(CustomerParamSchema, 'params'),
+  controller.detail
+)
+
+// Cập nhật thông tin hội viên
+customerRouter.put(
+  '/:id',
+  roleGuard('CASHIER', 'MANAGER', 'CUSTOMER'),
+  validatePipe(CustomerParamSchema, 'params'),
+  validatePipe(UpdateCustomerSchema, 'body'),
+  controller.update
+)

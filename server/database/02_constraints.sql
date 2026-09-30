@@ -1,5 +1,3 @@
-USE CoffeeShopDB;
-GO
 
 -- =========================================================
 -- 1. UNIQUE CONSTRAINTS
