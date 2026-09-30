@@ -94,6 +94,7 @@ GRANT SELECT, INSERT ON InventoryAdjustment TO STOREKEEPER;
 
 GRANT SELECT ON v_LowStockIngredients TO STOREKEEPER;
 GRANT EXECUTE ON TYPE::udt_InventoryImportDetailList TO STOREKEEPER;
+GRANT EXECUTE ON sp_DieuChinhTonKho TO STOREKEEPER;
 
 -- Quyền thực thi Stored Procedure kho
 GRANT EXECUTE ON sp_CreateInventoryImport TO STOREKEEPER;
@@ -137,6 +138,7 @@ GRANT EXECUTE ON sp_CancelOrder TO MANAGER;
 GRANT EXECUTE ON sp_ApplyLoyaltyPoints TO MANAGER;
 GRANT EXECUTE ON sp_RemoveOrderItem TO MANAGER;
 GRANT EXECUTE ON sp_UpsertCustomerMember TO MANAGER;
+GRANT EXECUTE ON sp_DieuChinhTonKho TO MANAGER;
 
 -- Quyền sử dụng các Kiểu dữ liệu bảng (TVP)
 GRANT EXECUTE ON TYPE::udt_OrderDetailList TO MANAGER;

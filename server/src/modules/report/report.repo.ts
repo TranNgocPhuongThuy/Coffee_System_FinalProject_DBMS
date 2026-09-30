@@ -3,92 +3,77 @@ import { DateRangeReportType, TopProductsQueryType } from './report.schema'
 
 export class ReportRepo {
   // Thống kê tổng quan: Doanh thu, số đơn, số tiền giảm giá
+  // Sử dụng View v_DailyRevenue và Function fn_GetTotalRevenue
   async getOverviewRevenue(filter: DateRangeReportType) {
     const pool = await getPool()
     const request = pool.request()
 
-    const conditions: string[] = [
-      "status IN ('PAID', 'COMPLETED')",
-      'deletedAt IS NULL',
-    ]
+    const conditions: string[] = ['1=1']
 
     if (filter.fromDate) {
       request.input('fromDate', sql.DateTime2, filter.fromDate)
-      conditions.push('ISNULL(paidAt, createdAt) >= @fromDate')
+      conditions.push('revenueDate >= CAST(@fromDate AS DATE)')
     }
 
     if (filter.toDate) {
-      // toDate là ngày kết thúc nên chuyển sang ngày tiếp theo
-      const endDate = new Date(filter.toDate)
-      endDate.setDate(endDate.getDate() + 1)
-
-      request.input('toDate', sql.DateTime2, endDate)
-      conditions.push('ISNULL(paidAt, createdAt) < @toDate')
+      request.input('toDate', sql.DateTime2, filter.toDate)
+      conditions.push('revenueDate <= CAST(@toDate AS DATE)')
     }
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`
 
+    let netRevenueExpr = 'ISNULL(SUM(totalNetRevenue), 0)'
+    if (filter.fromDate && filter.toDate) {
+      netRevenueExpr = 'ISNULL(dbo.fn_GetTotalRevenue(@fromDate, @toDate), 0)'
+    }
+
     const query = `
-            SELECT
-                COUNT(id) AS totalOrders,
-                ISNULL(SUM(subTotal), 0) AS totalSubTotal,
-                ISNULL(SUM(discountAmount), 0) AS totalDiscount,
-                ISNULL(SUM(totalAmount), 0) AS netRevenue
-            FROM [Order]
-            ${whereClause}
-        `
+      SELECT
+        ISNULL(SUM(totalOrders), 0) AS totalOrders,
+        ISNULL(SUM(totalOriginalAmount), 0) AS totalSubTotal,
+        ISNULL(SUM(totalDiscountAmount), 0) AS totalDiscount,
+        ${netRevenueExpr} AS netRevenue
+      FROM v_DailyRevenue
+      ${whereClause}
+    `
 
     const result = await request.query(query)
 
     return result.recordset[0]
   }
 
-  // Top sản phẩm bán chạy nhất (bao gồm cả size)
+  // Top sản phẩm bán chạy nhất
+  // Sử dụng Function fn_GetTopSellingProducts (nếu có từ ngày/đến ngày) hoặc View v_TopSellingProducts
   async getTopSellingProducts(filter: TopProductsQueryType) {
     const pool = await getPool()
     const request = pool.request()
 
-    const conditions: string[] = [
-      "o.status IN ('PAID', 'COMPLETED')",
-      'o.deletedAt IS NULL',
-      "od.itemStatus NOT IN ('CANCELLED')",
-    ]
-
-    if (filter.fromDate) {
-      request.input('fromDate', sql.DateTime2, filter.fromDate)
-      conditions.push('ISNULL(o.paidAt, o.createdAt) >= @fromDate')
-    }
-
-    if (filter.toDate) {
-
-      const endDate = new Date(filter.toDate)
-      endDate.setDate(endDate.getDate() + 1)
-
-      request.input('toDate', sql.DateTime2, endDate)
-      conditions.push('ISNULL(o.paidAt, o.createdAt) < @toDate')
-    }
-
     request.input('topLimit', sql.Int, filter.limit)
 
-    const whereClause = `WHERE ${conditions.join(' AND ')}`
+    let query: string
 
-    const query = `
-            SELECT TOP (@topLimit)
-                od.itemSnapshotName AS productName,
-                od.sizeSnapshot AS size,
-                SUM(od.quantity) AS totalQuantitySold,
-                SUM(od.totalPrice) AS totalRevenue
-            FROM OrderDetail od
-            JOIN [Order] o ON od.orderId = o.id
-            ${whereClause}
-            GROUP BY
-                od.itemSnapshotName,
-                od.sizeSnapshot
-            ORDER BY
-                totalQuantitySold DESC,
-                totalRevenue DESC,
-                od.itemSnapshotName ASC
-        `
+    if (filter.fromDate && filter.toDate) {
+      request.input('fromDate', sql.DateTime2, filter.fromDate)
+      request.input('toDate', sql.DateTime2, filter.toDate)
+
+      query = `
+        SELECT
+          productName,
+          totalQuantitySold,
+          totalRevenue
+        FROM dbo.fn_GetTopSellingProducts(@topLimit, @fromDate, @toDate)
+        ORDER BY totalQuantitySold DESC, totalRevenue DESC
+      `
+    } else {
+      query = `
+        SELECT TOP (@topLimit)
+          productName,
+          totalQuantitySold,
+          totalRevenue
+        FROM v_TopSellingProducts
+        ORDER BY totalQuantitySold DESC, totalRevenue DESC
+      `
+    }
 
     const result = await request.query(query)
 
@@ -96,28 +81,25 @@ export class ReportRepo {
   }
 
   // Cảnh báo nguyên vật liệu sắp chạm hoặc dưới ngưỡng tối thiểu
+  // Sử dụng View v_LowStockIngredients
   async getLowStockIngredients() {
     const pool = await getPool()
     const request = pool.request()
 
     const query = `
-            SELECT
-                id,
-                name,
-                unit,
-                stockQuantity,
-                minimumThreshold,
-                (minimumThreshold - stockQuantity) AS shortageAmount
-            FROM Ingredient
-            WHERE
-                stockQuantity <= minimumThreshold
-                AND deletedAt IS NULL
-            ORDER BY stockQuantity ASC
-        `
+      SELECT
+        id,
+        name,
+        unit,
+        stockQuantity,
+        minimumThreshold,
+        ABS(chenhLech) AS shortageAmount
+      FROM v_LowStockIngredients
+      ORDER BY stockQuantity ASC
+    `
 
     const result = await request.query(query)
 
     return result.recordset
   }
 }
-

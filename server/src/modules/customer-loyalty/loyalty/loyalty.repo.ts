@@ -8,6 +8,54 @@ export class LoyaltyRepo {
 
         const { customerId, orderId, transactionType, fromDate, toDate, page = 1, limit = 20 } = filter
         const offset = (page - 1) * limit
+
+        // Nếu có customerId, fromDate, toDate và không có orderId / transactionType: tận dụng Function fn_GetMemberLoyaltyHistory
+        if (customerId && fromDate && toDate && !orderId && !transactionType) {
+            request.input('customerId', sql.Int, customerId)
+            request.input('fromDate', sql.DateTime2, fromDate)
+            const endDate = new Date(toDate)
+            endDate.setDate(endDate.getDate() + 1)
+            request.input('toDate', sql.DateTime2, endDate)
+            request.input('offset', sql.Int, offset)
+            request.input('limit', sql.Int, limit)
+
+            const countRes = await request.query(`
+                SELECT COUNT(1) AS total
+                FROM dbo.fn_GetMemberLoyaltyHistory(@customerId, @fromDate, @toDate)
+            `)
+            const totalItems = countRes.recordset[0]?.total || 0
+
+            const listQuery = `
+                SELECT 
+                    h.transactionId AS id,
+                    h.customerId,
+                    c.fullName AS customerName,
+                    c.phoneNumber AS customerPhone,
+                    h.orderId,
+                    h.transactionType,
+                    h.points,
+                    h.balanceAfter,
+                    h.description,
+                    h.transactionTime AS createdAt
+                FROM dbo.fn_GetMemberLoyaltyHistory(@customerId, @fromDate, @toDate) h
+                JOIN Customer c ON h.customerId = c.id
+                ORDER BY h.transactionTime DESC, h.transactionId DESC
+                OFFSET @offset ROWS
+                FETCH NEXT @limit ROWS ONLY
+            `
+            const listRes = await request.query(listQuery)
+
+            return {
+                items: listRes.recordset,
+                meta: {
+                    page,
+                    limit,
+                    totalItems,
+                    totalPages: Math.ceil(totalItems / limit),
+                },
+            }
+        }
+
         const conditions: string[] = ['1=1']
 
         if (customerId) {

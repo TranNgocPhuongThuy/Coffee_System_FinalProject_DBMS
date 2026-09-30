@@ -194,7 +194,8 @@ GO
 
 
 -- 1.3. sp_CancelOrder
-IF OBJECT_ID('sp_CancelOrder', 'P') IS NOT NULL DROP PROCEDURE sp_CancelOrder;
+IF OBJECT_ID('sp_CancelOrder', 'P') IS NOT NULL 
+    DROP PROCEDURE sp_CancelOrder;
 GO
 
 CREATE PROCEDURE sp_CancelOrder
@@ -207,29 +208,90 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        DECLARE @CurrentStatus NVARCHAR(50), @PaidAt DATETIME2(7);
+        DECLARE @CurrentStatus NVARCHAR(50), 
+                @PaidAt DATETIME2(7),
+                @CustomerId INT,
+                @PointsRedeemed INT;
 
-        SELECT @CurrentStatus = status, @PaidAt = paidAt
-        FROM [Order] WITH (UPDLOCK)
-        WHERE id = @OrderId;
+        -- 1. Khóa và kiểm tra thông tin đơn hàng
+        SELECT 
+            @CurrentStatus = status, 
+            @PaidAt = paidAt,
+            @CustomerId = customerId
+        FROM [Order] WITH (UPDLOCK, ROWLOCK)
+        WHERE id = @OrderId AND deletedAt IS NULL;
 
-        IF @CurrentStatus = N'COMPLETED' OR @PaidAt IS NOT NULL
+        -- Kiểm tra đơn hàng có tồn tại không
+        IF @CurrentStatus IS NULL
         BEGIN
-            RAISERROR(N'Cannot cancel a completed or paid order!', 16, 1);
+            RAISERROR(N'Đơn hàng không tồn tại hoặc đã bị xóa!', 16, 1);
             ROLLBACK TRANSACTION;
             RETURN;
         END
 
+        -- Chặn hủy đơn đã thanh toán hoặc đã hoàn tất
+        IF @CurrentStatus = N'COMPLETED' OR @PaidAt IS NOT NULL
+        BEGIN
+            RAISERROR(N'Không thể hủy đơn hàng đã hoàn tất hoặc đã thanh toán!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        -- Chặn hủy lại đơn đã bị hủy trước đó
+        IF @CurrentStatus = N'CANCELLED'
+        BEGIN
+            RAISERROR(N'Đơn hàng này đã bị hủy trước đó!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        -- 2. Cập nhật trạng thái đơn hàng sang CANCELLED và lưu vết nhân viên hủy
+        -- Trigger trg_Order_SyncPagerStatus sẽ tự động giải phóng thẻ rung về AVAILABLE
         UPDATE [Order]
         SET status = N'CANCELLED',
             cancelReason = @CancelReason,
             updatedAt = GETDATE()
         WHERE id = @OrderId;
 
-        -- Release associated pager device
-        UPDATE PagerDevice
-        SET status = N'AVAILABLE', updatedAt = GETDATE()
-        WHERE id = (SELECT pagerId FROM [Order] WHERE id = @OrderId) AND status = N'IN_USE';
+        -- 3. Hoàn trả điểm thưởng nếu khách hàng từng đổi điểm (REDEEM) cho đơn này
+        IF @CustomerId IS NOT NULL
+        BEGIN
+            -- Tìm số điểm đã trừ trong đơn hàng
+            SELECT @PointsRedeemed = ABS(points)
+            FROM LoyaltyTransaction
+            WHERE orderId = @OrderId AND transactionType = N'REDEEM';
+
+            IF @PointsRedeemed > 0
+            BEGIN
+                DECLARE @CurrentBalance INT;
+                SELECT @CurrentBalance = rewardPoints 
+                FROM Customer WITH (UPDLOCK, ROWLOCK) 
+                WHERE id = @CustomerId;
+
+                DECLARE @NewBalance INT = ISNULL(@CurrentBalance, 0) + @PointsRedeemed;
+
+                -- Ghi nhận giao dịch hoàn điểm vào sổ cái
+                -- Trigger trg_LoyaltyTransaction_SyncPoints sẽ tự động cộng bù lại vào Customer.rewardPoints
+                INSERT INTO LoyaltyTransaction (
+                    customerId, 
+                    orderId, 
+                    transactionType, 
+                    points, 
+                    balanceAfter, 
+                    description, 
+                    createdAt
+                )
+                VALUES (
+                    @CustomerId, 
+                    @OrderId, 
+                    N'EARN', 
+                    @PointsRedeemed, 
+                    @NewBalance, 
+                    N'Hoàn lại điểm tích lũy do hủy đơn hàng #' + CAST(@OrderId AS NVARCHAR(20)), 
+                    GETDATE()
+                );
+            END
+        END
 
         COMMIT TRANSACTION;
     END TRY
