@@ -26,13 +26,15 @@ export class LoyaltyRepo {
         }
 
         if (fromDate) {
-            request.input('fromDate', sql.DateTime2, new Date(fromDate))
+            request.input('fromDate', sql.DateTime2, fromDate)
             conditions.push('lt.createdAt >= @fromDate')
         }
 
         if (toDate) {
-            request.input('toDate', sql.DateTime2, new Date(toDate))
-            conditions.push('lt.createdAt <= @toDate')
+            const endDate = new Date(toDate)
+            endDate.setDate(endDate.getDate() + 1)
+            request.input('toDate', sql.DateTime2, endDate)
+            conditions.push('lt.createdAt < @toDate')
         }
 
         const whereClause = `WHERE ${conditions.join(' AND ')}`
@@ -58,7 +60,7 @@ export class LoyaltyRepo {
       FROM LoyaltyTransaction lt
       JOIN Customer c ON lt.customerId = c.id
       ${whereClause}
-      ORDER BY lt.createdAt DESC
+      ORDER BY lt.createdAt DESC, lt.id DESC
       OFFSET @offset ROWS
       FETCH NEXT @limit ROWS ONLY
     `
@@ -97,6 +99,40 @@ export class LoyaltyRepo {
                 throw new Error('Khách hàng không tồn tại hoặc đã bị xóa')
             }
 
+            // Nếu truyền orderId, validate đơn hàng & kiểm tra thuộc về customerId
+            if (data.orderId) {
+                const orderReq = new sql.Request(transaction)
+                orderReq.input('orderId', sql.Int, data.orderId)
+                const orderRes = await orderReq.query(`
+          SELECT id, customerId 
+          FROM [Order] 
+          WHERE id = @orderId AND deletedAt IS NULL
+        `)
+
+                if (orderRes.recordset.length === 0) {
+                    throw new Error('Đơn hàng không tồn tại')
+                }
+
+                const order = orderRes.recordset[0]
+                if (order.customerId && order.customerId !== data.customerId) {
+                    throw new Error('Đơn hàng không thuộc về khách hàng này')
+                }
+
+                // Chống EARN trùng order nếu mỗi order chỉ được cộng điểm một lần
+                if (data.transactionType === 'EARN') {
+                    const dupReq = new sql.Request(transaction)
+                    dupReq.input('orderId', sql.Int, data.orderId)
+                    const dupRes = await dupReq.query(`
+            SELECT TOP 1 id FROM LoyaltyTransaction 
+            WHERE orderId = @orderId AND transactionType = 'EARN'
+          `)
+
+                    if (dupRes.recordset.length > 0) {
+                        throw new Error('Đơn hàng này đã được cộng điểm thưởng trước đó')
+                    }
+                }
+            }
+
             const currentPoints: number = customerRes.recordset[0].rewardPoints
             let newBalance = currentPoints
 
@@ -109,11 +145,25 @@ export class LoyaltyRepo {
                 newBalance -= data.points
             }
 
-            // Xác định hạng thành viên mới theo mốc điểm
+            // Tính tổng điểm tích lũy lifetime (Lifetime Earned Points) để xét hạng membershipTier
+            const lifetimeReq = new sql.Request(transaction)
+            lifetimeReq.input('customerId', sql.Int, data.customerId)
+            const lifetimeRes = await lifetimeReq.query(`
+        SELECT ISNULL(SUM(points), 0) AS totalEarned
+        FROM LoyaltyTransaction
+        WHERE customerId = @customerId AND transactionType = 'EARN'
+      `)
+
+            let lifetimePoints = Number(lifetimeRes.recordset[0]?.totalEarned || 0)
+            if (data.transactionType === 'EARN') {
+                lifetimePoints += data.points
+            }
+
+            // Xác định hạng thành viên theo Lifetime Points để không bị tụt hạng khi đổi điểm (REDEEM)
             let newTier = 'STANDARD'
-            if (newBalance >= 1000) newTier = 'DIAMOND'
-            else if (newBalance >= 500) newTier = 'GOLD'
-            else if (newBalance >= 200) newTier = 'SILVER'
+            if (lifetimePoints >= 1000) newTier = 'DIAMOND'
+            else if (lifetimePoints >= 500) newTier = 'GOLD'
+            else if (lifetimePoints >= 200) newTier = 'SILVER'
 
             // Cập nhật Customer
             const updateReq = new sql.Request(transaction)
