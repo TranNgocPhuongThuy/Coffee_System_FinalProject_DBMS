@@ -11,20 +11,30 @@ import {
 export const productRouter = Router()
 const controller = new ProductController()
 
-// Tra cứu thực đơn: Public cho Customer và Cashier
+/**
+ * @route   GET /api/v1/products
+ * @desc    Tra cứu danh sách thực đơn (Public cho Customer & Cashier)
+ */
 productRouter.get(
   '/',
   validatePipe(FilterProductQuerySchema, 'query'),
   controller.getAll
 )
 
+/**
+ * @route   GET /api/v1/products/:id
+ * @desc    Xem chi tiết 1 sản phẩm theo ID (Public cho Customer & Cashier)
+ */
 productRouter.get(
   '/:id',
   validatePipe(ProductParamSchema, 'params'),
   controller.getById
 )
 
-// Thêm, cập nhật và xóa món: Chỉ MANAGER
+/**
+ * @route   POST /api/v1/products
+ * @desc    Tạo món mới (Yêu cầu Đăng nhập & Quyền MANAGER)
+ */
 productRouter.post(
   '/',
   authGuard,
@@ -33,6 +43,10 @@ productRouter.post(
   controller.create
 )
 
+/**
+ * @route   PUT /api/v1/products/:id
+ * @desc    Cập nhật món & biến thể Size/Giá (Yêu cầu Đăng nhập & Quyền MANAGER)
+ */
 productRouter.put(
   '/:id',
   authGuard,
@@ -42,6 +56,10 @@ productRouter.put(
   controller.update
 )
 
+/**
+ * @route   DELETE /api/v1/products/:id
+ * @desc    Xóa mềm món ăn (Yêu cầu Đăng nhập & Quyền MANAGER)
+ */
 productRouter.delete(
   '/:id',
   authGuard,

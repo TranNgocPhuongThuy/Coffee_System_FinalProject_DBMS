@@ -2,6 +2,9 @@
 -- Tắt kiểm tra khóa ngoại tạm thời để dọn dẹp và nạp dữ liệu sạch
 EXEC sp_MSforeachtable "ALTER TABLE ? NOCHECK CONSTRAINT all";
 GO
+-- Tắt tạm thời trigger chặn sửa/xóa điểm
+ALTER TABLE LoyaltyTransaction DISABLE TRIGGER trg_LoyaltyTransaction_AppendOnly;
+GO
 
 DELETE FROM OrderDetailTopping;
 DELETE FROM OrderDetail;
@@ -232,15 +235,30 @@ VALUES
 (1, 1, N'Trân Châu Trắng', 8000.00, 1);
 GO
 
+
 -- ==============================================================
 -- 14. LỊCH SỬ BIẾN ĐỘNG ĐIỂM (LoyaltyTransaction)
 -- ==============================================================
+
+-- 1. Tắt tạm thời trigger chặn xóa/sửa lịch sử điểm
+ALTER TABLE LoyaltyTransaction DISABLE TRIGGER trg_LoyaltyTransaction_AppendOnly;
+GO
+
+-- 2. Xóa dữ liệu rác/dữ liệu do Trigger tự chèn trước đó
+DELETE FROM LoyaltyTransaction;
+GO
+
+-- 3. Tiến hành chèn dữ liệu mẫu chuẩn
 SET IDENTITY_INSERT LoyaltyTransaction ON;
 INSERT INTO LoyaltyTransaction (id, customerId, orderId, transactionType, points, balanceAfter, description, createdAt)
 VALUES
 (1, 1, 1, 'EARN', 4, 150, N'Tích lũy điểm từ hóa đơn ORD260901', DATEADD(DAY, -1, GETDATE())),
 (2, 2, 2, 'REDEEM', 10, 550, N'Đổi 10 điểm giảm 10.000 VNĐ cho đơn ORD260902', GETDATE());
 SET IDENTITY_INSERT LoyaltyTransaction OFF;
+GO
+
+-- 4. Bật lại trigger bảo vệ sổ cái điểm
+ALTER TABLE LoyaltyTransaction ENABLE TRIGGER trg_LoyaltyTransaction_AppendOnly;
 GO
 
 -- Bật lại kiểm tra toàn vẹn khóa ngoại

@@ -1,111 +1,329 @@
-import pool from '../../../config/database';
+import { getPool, sql } from '@/config/database'
+import {
+  CreateProductType,
+  FilterProductQueryType,
+  UpdateProductType,
+} from './product.schema'
+
+export interface ProductVariantRow {
+  id: number
+  productId: number
+  size: 'S' | 'M' | 'L' | 'XL'
+  price: number
+  createdAt: Date
+  updatedAt?: Date | null
+}
+
+export interface ProductDetail {
+  id: number
+  categoryId: number
+  categoryName?: string
+  name: string
+  description?: string | null
+  image?: string | null
+  status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK'
+  createdAt: Date
+  updatedAt?: Date | null
+  variants: ProductVariantRow[]
+}
 
 export class ProductRepository {
-  async findAll(categoryId?: string, isAvailable?: boolean) {
-    let query = `
-      SELECT p.*, c.name as category_name
-      FROM products p
-      JOIN categories c ON p.category_id = c.id
-      WHERE p.is_active = true
-    `;
-    const params: any[] = [];
+  /**
+   * Lấy danh sách sản phẩm kèm mảng biến thể (Dùng FOR JSON PATH - 1 query duy nhất)
+   */
+  async findAll(filter: FilterProductQueryType): Promise<ProductDetail[]> {
+    const pool = await getPool()
+    const req = pool.request()
 
-    if (categoryId) {
-      params.push(categoryId);
-      query += ` AND p.category_id = $${params.length}`;
-    }
-    if (isAvailable !== undefined) {
-      params.push(isAvailable);
-      query += ` AND p.is_available = $${params.length}`;
+    const conditions: string[] = ['p.deletedAt IS NULL']
+
+    if (filter.categoryId) {
+      req.input('categoryId', sql.Int, filter.categoryId)
+      conditions.push('p.categoryId = @categoryId')
     }
 
-    query += ` ORDER BY p.created_at DESC`;
-    const { rows } = await pool.query(query, params);
-    return rows;
+    if (filter.status) {
+      req.input('status', sql.NVarChar(50), filter.status)
+      conditions.push('p.status = @status')
+    }
+
+    if (filter.search) {
+      req.input('search', sql.NVarChar(200), `%${filter.search}%`)
+      conditions.push('p.name LIKE @search')
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`
+
+    const query = `
+      SELECT 
+        p.id, 
+        p.categoryId, 
+        c.name AS categoryName, 
+        p.name, 
+        p.description, 
+        p.image, 
+        p.status, 
+        p.createdAt, 
+        p.updatedAt,
+        (
+          SELECT id, productId, size, price, createdAt, updatedAt
+          FROM ProductVariant pv
+          WHERE pv.productId = p.id AND pv.deletedAt IS NULL
+          ORDER BY pv.price ASC
+          FOR JSON PATH
+        ) AS variantsJson
+      FROM Product p
+      JOIN Category c ON p.categoryId = c.id
+      ${whereClause}
+      ORDER BY p.id DESC
+    `
+
+    const result = await req.query<any>(query)
+
+    return result.recordset.map((row) => ({
+      id: row.id,
+      categoryId: row.categoryId,
+      categoryName: row.categoryName,
+      name: row.name,
+      description: row.description,
+      image: row.image,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      variants: row.variantsJson ? JSON.parse(row.variantsJson) : [],
+    }))
   }
 
-  async findById(id: string) {
-    const productQuery = `SELECT * FROM products WHERE id = $1 AND is_active = true`;
-    const variantsQuery = `SELECT * FROM product_variants WHERE product_id = $1`;
-    const toppingsQuery = `
-      SELECT t.* 
-      FROM topping_options t
-      JOIN product_toppings pt ON t.id = pt.topping_id
-      WHERE pt.product_id = $1 AND t.is_available = true
-    `;
+  /**
+   * Lấy chi tiết sản phẩm theo ID
+   */
+  async findById(id: number): Promise<ProductDetail | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
 
-    const productRes = await pool.query(productQuery, [id]);
-    if (productRes.rows.length === 0) return null;
+    const query = `
+      SELECT 
+        p.id, 
+        p.categoryId, 
+        c.name AS categoryName, 
+        p.name, 
+        p.description, 
+        p.image, 
+        p.status, 
+        p.createdAt, 
+        p.updatedAt,
+        (
+          SELECT id, productId, size, price, createdAt, updatedAt
+          FROM ProductVariant pv
+          WHERE pv.productId = p.id AND pv.deletedAt IS NULL
+          ORDER BY pv.price ASC
+          FOR JSON PATH
+        ) AS variantsJson
+      FROM Product p
+      JOIN Category c ON p.categoryId = c.id
+      WHERE p.id = @id AND p.deletedAt IS NULL
+    `
 
-    const variantsRes = await pool.query(variantsQuery, [id]);
-    const toppingsRes = await pool.query(toppingsQuery, [id]);
+    const result = await req.query<any>(query)
+    if (result.recordset.length === 0) return null
 
+    const row = result.recordset[0]
     return {
-      ...productRes.rows[0],
-      variants: variantsRes.rows,
-      toppings: toppingsRes.rows,
-    };
+      id: row.id,
+      categoryId: row.categoryId,
+      categoryName: row.categoryName,
+      name: row.name,
+      description: row.description,
+      image: row.image,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      variants: row.variantsJson ? JSON.parse(row.variantsJson) : [],
+    }
   }
 
-  async findByCode(code: string) {
-    const query = `SELECT * FROM products WHERE code = $1`;
-    const { rows } = await pool.query(query, [code]);
-    return rows[0] || null;
+  /**
+   * Tìm sản phẩm theo tên (Phục vụ check trùng tên)
+   */
+  async findByName(name: string, excludeId?: number): Promise<any | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(200), name)
+
+    let query = `SELECT id FROM Product WHERE name = @name AND deletedAt IS NULL`
+    if (excludeId) {
+      req.input('excludeId', sql.Int, excludeId)
+      query += ` AND id != @excludeId`
+    }
+
+    const result = await req.query(query)
+    return result.recordset[0] || null
   }
 
-  async createWithDetails(data: any) {
-    const client = await pool.connect();
+  /**
+   * Tạo món mới kèm các biến thể size
+   */
+  async createWithVariants(data: CreateProductType): Promise<ProductDetail> {
+    const pool = await getPool()
+    const transaction = new sql.Transaction(pool)
+    await transaction.begin()
+
     try {
-      await client.query('BEGIN');
+      const productReq = new sql.Request(transaction)
+      productReq.input('categoryId', sql.Int, data.categoryId)
+      productReq.input('name', sql.NVarChar(200), data.name)
+      productReq.input('description', sql.NVarChar(sql.MAX), data.description || null)
+      productReq.input('image', sql.NVarChar(500), data.image || null)
+      productReq.input('status', sql.NVarChar(50), data.status || 'ACTIVE')
 
-      const productQuery = `
-        INSERT INTO products (category_id, code, name, base_price, image_url, description, is_available)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *
-      `;
-      const productValues = [
-        data.categoryId, data.code, data.name, data.basePrice,
-        data.imageUrl || null, data.description || null, data.isAvailable ?? true
-      ];
-      const productRes = await client.query(productQuery, productValues);
-      const product = productRes.rows[0];
+      const productRes = await productReq.query(`
+        INSERT INTO Product (categoryId, name, description, image, status, createdAt)
+        OUTPUT INSERTED.id, INSERTED.categoryId, INSERTED.name, INSERTED.description, INSERTED.image, INSERTED.status, INSERTED.createdAt
+        VALUES (@categoryId, @name, @description, @image, @status, SYSDATETIME())
+      `)
+      const newProduct = productRes.recordset[0]
 
       for (const v of data.variants) {
-        await client.query(
-          `INSERT INTO product_variants (product_id, size_name, price_adjustment, is_default)
-           VALUES ($1, $2, $3, $4)`,
-          [product.id, v.sizeName, v.priceAdjustment, v.isDefault ?? false]
-        );
+        const variantReq = new sql.Request(transaction)
+        variantReq.input('productId', sql.Int, newProduct.id)
+        variantReq.input('size', sql.NVarChar(20), v.size)
+        variantReq.input('price', sql.Decimal(18, 2), v.price)
+
+        await variantReq.query(`
+          INSERT INTO ProductVariant (productId, size, price, createdAt)
+          VALUES (@productId, @size, @price, SYSDATETIME())
+        `)
       }
 
-      if (data.toppingIds && data.toppingIds.length > 0) {
-        for (const toppingId of data.toppingIds) {
-          await client.query(
-            `INSERT INTO product_toppings (product_id, topping_id) VALUES ($1, $2)`,
-            [product.id, toppingId]
-          );
+      await transaction.commit()
+      return (await this.findById(newProduct.id))!
+    } catch (error) {
+      await transaction.rollback()
+      throw error
+    }
+  }
+
+  /**
+   * Cập nhật món dùng cơ chế Smart Upsert (An toàn tuyệt đối cho Khóa ngoại)
+   */
+  async update(id: number, data: UpdateProductType): Promise<ProductDetail | null> {
+    const pool = await getPool()
+    const transaction = new sql.Transaction(pool)
+    await transaction.begin()
+
+    try {
+      const updateClauses: string[] = ['updatedAt = SYSDATETIME()']
+      const updateReq = new sql.Request(transaction)
+      updateReq.input('id', sql.Int, id)
+
+      if (data.categoryId !== undefined) {
+        updateReq.input('categoryId', sql.Int, data.categoryId)
+        updateClauses.push('categoryId = @categoryId')
+      }
+      if (data.name !== undefined) {
+        updateReq.input('name', sql.NVarChar(200), data.name)
+        updateClauses.push('name = @name')
+      }
+      if (data.description !== undefined) {
+        updateReq.input('description', sql.NVarChar(sql.MAX), data.description)
+        updateClauses.push('description = @description')
+      }
+      if (data.image !== undefined) {
+        updateReq.input('image', sql.NVarChar(500), data.image)
+        updateClauses.push('image = @image')
+      }
+      if (data.status !== undefined) {
+        updateReq.input('status', sql.NVarChar(50), data.status)
+        updateClauses.push('status = @status')
+      }
+
+      const productUpdateResult = await updateReq.query(`
+        UPDATE Product
+        SET ${updateClauses.join(', ')}
+        WHERE id = @id AND deletedAt IS NULL
+      `)
+
+      if (productUpdateResult.rowsAffected[0] === 0) {
+        await transaction.rollback()
+        return null
+      }
+
+      // Smart Upsert biến thể Size
+      if (data.variants && data.variants.length > 0) {
+        const incomingSizes = data.variants.map((v) => v.size)
+
+        // 1. Xóa mềm các size không còn nằm trong danh sách mới
+        const softDelReq = new sql.Request(transaction)
+        softDelReq.input('productId', sql.Int, id)
+        const sizeParams = incomingSizes.map((s, idx) => {
+          softDelReq.input(`s${idx}`, sql.NVarChar(20), s)
+          return `@s${idx}`
+        })
+
+        await softDelReq.query(`
+          UPDATE ProductVariant
+          SET deletedAt = SYSDATETIME(), updatedAt = SYSDATETIME()
+          WHERE productId = @productId 
+            AND deletedAt IS NULL 
+            AND size NOT IN (${sizeParams.join(',')})
+        `)
+
+        // 2. Loop qua danh sách mới: Cập nhật nếu đã có, Thêm mới nếu chưa có
+        for (const v of data.variants) {
+          const upsertReq = new sql.Request(transaction)
+          upsertReq.input('productId', sql.Int, id)
+          upsertReq.input('size', sql.NVarChar(20), v.size)
+          upsertReq.input('price', sql.Decimal(18, 2), v.price)
+
+          await upsertReq.query(`
+            IF EXISTS (SELECT 1 FROM ProductVariant WHERE productId = @productId AND size = @size AND deletedAt IS NULL)
+            BEGIN
+              UPDATE ProductVariant 
+              SET price = @price, updatedAt = SYSDATETIME()
+              WHERE productId = @productId AND size = @size AND deletedAt IS NULL
+            END
+            ELSE IF EXISTS (SELECT 1 FROM ProductVariant WHERE productId = @productId AND size = @size AND deletedAt IS NOT NULL)
+            BEGIN
+              UPDATE ProductVariant 
+              SET price = @price, deletedAt = NULL, updatedAt = SYSDATETIME()
+              WHERE productId = @productId AND size = @size
+            END
+            ELSE
+            BEGIN
+              INSERT INTO ProductVariant (productId, size, price, createdAt)
+              VALUES (@productId, @size, @price, SYSDATETIME())
+            END
+          `)
         }
       }
 
-      await client.query('COMMIT');
-      return product;
+      await transaction.commit()
+      return await this.findById(id)
     } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+      await transaction.rollback()
+      throw error
     }
   }
 
-  async updateAvailability(id: string, isAvailable: boolean) {
-    const query = `UPDATE products SET is_available = $1 WHERE id = $2 RETURNING *`;
-    const { rows } = await pool.query(query, [isAvailable, id]);
-    return rows[0] || null;
-  }
+  /**
+   * Xóa mềm Sản phẩm và toàn bộ Biến thể liên quan
+   */
+  async softDelete(id: number): Promise<boolean> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
 
-  async softDelete(id: string) {
-    const query = `UPDATE products SET is_active = false WHERE id = $1`;
-    const res = await pool.query(query, [id]);
-    return (res.rowCount ?? 0) > 0;
+    const result = await req.query(`
+      UPDATE Product
+      SET deletedAt = SYSDATETIME(), updatedAt = SYSDATETIME()
+      WHERE id = @id AND deletedAt IS NULL;
+
+      UPDATE ProductVariant
+      SET deletedAt = SYSDATETIME(), updatedAt = SYSDATETIME()
+      WHERE productId = @id AND deletedAt IS NULL;
+    `)
+
+    return (result.rowsAffected[0] ?? 0) > 0
   }
 }
