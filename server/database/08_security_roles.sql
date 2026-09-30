@@ -38,6 +38,18 @@ GRANT SELECT ON ProductVariant TO CASHIER;
 GRANT SELECT ON Topping TO CASHIER;
 GRANT SELECT ON Employee TO CASHIER;
 
+-- Quyền thực thi Stored Procedures nghiệp vụ POS
+GRANT EXECUTE ON sp_CreateCounterOrder TO CASHIER;
+GRANT EXECUTE ON sp_CreateOrderWithPager TO CASHIER;
+GRANT EXECUTE ON sp_CompleteOrderPayment TO CASHIER;
+GRANT EXECUTE ON sp_CancelOrder TO CASHIER;
+GRANT EXECUTE ON sp_ApplyLoyaltyPoints TO CASHIER;
+GRANT EXECUTE ON sp_RemoveOrderItem TO CASHIER;
+GRANT EXECUTE ON sp_UpsertCustomerMember TO CASHIER;
+
+-- Quyền sử dụng Kiểu dữ liệu bảng (TVP) cho POS
+GRANT EXECUTE ON TYPE::udt_OrderDetailList TO CASHIER;
+
 -- Quyền trên Views & Functions phục vụ POS
 GRANT SELECT ON v_InvoiceDetails TO CASHIER;
 GRANT SELECT ON v_ActivePagerDashboard TO CASHIER;
@@ -84,7 +96,7 @@ GRANT SELECT, INSERT ON InventoryAdjustment TO STOREKEEPER;
 GRANT SELECT ON v_LowStockIngredients TO STOREKEEPER;
 
 -- Quyền thực thi Stored Procedure kho
-GRANT EXECUTE ON sp_DieuChinhTonKho TO STOREKEEPER;
+GRANT EXECUTE ON sp_CreateInventoryImport TO STOREKEEPER;
 
 DENY DELETE ON Ingredient TO STOREKEEPER;
 DENY DELETE ON InventoryImport TO STOREKEEPER;
@@ -116,6 +128,17 @@ GRANT SELECT ON v_ProductRecipeDetails TO MANAGER;
 GRANT SELECT ON v_InvoiceDetails TO MANAGER;
 
 -- Thực thi toàn bộ Stored Procedures
-GRANT EXECUTE ON sp_CauHinhDinhLuongBOM TO MANAGER;
-GRANT EXECUTE ON sp_DieuChinhTonKho TO MANAGER;
+GRANT EXECUTE ON sp_UpsertRecipeBOM TO MANAGER;
+GRANT EXECUTE ON sp_CreateInventoryImport TO MANAGER;
+GRANT EXECUTE ON sp_CreateCounterOrder TO MANAGER;
+GRANT EXECUTE ON sp_CreateOrderWithPager TO MANAGER;
+GRANT EXECUTE ON sp_CompleteOrderPayment TO MANAGER;
+GRANT EXECUTE ON sp_CancelOrder TO MANAGER;
+GRANT EXECUTE ON sp_ApplyLoyaltyPoints TO MANAGER;
+GRANT EXECUTE ON sp_RemoveOrderItem TO MANAGER;
+GRANT EXECUTE ON sp_UpsertCustomerMember TO MANAGER;
+
+-- Quyền sử dụng các Kiểu dữ liệu bảng (TVP)
+GRANT EXECUTE ON TYPE::udt_OrderDetailList TO MANAGER;
+GRANT EXECUTE ON TYPE::udt_InventoryImportDetailList TO MANAGER;
 GO
