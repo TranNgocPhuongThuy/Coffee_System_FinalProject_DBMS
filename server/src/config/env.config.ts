@@ -1,5 +1,6 @@
 import dotenv from 'dotenv'
 import { z } from 'zod'
+import type { StringValue } from 'ms'
 
 dotenv.config()
 
@@ -14,7 +15,7 @@ const envSchema = z.object({
   DB_NAME: z.string().min(1, 'Chưa cấu hình DB_NAME'),
 
   JWT_SECRET: z.string().min(1, 'Chưa cấu hình JWT_SECRET'),
-  JWT_EXPIRES_IN: z.string().default('1d'),
+  JWT_EXPIRES_IN: z.custom<StringValue>().default('1d'),
 })
 
 const parseResult = envSchema.safeParse(process.env)

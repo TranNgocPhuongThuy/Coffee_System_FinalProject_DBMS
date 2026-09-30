@@ -1,45 +1,25 @@
 import { Router } from 'express'
 import { PagerController } from './pager.controller'
+import { authGuard, roleGuard } from '@/middlewares'
 
 export const pagerRouter = Router()
 const controller = new PagerController()
 
-// 1. Lấy danh sách thẻ rung (Phân trang, lọc theo trạng thái, mức pin, tìm kiếm mã)
-// GET /api/v1/pos/pagers
-pagerRouter.get('/', controller.list)
+// Bắt buộc đăng nhập cho toàn bộ phân hệ Pager
+pagerRouter.use(authGuard)
 
-// 2. Danh sách thẻ rung sẵn sàng cấp cho khách (AVAILABLE & Pin >= 15%)
-// GET /api/v1/pos/pagers/available
-pagerRouter.get('/available', controller.available)
+// Cashier và Manager được xem danh sách và dashboard
+pagerRouter.get('/', roleGuard('CASHIER', 'MANAGER'), controller.list)
+pagerRouter.get('/available', roleGuard('CASHIER', 'MANAGER'), controller.available)
+pagerRouter.get('/dashboard', roleGuard('CASHIER', 'MANAGER', 'BARISTA'), controller.dashboard)
+pagerRouter.get('/:id', roleGuard('CASHIER', 'MANAGER'), controller.detail)
 
-// 3. Dashboard điều phối theo dõi thời gian chờ của khách theo View v_ActivePagerDashboard
-// GET /api/v1/pos/pagers/dashboard
-pagerRouter.get('/dashboard', controller.dashboard)
+// Thu hồi thẻ rung: Thu ngân hoặc Pha chế
+pagerRouter.post('/:id/release', roleGuard('CASHIER', 'BARISTA', 'MANAGER'), controller.release)
+pagerRouter.patch('/:id/battery', roleGuard('CASHIER', 'BARISTA', 'MANAGER'), controller.updateBattery)
+pagerRouter.patch('/:id/status', roleGuard('CASHIER', 'MANAGER'), controller.updateStatus)
 
-// 4. Lấy thông tin chi tiết 1 thẻ rung
-// GET /api/v1/pos/pagers/:id
-pagerRouter.get('/:id', controller.detail)
-
-// 5. Thêm mới thiết bị thẻ rung
-// POST /api/v1/pos/pagers
-pagerRouter.post('/', controller.create)
-
-// 6. Cập nhật thông tin thẻ rung
-// PUT /api/v1/pos/pagers/:id
-pagerRouter.put('/:id', controller.update)
-
-// 7. Cập nhật trạng thái thẻ rung (AVAILABLE, IN_USE, CHARGING, MAINTENANCE)
-// PATCH /api/v1/pos/pagers/:id/status
-pagerRouter.patch('/:id/status', controller.updateStatus)
-
-// 8. Cập nhật mức pin thiết bị thẻ rung
-// PATCH /api/v1/pos/pagers/:id/battery
-pagerRouter.patch('/:id/battery', controller.updateBattery)
-
-// 9. Thu hồi thẻ rung khi khách trả thẻ
-// POST /api/v1/pos/pagers/:id/release
-pagerRouter.post('/:id/release', controller.release)
-
-// 10. Xóa mềm thiết bị thẻ rung
-// DELETE /api/v1/pos/pagers/:id
-pagerRouter.delete('/:id', controller.delete)
+// Cấu hình thêm mới / xóa thẻ rung: Chỉ MANAGER
+pagerRouter.post('/', roleGuard('MANAGER'), controller.create)
+pagerRouter.put('/:id', roleGuard('MANAGER'), controller.update)
+pagerRouter.delete('/:id', roleGuard('MANAGER'), controller.delete)

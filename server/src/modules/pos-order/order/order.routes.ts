@@ -1,29 +1,18 @@
 import { Router } from 'express'
 import { OrderController } from './order.controller'
+import { authGuard, roleGuard } from '@/middlewares'
 
 export const orderRouter = Router()
 const controller = new OrderController()
 
-// 1. Lấy danh sách đơn hàng có phân trang & bộ lọc
-orderRouter.get('/', controller.list)
+// Bắt buộc đăng nhập cho các thao tác POS bán hàng
+orderRouter.use(authGuard)
 
-// 2. Tạo đơn hàng mới tại quầy (hoặc kèm thẻ rung)
-orderRouter.post('/', controller.create)
-
-// 3. Xóa món khỏi đơn hàng
-orderRouter.delete('/items/:detailId', controller.removeItem)
-
-// 4. Lấy chi tiết đơn hàng
-orderRouter.get('/:id', controller.detail)
-
-// 5. Xuất hóa đơn chi tiết phục vụ in ấn từ View v_InvoiceDetails
-orderRouter.get('/:id/invoice', controller.invoice)
-
-// 6. Hoàn tất thanh toán đơn hàng & tích điểm
-orderRouter.patch('/:id/pay', controller.completePayment)
-
-// 7. Hủy đơn hàng & giải phóng thẻ rung
-orderRouter.patch('/:id/cancel', controller.cancel)
-
-// 8. Đổi điểm thưởng hội viên lấy chiết khấu giảm giá đơn hàng
-orderRouter.post('/:id/apply-points', controller.applyPoints)
+orderRouter.get('/', roleGuard('CASHIER', 'MANAGER'), controller.list)
+orderRouter.post('/', roleGuard('CASHIER', 'MANAGER'), controller.create)
+orderRouter.delete('/items/:detailId', roleGuard('CASHIER', 'MANAGER'), controller.removeItem)
+orderRouter.get('/:id', roleGuard('CASHIER', 'MANAGER', 'BARISTA'), controller.detail)
+orderRouter.get('/:id/invoice', roleGuard('CASHIER', 'MANAGER'), controller.invoice)
+orderRouter.patch('/:id/pay', roleGuard('CASHIER', 'MANAGER'), controller.completePayment)
+orderRouter.patch('/:id/cancel', roleGuard('CASHIER', 'MANAGER'), controller.cancel)
+orderRouter.post('/:id/apply-points', roleGuard('CASHIER', 'MANAGER'), controller.applyPoints)

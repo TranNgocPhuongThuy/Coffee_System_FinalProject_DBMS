@@ -16,7 +16,7 @@ export const CustomerParamSchema = z.object({
 
 export const FilterCustomerQuerySchema = z.object({
     search: z.string().optional(), // Tìm theo fullName hoặc phoneNumber
-    membershipTier: z.enum(['STANDARD', 'SILVER', 'GOLD', 'DIAMOND', 'BRONZE']).optional(),
+    membershipTier: z.enum(['STANDARD', 'SILVER', 'GOLD', 'DIAMOND']).optional(),
     page: z.coerce.number().int().positive().default(1),
     limit: z.coerce.number().int().positive().max(100).default(20),
 })
