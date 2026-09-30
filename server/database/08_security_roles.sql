@@ -1,5 +1,4 @@
-USE coffee_ecom;
-GO
+
 
 -- ==============================================================
 -- 1. TẠO CÁC DATABASE ROLES NẾU CHƯA TỒN TẠI
@@ -94,6 +93,7 @@ GRANT SELECT, INSERT ON InventoryImportDetail TO STOREKEEPER;
 GRANT SELECT, INSERT ON InventoryAdjustment TO STOREKEEPER;
 
 GRANT SELECT ON v_LowStockIngredients TO STOREKEEPER;
+GRANT EXECUTE ON TYPE::udt_InventoryImportDetailList TO STOREKEEPER;
 
 -- Quyền thực thi Stored Procedure kho
 GRANT EXECUTE ON sp_CreateInventoryImport TO STOREKEEPER;

@@ -46,7 +46,7 @@ INSERT INTO Customer (id, phoneNumber, fullName, password, rewardPoints, members
 VALUES
 (1, '0988111222', N'Nguyễn Văn An', '$2b$10$abcdefghijklmnopqrstuv', 150, 'SILVER', GETDATE(), GETDATE()),
 (2, '0977222333', N'Lê Thị Mai', '$2b$10$abcdefghijklmnopqrstuv', 550, 'GOLD', GETDATE(), GETDATE()),
-(3, '0966333444', N'Trần Tuấn Kiệt', '$2b$10$abcdefghijklmnopqrstuv', 20, 'BRONZE', GETDATE(), GETDATE()),
+(3, '0966333444', N'Trần Tuấn Kiệt', '$2b$10$abcdefghijklmnopqrstuv', 20, 'STANDARD', GETDATE(), GETDATE()),
 (4, '0911888999', N'Phạm Hoàng Nam', '$2b$10$abcdefghijklmnopqrstuv', 1250, 'DIAMOND', GETDATE(), GETDATE());
 SET IDENTITY_INSERT Customer OFF;
 GO

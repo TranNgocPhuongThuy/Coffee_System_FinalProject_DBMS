@@ -2,9 +2,9 @@
 
 **Root:** `C:\Programing\hqtcsdl\Coffee_System_FinalProject_DBMS\server`
 
-**Generated:** 2026-09-29 23:25:48.185504
+**Generated:** 2026-09-30 19:37:47.813220
 
-**Files:** 93 | **Total size:** 243,627 bytes
+**Files:** 93 | **Total size:** 346,822 bytes
 
 ---
 
@@ -13,11 +13,13 @@
 | Property | Value |
 |----------|-------|
 | Path | `database\01_schema_tables.sql` |
-| Size | 5,607 bytes |
+| Size | 5,658 bytes |
 | Extension | `.sql` |
-| Modified | 2026-09-29 23:02:53.860570 |
+| Modified | 2026-09-30 19:34:54.051949 |
 
 ```sql
+CREATE DATABASE COFFEE_SYSTEM
+USE COFFEE_SYSTEM 
 
 -- 1. CÁC BẢNG DANH MỤC CƠ BẢN
 CREATE TABLE Category (
@@ -372,12 +374,199 @@ GO
 | Property | Value |
 |----------|-------|
 | Path | `database\03_triggers.sql` |
-| Size | 0 bytes |
+| Size | 6,346 bytes |
 | Extension | `.sql` |
-| Modified | 2026-09-23 23:06:23.809586 |
+| Modified | 2026-09-30 19:34:54.053949 |
 
 ```sql
+-- USE CoffeeShopDB;
 
+-- ============================================================================
+-- 1. INVENTORY & INGREDIENT TRIGGERS
+-- ============================================================================
+
+-- 1.1. Tự động trừ tồn kho khi Barista hoàn thành món
+IF OBJECT_ID('trg_OrderDetail_DeductInventory', 'TR') IS NOT NULL DROP TRIGGER trg_OrderDetail_DeductInventory;
+GO
+CREATE TRIGGER trg_OrderDetail_DeductInventory
+ON OrderDetail AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Chỉ kích hoạt khi itemStatus được update thành 'DONE'
+    IF UPDATE(itemStatus)
+    BEGIN
+        UPDATE i
+        SET i.stockQuantity = i.stockQuantity - consumed.TotalConsumed
+        FROM Ingredient i
+        INNER JOIN (
+            SELECT rb.ingredientId, SUM(rb.consumedQuantity * ins.quantity) AS TotalConsumed
+            FROM inserted ins
+            INNER JOIN deleted del ON ins.id = del.id
+            INNER JOIN RecipeBOM rb ON ins.variantId = rb.variantId
+            WHERE ins.itemStatus = N'DONE' AND del.itemStatus <> N'DONE'
+            GROUP BY rb.ingredientId
+        ) consumed ON i.id = consumed.ingredientId;
+    END
+END;
+GO
+
+-- 1.2. Tự động cộng dồn tồn kho khi nhập hàng
+IF OBJECT_ID('trg_InventoryImportDetail_AddInventory', 'TR') IS NOT NULL DROP TRIGGER trg_InventoryImportDetail_AddInventory;
+GO
+CREATE TRIGGER trg_InventoryImportDetail_AddInventory
+ON InventoryImportDetail AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE i
+    SET i.stockQuantity = i.stockQuantity + incoming.TotalAdded
+    FROM Ingredient i
+    INNER JOIN (
+        SELECT ingredientId, SUM(quantity) AS TotalAdded
+        FROM inserted
+        GROUP BY ingredientId
+    ) incoming ON i.id = incoming.ingredientId;
+END;
+GO
+
+-- 1.3. Chặn đặt món nếu nguyên liệu trong kho không đủ định mức BOM
+IF OBJECT_ID('trg_OrderDetail_CheckInventory', 'TR') IS NOT NULL DROP TRIGGER trg_OrderDetail_CheckInventory;
+GO
+CREATE TRIGGER trg_OrderDetail_CheckInventory
+ON OrderDetail AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    IF EXISTS (
+        SELECT 1
+        FROM inserted ins
+        INNER JOIN RecipeBOM rb ON ins.variantId = rb.variantId
+        INNER JOIN Ingredient ig ON rb.ingredientId = ig.id
+        GROUP BY ig.id, ig.stockQuantity
+        HAVING ig.stockQuantity < SUM(rb.consumedQuantity * ins.quantity)
+    )
+    BEGIN
+        RAISERROR(N'Insufficient inventory for one or more items!', 16, 1);
+        ROLLBACK TRANSACTION;
+    END
+END;
+GO
+
+-- ============================================================================
+-- 2. ORDER & PAGER DEVICE TRIGGERS
+-- ============================================================================
+
+-- 2.1. Đồng bộ trạng thái thẻ rung theo vòng đời hóa đơn
+IF OBJECT_ID('trg_Order_SyncPagerStatus', 'TR') IS NOT NULL DROP TRIGGER trg_Order_SyncPagerStatus;
+GO
+CREATE TRIGGER trg_Order_SyncPagerStatus
+ON [Order] AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Giải phóng thẻ (AVAILABLE) khi đơn hàng hoàn tất hoặc bị hủy
+    IF UPDATE(status)
+    BEGIN
+        UPDATE p
+        SET p.status = N'AVAILABLE', p.updatedAt = GETDATE()
+        FROM PagerDevice p
+        INNER JOIN inserted ins ON p.id = ins.pagerId
+        INNER JOIN deleted del ON ins.id = del.id
+        WHERE ins.status IN (N'COMPLETED', N'CANCELLED')
+          AND del.status NOT IN (N'COMPLETED', N'CANCELLED');
+    END
+
+    -- Gán trạng thái sử dụng (IN_USE) khi có đơn hàng mới (Dự phòng nếu SP chưa cập nhật)
+    UPDATE p
+    SET p.status = N'IN_USE', p.updatedAt = GETDATE()
+    FROM PagerDevice p
+    INNER JOIN inserted ins ON p.id = ins.pagerId
+    LEFT JOIN deleted del ON ins.id = del.id
+    WHERE del.id IS NULL AND p.status = N'AVAILABLE';
+END;
+GO
+
+-- ============================================================================
+-- 3. SOFT DELETE & DATA INTEGRITY TRIGGERS
+-- ============================================================================
+
+-- 3.1. Cưỡng chế xóa mềm cho thẻ rung (Chặn xóa nếu đang sử dụng)
+IF OBJECT_ID('trg_PagerDevice_SoftDelete', 'TR') IS NOT NULL DROP TRIGGER trg_PagerDevice_SoftDelete;
+GO
+CREATE TRIGGER trg_PagerDevice_SoftDelete
+ON PagerDevice INSTEAD OF DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    IF EXISTS (SELECT 1 FROM deleted WHERE status = N'IN_USE')
+    BEGIN
+        RAISERROR(N'Thiết bị đang phục vụ đơn hàng, không thể thanh lý xóa mềm!', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END
+
+    UPDATE p
+    SET p.deletedAt = GETDATE(), p.updatedAt = GETDATE()
+    FROM PagerDevice p
+    INNER JOIN deleted d ON p.id = d.id;
+END;
+GO
+
+-- 3.2. Cưỡng chế xóa mềm cho thông tin Hội viên
+IF OBJECT_ID('trg_Customer_SoftDelete', 'TR') IS NOT NULL DROP TRIGGER trg_Customer_SoftDelete;
+GO
+CREATE TRIGGER trg_Customer_SoftDelete
+ON Customer INSTEAD OF DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE c
+    SET c.deletedAt = GETDATE(), c.updatedAt = GETDATE()
+    FROM Customer c
+    INNER JOIN deleted d ON c.id = d.id;
+END;
+GO
+
+-- 3.3. Chặn thao tác chỉnh sửa/xóa điểm thưởng
+IF OBJECT_ID('trg_LoyaltyTransaction_AppendOnly', 'TR') IS NOT NULL DROP TRIGGER trg_LoyaltyTransaction_AppendOnly;
+GO
+CREATE TRIGGER trg_LoyaltyTransaction_AppendOnly
+ON LoyaltyTransaction INSTEAD OF UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    RAISERROR(N'Nghiêm cấm sửa đổi hoặc xóa dữ liệu sổ cái điểm thưởng!', 16, 1);
+    ROLLBACK TRANSACTION;
+END;
+GO
+
+-- 3.4. Tự động đồng bộ số dư điểm từ sổ cái vào bảng Customer khi có giao dịch mới
+IF OBJECT_ID('trg_LoyaltyTransaction_SyncPoints', 'TR') IS NOT NULL DROP TRIGGER trg_LoyaltyTransaction_SyncPoints;
+GO
+CREATE TRIGGER trg_LoyaltyTransaction_SyncPoints
+ON LoyaltyTransaction AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    UPDATE c
+    SET c.rewardPoints = (
+        SELECT ISNULL(SUM(points), 0)
+        FROM LoyaltyTransaction
+        WHERE customerId = c.id
+    ),
+    c.updatedAt = GETDATE()
+    FROM Customer c
+    INNER JOIN inserted i ON c.id = i.customerId;
+END;
+GO
 ```
 
 # database\04_views.sql
@@ -520,12 +709,544 @@ GO
 | Property | Value |
 |----------|-------|
 | Path | `database\05_stored_procedures.sql` |
-| Size | 0 bytes |
+| Size | 17,006 bytes |
 | Extension | `.sql` |
-| Modified | 2026-09-23 23:06:23.822105 |
+| Modified | 2026-09-30 19:34:54.056478 |
 
 ```sql
+-- USE CoffeeShopDB;
 
+-- ============================================================================
+-- 0. USER-DEFINED TABLE TYPES
+-- ============================================================================
+
+IF EXISTS (SELECT * FROM sys.types WHERE name = 'udt_OrderDetailList')
+    DROP TYPE udt_OrderDetailList;
+GO
+
+-- Đơn vị danh sách món
+CREATE TYPE udt_OrderDetailList AS TABLE (
+    variantId INT NOT NULL,
+    quantity INT NOT NULL,
+    note NVARCHAR(255),
+    itemSnapshotName NVARCHAR(200) NOT NULL,
+    sizeSnapshot NVARCHAR(50) NOT NULL,
+    unitPrice DECIMAL(18, 2) NOT NULL,
+    totalToppingPriceSnapshot DECIMAL(18, 2) NOT NULL,
+    totalPrice DECIMAL(18, 2) NOT NULL
+);
+GO
+
+IF EXISTS (SELECT * FROM sys.types WHERE name = 'udt_InventoryImportDetailList')
+    DROP TYPE udt_InventoryImportDetailList;
+GO
+
+-- Đơn vị danh sách nguyên liệu nhập
+CREATE TYPE udt_InventoryImportDetailList AS TABLE (
+    ingredientId INT NOT NULL,
+    quantity DECIMAL(18, 3) NOT NULL,
+    unitPrice DECIMAL(18, 2) NOT NULL,
+    totalLineAmount DECIMAL(18, 2) NOT NULL
+);
+GO
+
+
+-- ============================================================================
+-- 1. POS & TRANSACTION MODULE
+-- ============================================================================
+
+-- 1.1. sp_CreateCounterOrder
+IF OBJECT_ID('sp_CreateCounterOrder', 'P') IS NOT NULL DROP PROCEDURE sp_CreateCounterOrder;
+GO
+
+CREATE PROCEDURE sp_CreateCounterOrder
+    @OrderCode VARCHAR(64),
+    @EmployeeId INT,
+    @CustomerId INT = NULL,
+    @PagerId INT = NULL,
+    @SubTotal DECIMAL(18, 2),
+    @DiscountAmount DECIMAL(18, 2) = 0,
+    @TotalAmount DECIMAL(18, 2),
+    @PaymentMethod NVARCHAR(50),
+    @OrderDetails udt_OrderDetailList READONLY,
+    @NewOrderId INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        INSERT INTO [Order] (
+            orderCode, customerId, pagerId, employeeId, orderChannel,
+            subTotal, discountAmount, totalAmount, paymentMethod,
+            status, createdAt
+        )
+        VALUES (
+            @OrderCode, @CustomerId, @PagerId, @EmployeeId, N'ORDER_AT_COUNTER',
+            @SubTotal, @DiscountAmount, @TotalAmount, @PaymentMethod,
+            N'PENDING_PREP', GETDATE()
+        );
+
+        SET @NewOrderId = SCOPE_IDENTITY();
+
+        INSERT INTO OrderDetail (
+            orderId, variantId, quantity, note, itemSnapshotName,
+            sizeSnapshot, unitPrice, totalToppingPriceSnapshot,
+            totalPrice, itemStatus, createdAt
+        )
+        SELECT 
+            @NewOrderId, variantId, quantity, note, itemSnapshotName,
+            sizeSnapshot, unitPrice, totalToppingPriceSnapshot,
+            totalPrice, N'PENDING', GETDATE()
+        FROM @OrderDetails;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+-- 1.2. sp_CompleteOrderPayment
+IF OBJECT_ID('sp_CompleteOrderPayment', 'P') IS NOT NULL DROP PROCEDURE sp_CompleteOrderPayment;
+GO
+
+CREATE PROCEDURE sp_CompleteOrderPayment
+    @OrderId INT,
+    @PaymentMethod NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @CustomerId INT, @TotalAmount DECIMAL(18, 2), @CurrentStatus NVARCHAR(50);
+
+        SELECT @CustomerId = customerId, @TotalAmount = totalAmount, @CurrentStatus = status
+        FROM [Order] WITH (UPDLOCK)
+        WHERE id = @OrderId;
+
+        IF @CurrentStatus = N'CANCELLED'
+        BEGIN
+            RAISERROR(N'Cannot complete payment for a cancelled order!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        UPDATE [Order]
+        SET status = N'COMPLETED',
+            paymentMethod = @PaymentMethod,
+            paidAt = GETDATE(),
+            updatedAt = GETDATE()
+        WHERE id = @OrderId;
+
+        -- Earn reward points (10,000 VND = 1 Point)
+        IF @CustomerId IS NOT NULL AND @TotalAmount > 0
+        BEGIN
+            DECLARE @PointsEarned INT = FLOOR(@TotalAmount / 10000);
+            IF @PointsEarned > 0
+            BEGIN
+                UPDATE Customer
+                SET rewardPoints = rewardPoints + @PointsEarned,
+                    updatedAt = GETDATE()
+                WHERE id = @CustomerId;
+
+                DECLARE @NewBalance INT;
+                SELECT @NewBalance = rewardPoints FROM Customer WHERE id = @CustomerId;
+
+                INSERT INTO LoyaltyTransaction (customerId, orderId, transactionType, points, balanceAfter, description, createdAt)
+                VALUES (@CustomerId, @OrderId, N'EARN', @PointsEarned, @NewBalance, N'Points earned from order #' + CAST(@OrderId AS NVARCHAR(20)), GETDATE());
+            END
+        END
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+-- 1.3. sp_CancelOrder
+IF OBJECT_ID('sp_CancelOrder', 'P') IS NOT NULL DROP PROCEDURE sp_CancelOrder;
+GO
+
+CREATE PROCEDURE sp_CancelOrder
+    @OrderId INT,
+    @EmployeeId INT,
+    @CancelReason NVARCHAR(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @CurrentStatus NVARCHAR(50), @PaidAt DATETIME2(7);
+
+        SELECT @CurrentStatus = status, @PaidAt = paidAt
+        FROM [Order] WITH (UPDLOCK)
+        WHERE id = @OrderId;
+
+        IF @CurrentStatus = N'COMPLETED' OR @PaidAt IS NOT NULL
+        BEGIN
+            RAISERROR(N'Cannot cancel a completed or paid order!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        UPDATE [Order]
+        SET status = N'CANCELLED',
+            cancelReason = @CancelReason,
+            updatedAt = GETDATE()
+        WHERE id = @OrderId;
+
+        -- Release associated pager device
+        UPDATE PagerDevice
+        SET status = N'AVAILABLE', updatedAt = GETDATE()
+        WHERE id = (SELECT pagerId FROM [Order] WHERE id = @OrderId) AND status = N'IN_USE';
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+-- 1.4. sp_ApplyLoyaltyPoints
+IF OBJECT_ID('sp_ApplyLoyaltyPoints', 'P') IS NOT NULL DROP PROCEDURE sp_ApplyLoyaltyPoints;
+GO
+
+CREATE PROCEDURE sp_ApplyLoyaltyPoints
+    @OrderId INT,
+    @CustomerId INT,
+    @PointsToRedeem INT,
+    @ConversionRate DECIMAL(18, 2) = 1000 -- 1 Point = 1,000 VND
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @CurrentPoints INT;
+        SELECT @CurrentPoints = rewardPoints FROM Customer WITH (UPDLOCK) WHERE id = @CustomerId;
+
+        IF @CurrentPoints IS NULL OR @CurrentPoints < @PointsToRedeem
+        BEGIN
+            RAISERROR(N'Insufficient loyalty points balance!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        DECLARE @DiscountAmount DECIMAL(18, 2) = @PointsToRedeem * @ConversionRate;
+
+        UPDATE Customer
+        SET rewardPoints = rewardPoints - @PointsToRedeem,
+            updatedAt = GETDATE()
+        WHERE id = @CustomerId;
+
+        UPDATE [Order]
+        SET discountAmount = discountAmount + @DiscountAmount,
+            totalAmount = CASE WHEN (subTotal - (discountAmount + @DiscountAmount)) < 0 THEN 0 ELSE subTotal - (discountAmount + @DiscountAmount) END,
+            updatedAt = GETDATE()
+        WHERE id = @OrderId;
+
+        DECLARE @NewBalance INT;
+        SELECT @NewBalance = rewardPoints FROM Customer WHERE id = @CustomerId;
+
+        INSERT INTO LoyaltyTransaction (customerId, orderId, transactionType, points, balanceAfter, description, createdAt)
+        VALUES (@CustomerId, @OrderId, N'REDEEM', -@PointsToRedeem, @NewBalance, N'Redeemed points for order #' + CAST(@OrderId AS NVARCHAR(20)), GETDATE());
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+-- 1.5. sp_RemoveOrderItem
+IF OBJECT_ID('sp_RemoveOrderItem', 'P') IS NOT NULL DROP PROCEDURE sp_RemoveOrderItem;
+GO
+
+CREATE PROCEDURE sp_RemoveOrderItem
+    @OrderDetailId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @OrderId INT;
+        SELECT @OrderId = orderId FROM OrderDetail WHERE id = @OrderDetailId;
+
+        DELETE FROM OrderDetailTopping WHERE orderDetailId = @OrderDetailId;
+        DELETE FROM OrderDetail WHERE id = @OrderDetailId;
+
+        IF @OrderId IS NOT NULL
+        BEGIN
+            UPDATE [Order] SET updatedAt = GETDATE() WHERE id = @OrderId;
+        END
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+-- ============================================================================
+-- 2. INVENTORY & BOM MODULE
+-- ============================================================================
+
+-- 2.1. sp_UpsertRecipeBOM
+IF OBJECT_ID('sp_UpsertRecipeBOM', 'P') IS NOT NULL DROP PROCEDURE sp_UpsertRecipeBOM;
+GO
+
+CREATE PROCEDURE sp_UpsertRecipeBOM
+    @VariantId INT,
+    @IngredientId INT,
+    @ConsumedQuantity DECIMAL(18, 4)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @ConsumedQuantity <= 0
+    BEGIN
+        RAISERROR(N'Consumed quantity must be greater than 0!', 16, 1);
+        RETURN;
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM ProductVariant WHERE id = @VariantId AND deletedAt IS NULL)
+    BEGIN
+        RAISERROR(N'Product variant does not exist or has been deleted!', 16, 1);
+        RETURN;
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM Ingredient WHERE id = @IngredientId AND deletedAt IS NULL)
+    BEGIN
+        RAISERROR(N'Ingredient does not exist or has been deleted!', 16, 1);
+        RETURN;
+    END
+
+    IF EXISTS (SELECT 1 FROM RecipeBOM WHERE variantId = @VariantId AND ingredientId = @IngredientId)
+    BEGIN
+        UPDATE RecipeBOM
+        SET consumedQuantity = @ConsumedQuantity
+        WHERE variantId = @VariantId AND ingredientId = @IngredientId;
+    END
+    ELSE
+    BEGIN
+        INSERT INTO RecipeBOM (variantId, ingredientId, consumedQuantity)
+        VALUES (@VariantId, @IngredientId, @ConsumedQuantity);
+    END
+END;
+GO
+
+
+-- 2.2. sp_CreateInventoryImport
+IF OBJECT_ID('sp_CreateInventoryImport', 'P') IS NOT NULL DROP PROCEDURE sp_CreateInventoryImport;
+GO
+
+CREATE PROCEDURE sp_CreateInventoryImport
+    @SupplierName NVARCHAR(255),
+    @EmployeeId INT,
+    @Note NVARCHAR(MAX) = NULL,
+    @ImportDetails udt_InventoryImportDetailList READONLY,
+    @NewImportId INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @TotalAmount DECIMAL(18, 2);
+        SELECT @TotalAmount = SUM(totalLineAmount) FROM @ImportDetails;
+
+        INSERT INTO InventoryImport (supplierName, employeeId, totalAmount, importDate, note)
+        VALUES (@SupplierName, @EmployeeId, ISNULL(@TotalAmount, 0), GETDATE(), @Note);
+
+        SET @NewImportId = SCOPE_IDENTITY();
+
+        INSERT INTO InventoryImportDetail (importId, ingredientId, quantity, unitPrice, totalLineAmount)
+        SELECT @NewImportId, ingredientId, quantity, unitPrice, totalLineAmount
+        FROM @ImportDetails;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+-- ============================================================================
+-- 3. PAGER DEVICE, COUNTER & MEMBER MODULE
+-- ============================================================================
+
+-- 3.1. sp_CreateOrderWithPager
+IF OBJECT_ID('sp_CreateOrderWithPager', 'P') IS NOT NULL DROP PROCEDURE sp_CreateOrderWithPager;
+GO
+
+CREATE PROCEDURE sp_CreateOrderWithPager
+    @OrderCode VARCHAR(64),
+    @OrderChannel NVARCHAR(50),
+    @PagerCode VARCHAR(50),
+    @EmployeeId INT,
+    @CustomerId INT = NULL,
+    @SubTotal DECIMAL(18, 2),
+    @DiscountAmount DECIMAL(18, 2) = 0,
+    @PaymentMethod NVARCHAR(50),
+    @OrderDetails udt_OrderDetailList READONLY,
+    @NewOrderId INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @PagerId INT, @PagerStatus NVARCHAR(50);
+
+        -- Row-level lock to prevent concurrent pager assignment race conditions
+        SELECT @PagerId = id, @PagerStatus = status
+        FROM PagerDevice WITH (UPDLOCK, ROWLOCK)
+        WHERE pagerCode = @PagerCode AND deletedAt IS NULL;
+
+        IF @PagerId IS NULL
+        BEGIN
+            RAISERROR(N'Pager device code does not exist!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        IF @PagerStatus <> N'AVAILABLE'
+        BEGIN
+            RAISERROR(N'Pager device is currently not available!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        DECLARE @TotalAmount DECIMAL(18, 2) = @SubTotal - @DiscountAmount;
+        IF @TotalAmount < 0 SET @TotalAmount = 0;
+
+        INSERT INTO [Order] (
+            orderCode, customerId, pagerId, employeeId, orderChannel,
+            subTotal, discountAmount, totalAmount, paymentMethod,
+            status, paidAt, createdAt
+        )
+        VALUES (
+            @OrderCode, @CustomerId, @PagerId, @EmployeeId, @OrderChannel,
+            @SubTotal, @DiscountAmount, @TotalAmount, @PaymentMethod,
+            N'PENDING_PREP', GETDATE(), GETDATE()
+        );
+
+        SET @NewOrderId = SCOPE_IDENTITY();
+
+        INSERT INTO OrderDetail (
+            orderId, variantId, quantity, note, itemSnapshotName,
+            sizeSnapshot, unitPrice, totalToppingPriceSnapshot,
+            totalPrice, itemStatus, createdAt
+        )
+        SELECT 
+            @NewOrderId, variantId, quantity, note, itemSnapshotName,
+            sizeSnapshot, unitPrice, totalToppingPriceSnapshot,
+            totalPrice, N'PENDING', GETDATE()
+        FROM @OrderDetails;
+
+        UPDATE PagerDevice
+        SET status = N'IN_USE', updatedAt = GETDATE()
+        WHERE id = @PagerId;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+
+-- 3.2. sp_UpsertCustomerMember
+IF OBJECT_ID('sp_UpsertCustomerMember', 'P') IS NOT NULL DROP PROCEDURE sp_UpsertCustomerMember;
+GO
+
+CREATE PROCEDURE sp_UpsertCustomerMember
+    @PhoneNumber VARCHAR(20),
+    @FullName NVARCHAR(150),
+    @PointsToAdd INT = 0,
+    @CustomerId INT OUTPUT,
+    @CurrentPoints INT OUTPUT,
+    @CurrentTier NVARCHAR(50) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        SELECT @CustomerId = id, @CurrentPoints = rewardPoints, @CurrentTier = membershipTier
+        FROM Customer WITH (UPDLOCK, ROWLOCK)
+        WHERE phoneNumber = @PhoneNumber AND deletedAt IS NULL;
+
+        IF @CustomerId IS NULL
+        BEGIN
+            INSERT INTO Customer (phoneNumber, fullName, rewardPoints, membershipTier, createdAt)
+            VALUES (@PhoneNumber, @FullName, ISNULL(@PointsToAdd, 0), N'BRONZE', GETDATE());
+
+            SET @CustomerId = SCOPE_IDENTITY();
+            SET @CurrentPoints = ISNULL(@PointsToAdd, 0);
+            SET @CurrentTier = N'BRONZE';
+
+            IF @PointsToAdd > 0
+            BEGIN
+                INSERT INTO LoyaltyTransaction (customerId, transactionType, points, balanceAfter, description, createdAt)
+                VALUES (@CustomerId, N'EARN', @PointsToAdd, @CurrentPoints, N'Initial loyalty points awarded', GETDATE());
+            END
+        END
+        ELSE
+        BEGIN
+            IF @PointsToAdd <> 0
+            BEGIN
+                SET @CurrentPoints = @CurrentPoints + @PointsToAdd;
+
+                IF @CurrentPoints >= 1000 SET @CurrentTier = N'DIAMOND';
+                ELSE IF @CurrentPoints >= 500 SET @CurrentTier = N'GOLD';
+                ELSE IF @CurrentPoints >= 200 SET @CurrentTier = N'SILVER';
+                ELSE SET @CurrentTier = N'BRONZE';
+
+                UPDATE Customer
+                SET fullName = ISNULL(@FullName, fullName),
+                    rewardPoints = @CurrentPoints,
+                    membershipTier = @CurrentTier,
+                    updatedAt = GETDATE()
+                WHERE id = @CustomerId;
+
+                INSERT INTO LoyaltyTransaction (customerId, transactionType, points, balanceAfter, description, createdAt)
+                VALUES (@CustomerId, CASE WHEN @PointsToAdd > 0 THEN N'EARN' ELSE N'REDEEM' END, @PointsToAdd, @CurrentPoints, N'Loyalty points balance updated', GETDATE());
+            END
+        END
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
 ```
 
 # database\06_functions.sql
@@ -728,187 +1449,154 @@ GO
 | Property | Value |
 |----------|-------|
 | Path | `database\08_security_roles.sql` |
-| Size | 7,844 bytes |
+| Size | 6,416 bytes |
 | Extension | `.sql` |
-| Modified | 2026-09-29 23:23:59.403485 |
+| Modified | 2026-09-30 19:35:12.794665 |
 
 ```sql
-
-
--- ==============================================================
--- 1. TẠO CÁC DATABASE ROLES
--- ==============================================================
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'role_ThuNgan' AND type = 'R')
-    CREATE ROLE role_ThuNgan;
-GO
-
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'role_PhaChe' AND type = 'R')
-    CREATE ROLE role_PhaChe;
-GO
-
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'role_Kho' AND type = 'R')
-    CREATE ROLE role_Kho;
-GO
-
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'role_QuanLy' AND type = 'R')
-    CREATE ROLE role_QuanLy;
+USE coffee_ecom;
 GO
 
 -- ==============================================================
--- 2. PHÂN QUYỀN CHO: role_ThuNgan (CASHIER)
--- Bán hàng tại quầy, tra cứu menu, khách hàng, thẻ rung.
+-- 1. TẠO CÁC DATABASE ROLES NẾU CHƯA TỒN TẠI
+-- ==============================================================
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'CASHIER' AND type = 'R')
+    CREATE ROLE CASHIER;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'BARISTA' AND type = 'R')
+    CREATE ROLE BARISTA;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'STOREKEEPER' AND type = 'R')
+    CREATE ROLE STOREKEEPER;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'MANAGER' AND type = 'R')
+    CREATE ROLE MANAGER;
+GO
+
+-- ==============================================================
+-- 2. PHÂN QUYỀN CHO: CASHIER (CASHIER)
+-- Phạm vi: Bán hàng tại quầy, tra cứu menu, khách hàng, thẻ rung.
 -- Chặn tuyệt đối quyền DELETE để phục vụ kiểm toán tài chính.
 -- ==============================================================
--- Cấp quyền thao tác bảng
-GRANT SELECT, INSERT, UPDATE ON [Order] TO role_ThuNgan;
-GRANT SELECT, INSERT, UPDATE ON OrderDetail TO role_ThuNgan;
-GRANT SELECT, INSERT, UPDATE ON OrderDetailTopping TO role_ThuNgan;
-GRANT SELECT, INSERT, UPDATE ON Customer TO role_ThuNgan;
-GRANT SELECT, INSERT ON LoyaltyTransaction TO role_ThuNgan;
-GRANT SELECT, UPDATE ON PagerDevice TO role_ThuNgan;
-GRANT SELECT ON Category TO role_ThuNgan;
-GRANT SELECT ON Product TO role_ThuNgan;
-GRANT SELECT ON ProductVariant TO role_ThuNgan;
-GRANT SELECT ON Topping TO role_ThuNgan;
-GRANT SELECT ON Employee TO role_ThuNgan;
+-- Quyền trên Bảng dữ liệu
+GRANT SELECT, INSERT, UPDATE ON [Order] TO CASHIER;
+GRANT SELECT, INSERT, UPDATE ON OrderDetail TO CASHIER;
+GRANT SELECT, INSERT, UPDATE ON OrderDetailTopping TO CASHIER;
+GRANT SELECT, INSERT, UPDATE ON Customer TO CASHIER;
+GRANT SELECT, INSERT ON LoyaltyTransaction TO CASHIER;
+GRANT SELECT, UPDATE ON PagerDevice TO CASHIER;
+GRANT SELECT ON Category TO CASHIER;
+GRANT SELECT ON Product TO CASHIER;
+GRANT SELECT ON ProductVariant TO CASHIER;
+GRANT SELECT ON Topping TO CASHIER;
+GRANT SELECT ON Employee TO CASHIER;
 
--- Cấp quyền trên Views & Functions phục vụ POS
-GRANT SELECT ON v_InvoiceDetails TO role_ThuNgan;
-GRANT SELECT ON v_ActivePagerDashboard TO role_ThuNgan;
-GRANT SELECT ON v_CustomerLoyaltySummary TO role_ThuNgan;
+-- Quyền thực thi Stored Procedures nghiệp vụ POS
+GRANT EXECUTE ON sp_CreateCounterOrder TO CASHIER;
+GRANT EXECUTE ON sp_CreateOrderWithPager TO CASHIER;
+GRANT EXECUTE ON sp_CompleteOrderPayment TO CASHIER;
+GRANT EXECUTE ON sp_CancelOrder TO CASHIER;
+GRANT EXECUTE ON sp_ApplyLoyaltyPoints TO CASHIER;
+GRANT EXECUTE ON sp_RemoveOrderItem TO CASHIER;
+GRANT EXECUTE ON sp_UpsertCustomerMember TO CASHIER;
+
+-- Quyền sử dụng Kiểu dữ liệu bảng (TVP) cho POS
+GRANT EXECUTE ON TYPE::udt_OrderDetailList TO CASHIER;
+
+-- Quyền trên Views & Functions phục vụ POS
+GRANT SELECT ON v_InvoiceDetails TO CASHIER;
+GRANT SELECT ON v_ActivePagerDashboard TO CASHIER;
+GRANT SELECT ON v_CustomerLoyaltySummary TO CASHIER;
 
 -- Chặn quyền DELETE (Nguyên tắc kiểm toán)
-DENY DELETE ON [Order] TO role_ThuNgan;
-DENY DELETE ON OrderDetail TO role_ThuNgan;
-DENY DELETE ON LoyaltyTransaction TO role_ThuNgan;
-DENY DELETE ON Customer TO role_ThuNgan;
-
--- Cấp quyền Stored Procedures bán hàng
-GRANT EXECUTE ON sp_TaoDonHangTaiQuay TO role_ThuNgan;
-GRANT EXECUTE ON sp_ChotThanhToan TO role_ThuNgan;
-GRANT EXECUTE ON sp_HuyDonHang TO role_ThuNgan;
-GRANT EXECUTE ON sp_ApDungDoiDiem TO role_ThuNgan;
-GRANT EXECUTE ON sp_XoaMonKhoiDon TO role_ThuNgan;
+DENY DELETE ON [Order] TO CASHIER;
+DENY DELETE ON OrderDetail TO CASHIER;
+DENY DELETE ON LoyaltyTransaction TO CASHIER;
+DENY DELETE ON Customer TO CASHIER;
 GO
 
 -- ==============================================================
--- 3. PHÂN QUYỀN CHO: role_PhaChe (BARISTA)
--- Xem màn hình KDS, tra cứu công thức, hoàn thành món.
+-- 3. PHÂN QUYỀN CHO: BARISTA (BARISTA)
+-- Phạm vi: Xem màn hình KDS, tra cứu công thức, hoàn thành món.
 -- Ngăn chặn can thiệp giá bán, doanh thu và xóa dữ liệu.
 -- ==============================================================
-GRANT SELECT ON [Order] TO role_PhaChe;
-GRANT SELECT, UPDATE (itemStatus) ON OrderDetail TO role_PhaChe;
-GRANT SELECT ON OrderDetailTopping TO role_PhaChe;
-GRANT SELECT ON RecipeBOM TO role_PhaChe;
-GRANT SELECT ON ToppingBOM TO role_PhaChe;
-GRANT SELECT ON Ingredient TO role_PhaChe;
-GRANT SELECT, UPDATE (status) ON PagerDevice TO role_PhaChe;
+GRANT SELECT ON [Order] TO BARISTA;
+GRANT SELECT, UPDATE (itemStatus) ON OrderDetail TO BARISTA;
+GRANT SELECT ON OrderDetailTopping TO BARISTA;
+GRANT SELECT ON RecipeBOM TO BARISTA;
+GRANT SELECT ON ToppingBOM TO BARISTA;
+GRANT SELECT ON Ingredient TO BARISTA;
+GRANT SELECT, UPDATE (status) ON PagerDevice TO BARISTA;
 
-GRANT SELECT ON v_ProductRecipeDetails TO role_PhaChe;
-GRANT SELECT ON v_ActivePagerDashboard TO role_PhaChe;
+GRANT SELECT ON v_ProductRecipeDetails TO BARISTA;
+GRANT SELECT ON v_ActivePagerDashboard TO BARISTA;
 
--- Chặn quyền tài chính & xóa dữ liệu
-DENY INSERT, DELETE ON [Order] TO role_PhaChe;
-DENY INSERT, DELETE ON OrderDetail TO role_PhaChe;
-DENY UPDATE ([subTotal], [discountAmount], [totalAmount]) ON [Order] TO role_PhaChe;
+DENY INSERT, DELETE ON [Order] TO BARISTA;
+DENY INSERT, DELETE ON OrderDetail TO BARISTA;
+DENY UPDATE ([subTotal], [discountAmount], [totalAmount]) ON [Order] TO BARISTA;
 GO
 
 -- ==============================================================
--- 4. PHÂN QUYỀN CHO: role_Kho (STOREKEEPER)
--- Nhập kho nguyên liệu, kiểm kê cân kho, cảnh báo tồn.
+-- 4. PHÂN QUYỀN CHO: STOREKEEPER (STOREKEEPER)
+-- Phạm vi: Nhập kho nguyên liệu, kiểm kê cân kho, cảnh báo tồn.
 -- Tách biệt hoàn toàn với hóa đơn bán hàng và doanh thu.
 -- ==============================================================
-GRANT SELECT, INSERT, UPDATE ON Ingredient TO role_Kho;
-GRANT SELECT, INSERT ON InventoryImport TO role_Kho;
-GRANT SELECT, INSERT ON InventoryImportDetail TO role_Kho;
-GRANT SELECT, INSERT ON InventoryAdjustment TO role_Kho;
+GRANT SELECT, INSERT, UPDATE ON Ingredient TO STOREKEEPER;
+GRANT SELECT, INSERT ON InventoryImport TO STOREKEEPER;
+GRANT SELECT, INSERT ON InventoryImportDetail TO STOREKEEPER;
+GRANT SELECT, INSERT ON InventoryAdjustment TO STOREKEEPER;
 
-GRANT SELECT ON v_LowStockIngredients TO role_Kho;
+GRANT SELECT ON v_LowStockIngredients TO STOREKEEPER;
 
--- Quyền thủ tục kho
-GRANT EXECUTE ON sp_DieuChinhTonKho TO role_Kho;
-GRANT EXECUTE ON sp_LapPhieuNhapKho TO role_Kho;
+-- Quyền thực thi Stored Procedure kho
+GRANT EXECUTE ON sp_CreateInventoryImport TO STOREKEEPER;
 
--- Chặn can thiệp đơn bán hàng
-DENY DELETE ON Ingredient TO role_Kho;
-DENY DELETE ON InventoryImport TO role_Kho;
-DENY DELETE ON InventoryAdjustment TO role_Kho;
-DENY SELECT ON [Order] TO role_Kho;
+DENY DELETE ON Ingredient TO STOREKEEPER;
+DENY DELETE ON InventoryImport TO STOREKEEPER;
+DENY DELETE ON InventoryAdjustment TO STOREKEEPER;
+DENY SELECT ON [Order] TO STOREKEEPER;
 GO
 
 -- ==============================================================
--- 5. PHÂN QUYỀN CHO: role_QuanLy (MANAGER)
--- Toàn quyền cấu hình thực đơn, BOM, xem báo cáo doanh thu.
+-- 5. PHÂN QUYỀN CHO: MANAGER (MANAGER)
+-- Phạm vi: Toàn quyền cấu hình thực đơn, BOM, xem báo cáo doanh thu.
 -- ==============================================================
-GRANT SELECT, INSERT, UPDATE, DELETE ON Category TO role_QuanLy;
-GRANT SELECT, INSERT, UPDATE, DELETE ON Product TO role_QuanLy;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ProductVariant TO role_QuanLy;
-GRANT SELECT, INSERT, UPDATE, DELETE ON Topping TO role_QuanLy;
-GRANT SELECT, INSERT, UPDATE, DELETE ON RecipeBOM TO role_QuanLy;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ToppingBOM TO role_QuanLy;
-GRANT SELECT, INSERT, UPDATE, DELETE ON PagerDevice TO role_QuanLy;
-GRANT SELECT, INSERT, UPDATE, DELETE ON Employee TO role_QuanLy;
-GRANT SELECT, INSERT, UPDATE, DELETE ON Ingredient TO role_QuanLy;
-GRANT SELECT, INSERT, UPDATE, DELETE ON [Order] TO role_QuanLy;
+GRANT SELECT, INSERT, UPDATE, DELETE ON Category TO MANAGER;
+GRANT SELECT, INSERT, UPDATE, DELETE ON Product TO MANAGER;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ProductVariant TO MANAGER;
+GRANT SELECT, INSERT, UPDATE, DELETE ON Topping TO MANAGER;
+GRANT SELECT, INSERT, UPDATE, DELETE ON RecipeBOM TO MANAGER;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ToppingBOM TO MANAGER;
+GRANT SELECT, INSERT, UPDATE, DELETE ON PagerDevice TO MANAGER;
+GRANT SELECT, INSERT, UPDATE, DELETE ON Employee TO MANAGER;
+GRANT SELECT, INSERT, UPDATE, DELETE ON Ingredient TO MANAGER;
+GRANT SELECT, INSERT, UPDATE, DELETE ON [Order] TO MANAGER;
 
--- Xem tất cả Views báo cáo
-GRANT SELECT ON v_DailyRevenue TO role_QuanLy;
-GRANT SELECT ON v_TopSellingProducts TO role_QuanLy;
-GRANT SELECT ON v_CustomerLoyaltySummary TO role_QuanLy;
-GRANT SELECT ON v_LowStockIngredients TO role_QuanLy;
-GRANT SELECT ON v_ProductRecipeDetails TO role_QuanLy;
-GRANT SELECT ON v_InvoiceDetails TO role_QuanLy;
+-- Xem tất cả Views báo cáo quản trị
+GRANT SELECT ON v_DailyRevenue TO MANAGER;
+GRANT SELECT ON v_TopSellingProducts TO MANAGER;
+GRANT SELECT ON v_CustomerLoyaltySummary TO MANAGER;
+GRANT SELECT ON v_LowStockIngredients TO MANAGER;
+GRANT SELECT ON v_ProductRecipeDetails TO MANAGER;
+GRANT SELECT ON v_InvoiceDetails TO MANAGER;
 
 -- Thực thi toàn bộ Stored Procedures
-GRANT EXECUTE ON sp_CauHinhDinhLuongBOM TO role_QuanLy;
-GRANT EXECUTE ON sp_DieuChinhTonKho TO role_QuanLy;
-GRANT EXECUTE ON sp_LapPhieuNhapKho TO role_QuanLy;
-GRANT EXECUTE ON sp_TaoDanhMuc TO role_QuanLy;
-GRANT EXECUTE ON sp_TaoTopping TO role_QuanLy;
-GRANT EXECUTE ON sp_TaoSanPhamVaBienThe TO role_QuanLy;
-GO
+GRANT EXECUTE ON sp_UpsertRecipeBOM TO MANAGER;
+GRANT EXECUTE ON sp_CreateInventoryImport TO MANAGER;
+GRANT EXECUTE ON sp_CreateCounterOrder TO MANAGER;
+GRANT EXECUTE ON sp_CreateOrderWithPager TO MANAGER;
+GRANT EXECUTE ON sp_CompleteOrderPayment TO MANAGER;
+GRANT EXECUTE ON sp_CancelOrder TO MANAGER;
+GRANT EXECUTE ON sp_ApplyLoyaltyPoints TO MANAGER;
+GRANT EXECUTE ON sp_RemoveOrderItem TO MANAGER;
+GRANT EXECUTE ON sp_UpsertCustomerMember TO MANAGER;
 
--- ==============================================================
--- 6. TẠO 4 SERVER LOGINS & DATABASE USERS MINH HỌA (ĐÁP ỨNG RUBRIC)
--- ==============================================================
--- 1. Quản lý
-IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'login_manager')
-    CREATE LOGIN login_manager WITH PASSWORD = 'Password@123', CHECK_POLICY = OFF;
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_manager')
-    CREATE USER user_manager FOR LOGIN login_manager;
-GO
-ALTER ROLE role_QuanLy ADD MEMBER user_manager;
-GO
-
--- 2. Thu ngân
-IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'login_cashier')
-    CREATE LOGIN login_cashier WITH PASSWORD = 'Password@123', CHECK_POLICY = OFF;
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_cashier')
-    CREATE USER user_cashier FOR LOGIN login_cashier;
-GO
-ALTER ROLE role_ThuNgan ADD MEMBER user_cashier;
-GO
-
--- 3. Pha chế
-IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'login_barista')
-    CREATE LOGIN login_barista WITH PASSWORD = 'Password@123', CHECK_POLICY = OFF;
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_barista')
-    CREATE USER user_barista FOR LOGIN login_barista;
-GO
-ALTER ROLE role_PhaChe ADD MEMBER user_barista;
-GO
-
--- 4. Thủ kho
-IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'login_storekeeper')
-    CREATE LOGIN login_storekeeper WITH PASSWORD = 'Password@123', CHECK_POLICY = OFF;
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_storekeeper')
-    CREATE USER user_storekeeper FOR LOGIN login_storekeeper;
-GO
-ALTER ROLE role_Kho ADD MEMBER user_storekeeper;
+-- Quyền sử dụng các Kiểu dữ liệu bảng (TVP)
+GRANT EXECUTE ON TYPE::udt_OrderDetailList TO MANAGER;
+GRANT EXECUTE ON TYPE::udt_InventoryImportDetailList TO MANAGER;
 GO
 ```
 
@@ -917,14 +1605,17 @@ GO
 | Property | Value |
 |----------|-------|
 | Path | `database\seed_data.sql` |
-| Size | 12,411 bytes |
+| Size | 13,032 bytes |
 | Extension | `.sql` |
-| Modified | 2026-09-29 23:02:13.230580 |
+| Modified | 2026-09-30 19:34:54.059559 |
 
 ```sql
 
 -- Tắt kiểm tra khóa ngoại tạm thời để dọn dẹp và nạp dữ liệu sạch
 EXEC sp_MSforeachtable "ALTER TABLE ? NOCHECK CONSTRAINT all";
+GO
+-- Tắt tạm thời trigger chặn sửa/xóa điểm
+ALTER TABLE LoyaltyTransaction DISABLE TRIGGER trg_LoyaltyTransaction_AppendOnly;
 GO
 
 DELETE FROM OrderDetailTopping;
@@ -1156,15 +1847,30 @@ VALUES
 (1, 1, N'Trân Châu Trắng', 8000.00, 1);
 GO
 
+
 -- ==============================================================
 -- 14. LỊCH SỬ BIẾN ĐỘNG ĐIỂM (LoyaltyTransaction)
 -- ==============================================================
+
+-- 1. Tắt tạm thời trigger chặn xóa/sửa lịch sử điểm
+ALTER TABLE LoyaltyTransaction DISABLE TRIGGER trg_LoyaltyTransaction_AppendOnly;
+GO
+
+-- 2. Xóa dữ liệu rác/dữ liệu do Trigger tự chèn trước đó
+DELETE FROM LoyaltyTransaction;
+GO
+
+-- 3. Tiến hành chèn dữ liệu mẫu chuẩn
 SET IDENTITY_INSERT LoyaltyTransaction ON;
 INSERT INTO LoyaltyTransaction (id, customerId, orderId, transactionType, points, balanceAfter, description, createdAt)
 VALUES
 (1, 1, 1, 'EARN', 4, 150, N'Tích lũy điểm từ hóa đơn ORD260901', DATEADD(DAY, -1, GETDATE())),
 (2, 2, 2, 'REDEEM', 10, 550, N'Đổi 10 điểm giảm 10.000 VNĐ cho đơn ORD260902', GETDATE());
 SET IDENTITY_INSERT LoyaltyTransaction OFF;
+GO
+
+-- 4. Bật lại trigger bảo vệ sổ cái điểm
+ALTER TABLE LoyaltyTransaction ENABLE TRIGGER trg_LoyaltyTransaction_AppendOnly;
 GO
 
 -- Bật lại kiểm tra toàn vẹn khóa ngoại
@@ -4165,9 +4871,9 @@ export const envConfig = parseResult.data
 | Property | Value |
 |----------|-------|
 | Path | `src\middlewares\auth.guard.ts` |
-| Size | 2,721 bytes |
+| Size | 3,285 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 23:17:24.990902 |
+| Modified | 2026-09-29 23:27:37.656388 |
 
 ```typescript
 import { Request, Response, NextFunction } from 'express'
@@ -4175,15 +4881,16 @@ import jwt from 'jsonwebtoken'
 import { envConfig } from '@/config/env.config'
 import { getPool, sql } from '@/config/database'
 
-// Mở rộng kiểu dữ liệu của Express Request để chứa thông tin User đăng nhập
 declare global {
   namespace Express {
     interface Request {
       user?: {
         id: number
-        username: string
+        username?: string
+        phoneNumber?: string
         fullName: string
-        role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER'
+        role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER' | 'CUSTOMER'
+        userType: 'EMPLOYEE' | 'CUSTOMER'
       }
     }
   }
@@ -4191,8 +4898,8 @@ declare global {
 
 interface JwtPayload {
   id: number
-  username: string
-  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER'
+  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER' | 'CUSTOMER'
+  userType?: 'EMPLOYEE' | 'CUSTOMER'
 }
 
 export const authGuard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -4209,7 +4916,6 @@ export const authGuard = async (req: Request, res: Response, next: NextFunction)
 
     const token = authHeader.split(' ')[1]
 
-    // 1. Xác thực tính hợp lệ của Token
     let decoded: JwtPayload
     try {
       decoded = jwt.verify(token, envConfig.JWT_SECRET) as JwtPayload
@@ -4221,41 +4927,58 @@ export const authGuard = async (req: Request, res: Response, next: NextFunction)
       return
     }
 
-    // 2. Kiểm tra tài khoản nhân viên trực tiếp dưới SQL Server (Chống dùng token khi đã bị deactive)
     const pool = await getPool()
     const dbReq = pool.request()
     dbReq.input('id', sql.Int, decoded.id)
 
-    const result = await dbReq.query(`
+    // 1. Nếu là Khách hàng (CUSTOMER)
+    if (decoded.role === 'CUSTOMER' || decoded.userType === 'CUSTOMER') {
+      const custRes = await dbReq.query(`
+        SELECT id, phoneNumber, fullName, membershipTier 
+        FROM Customer 
+        WHERE id = @id AND deletedAt IS NULL
+      `)
+
+      if (custRes.recordset.length === 0) {
+        res.status(401).json({ success: false, message: 'Tài khoản khách hàng không tồn tại hoặc đã bị khóa.' })
+        return
+      }
+
+      const cust = custRes.recordset[0]
+      req.user = {
+        id: cust.id,
+        phoneNumber: cust.phoneNumber,
+        fullName: cust.fullName,
+        role: 'CUSTOMER',
+        userType: 'CUSTOMER',
+      }
+      return next()
+    }
+
+    // 2. Nếu là Nhân viên nội bộ (Employee)
+    const empRes = await dbReq.query(`
       SELECT id, username, fullName, role, status 
       FROM Employee 
       WHERE id = @id AND deletedAt IS NULL
     `)
 
-    if (result.recordset.length === 0) {
-      res.status(401).json({
-        success: false,
-        message: 'Tài khoản nhân viên không tồn tại hoặc đã bị xóa.',
-      })
+    if (empRes.recordset.length === 0) {
+      res.status(401).json({ success: false, message: 'Tài khoản nhân viên không tồn tại hoặc đã bị xóa.' })
       return
     }
 
-    const employee = result.recordset[0]
-
+    const employee = empRes.recordset[0]
     if (employee.status !== 'ACTIVE') {
-      res.status(403).json({
-        success: false,
-        message: 'Tài khoản nhân viên đã bị khóa hoặc ngừng hoạt động.',
-      })
+      res.status(403).json({ success: false, message: 'Tài khoản nhân viên đã bị khóa hoặc ngừng hoạt động.' })
       return
     }
 
-    // Gắn thông tin tài khoản đã xác thực vào request
     req.user = {
       id: employee.id,
       username: employee.username,
       fullName: employee.fullName,
       role: employee.role,
+      userType: 'EMPLOYEE',
     }
 
     next()
@@ -4304,44 +5027,32 @@ export * from './error.filter'
 | Property | Value |
 |----------|-------|
 | Path | `src\middlewares\role.guard.ts` |
-| Size | 1,209 bytes |
+| Size | 804 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 23:17:59.888469 |
+| Modified | 2026-09-29 23:27:47.675254 |
 
 ```typescript
 import { Request, Response, NextFunction } from 'express'
 
-type EmployeeRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER'
+type RoleType = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER' | 'CUSTOMER'
 
-/**
- * Middleware kiểm tra quyền (RBAC)
- * @param allowedRoles Danh sách các role được phép gọi API
- * Ví dụ: roleGuard('MANAGER', 'CASHIER')
- */
-export const roleGuard = (...allowedRoles: EmployeeRole[]) => {
+export const roleGuard = (...allowedRoles: RoleType[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    // Luôn kiểm tra authGuard trước đó
     if (!req.user) {
-      res.status(401).json({
-        success: false,
-        message: 'Chưa xác thực người dùng.',
-      })
+      res.status(401).json({ success: false, message: 'Chưa xác thực người dùng.' })
       return
     }
 
     const userRole = req.user.role
 
-    // Role ADMIN luôn có quyền tối cao truy cập tất cả tài nguyên
     if (userRole === 'ADMIN') {
-      next()
-      return
+      return next()
     }
 
-    // Kiểm tra role hiện tại có nằm trong danh sách cho phép không
     if (!allowedRoles.includes(userRole)) {
       res.status(403).json({
         success: false,
-        message: `Truy cập bị từ chối: Vai trò [${userRole}] không có quyền thực hiện nghiệp vụ này.`,
+        message: `Truy cập bị từ chối: Quyền [${userRole}] không được phép thực hiện hành động này.`,
       })
       return
     }
@@ -4404,9 +5115,9 @@ export const validatePipe = (schema: ZodSchema, part: RequestPart = 'body') => {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\customer-loyalty\customer\customer.controller.ts` |
-| Size | 1,879 bytes |
+| Size | 2,247 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.190008 |
+| Modified | 2026-09-30 19:17:55.052888 |
 
 ```typescript
 import { Request, Response, NextFunction } from 'express'
@@ -4461,7 +5172,18 @@ export class CustomerController {
             next(error)
         }
     }
+
+    delete = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { id } = CustomerParamSchema.parse(req.params)
+            const result = await this.customerService.deleteCustomer(id)
+            res.status(200).json({ success: true, ...result })
+        } catch (error) {
+            next(error)
+        }
+    }
 }
+
 ```
 
 # src\modules\customer-loyalty\customer\customer.repo.ts
@@ -4469,9 +5191,9 @@ export class CustomerController {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\customer-loyalty\customer\customer.repo.ts` |
-| Size | 5,549 bytes |
+| Size | 6,341 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.191005 |
+| Modified | 2026-09-30 19:17:55.054790 |
 
 ```typescript
 import { getPool, sql } from '@/config/database'
@@ -4579,7 +5301,7 @@ export class CustomerRepo {
         request.input('password', sql.VarChar(255), data.password || null)
 
         const query = `
-      INSERT INTO Customer (fullName, phoneNumber, password)
+      INSERT INTO Customer (fullName, phoneNumber, password, rewardPoints, membershipTier, createdAt)
       OUTPUT 
         INSERTED.id, 
         INSERTED.fullName, 
@@ -4587,10 +5309,19 @@ export class CustomerRepo {
         INSERTED.rewardPoints, 
         INSERTED.membershipTier, 
         INSERTED.createdAt
-      VALUES (@fullName, @phoneNumber, @password)
+      VALUES (@fullName, @phoneNumber, @password, 0, 'STANDARD', SYSDATETIME())
     `
-        const result = await request.query(query)
-        return result.recordset[0]
+        try {
+            const result = await request.query(query)
+            return result.recordset[0]
+        } catch (error: any) {
+            if (error.number === 2627 || error.number === 2601) {
+                const err = new Error('Số điện thoại khách hàng đã tồn tại trên hệ thống')
+                ;(err as any).status = 409
+                throw err
+            }
+            throw error
+        }
     }
 
     async updateCustomer(id: number, data: UpdateCustomerType) {
@@ -4632,8 +5363,17 @@ export class CustomerRepo {
         INSERTED.updatedAt
       WHERE id = @id AND deletedAt IS NULL
     `
-        const result = await request.query(query)
-        return result.recordset[0] || null
+        try {
+            const result = await request.query(query)
+            return result.recordset[0] || null
+        } catch (error: any) {
+            if (error.number === 2627 || error.number === 2601) {
+                const err = new Error('Số điện thoại này đã được sử dụng bởi khách hàng khác')
+                ;(err as any).status = 409
+                throw err
+            }
+            throw error
+        }
     }
 
     async softDeleteCustomer(id: number) {
@@ -4650,6 +5390,7 @@ export class CustomerRepo {
         return result.rowsAffected[0] > 0
     }
 }
+
 ```
 
 # src\modules\customer-loyalty\customer\customer.routes.ts
@@ -4657,15 +5398,15 @@ export class CustomerRepo {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\customer-loyalty\customer\customer.routes.ts` |
-| Size | 549 bytes |
+| Size | 679 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.193004 |
+| Modified | 2026-09-30 19:17:55.055790 |
 
 ```typescript
 import { Router } from 'express'
-export const customerRouter = Router()
 import { CustomerController } from './customer.controller'
 
+export const customerRouter = Router()
 const controller = new CustomerController()
 
 // GET /api/v1/customer-loyalty/customers
@@ -4679,6 +5420,10 @@ customerRouter.post('/', controller.create)
 
 // PUT /api/v1/customer-loyalty/customers/:id
 customerRouter.put('/:id', controller.update)
+
+// DELETE /api/v1/customer-loyalty/customers/:id (Xóa mềm khách hàng)
+customerRouter.delete('/:id', controller.delete)
+
 ```
 
 # src\modules\customer-loyalty\customer\customer.schema.ts
@@ -4686,9 +5431,9 @@ customerRouter.put('/:id', controller.update)
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\customer-loyalty\customer\customer.schema.ts` |
-| Size | 1,169 bytes |
+| Size | 1,180 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.194005 |
+| Modified | 2026-09-30 19:17:55.056838 |
 
 ```typescript
 import { z } from 'zod'
@@ -4711,12 +5456,13 @@ export const FilterCustomerQuerySchema = z.object({
     search: z.string().optional(), // Tìm theo fullName hoặc phoneNumber
     membershipTier: z.enum(['STANDARD', 'SILVER', 'GOLD', 'DIAMOND', 'BRONZE']).optional(),
     page: z.coerce.number().int().positive().default(1),
-    limit: z.coerce.number().int().positive().default(20),
+    limit: z.coerce.number().int().positive().max(100).default(20),
 })
 
 export type CreateCustomerType = z.infer<typeof CreateCustomerSchema>
 export type UpdateCustomerType = z.infer<typeof UpdateCustomerSchema>
 export type FilterCustomerQueryType = z.infer<typeof FilterCustomerQuerySchema>
+
 ```
 
 # src\modules\customer-loyalty\customer\customer.service.ts
@@ -4724,11 +5470,12 @@ export type FilterCustomerQueryType = z.infer<typeof FilterCustomerQuerySchema>
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\customer-loyalty\customer\customer.service.ts` |
-| Size | 1,847 bytes |
+| Size | 2,887 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.196006 |
+| Modified | 2026-09-30 19:17:55.058180 |
 
 ```typescript
+import bcrypt from 'bcrypt'
 import { CustomerRepo } from './customer.repo'
 import { CreateCustomerType, FilterCustomerQueryType, UpdateCustomerType } from './customer.schema'
 
@@ -4742,7 +5489,9 @@ export class CustomerService {
     async getCustomerById(id: number) {
         const customer = await this.customerRepo.getCustomerById(id)
         if (!customer) {
-            throw new Error('Khách hàng không tồn tại hoặc đã bị xóa')
+            const err = new Error('Khách hàng không tồn tại hoặc đã bị xóa')
+            ;(err as any).status = 404
+            throw err
         }
         return customer
     }
@@ -4750,10 +5499,17 @@ export class CustomerService {
     async createCustomer(data: CreateCustomerType) {
         const existing = await this.customerRepo.getCustomerByPhone(data.phoneNumber)
         if (existing) {
-            throw new Error('Số điện thoại khách hàng đã tồn tại trên hệ thống')
+            const err = new Error('Số điện thoại khách hàng đã tồn tại trên hệ thống')
+            ;(err as any).status = 409
+            throw err
         }
 
-        const customer = await this.customerRepo.createCustomer(data)
+        const payload = { ...data }
+        if (payload.password) {
+            payload.password = await bcrypt.hash(payload.password, 10)
+        }
+
+        const customer = await this.customerRepo.createCustomer(payload)
         return {
             message: 'Tạo thông tin khách hàng thành công',
             data: customer,
@@ -4764,18 +5520,39 @@ export class CustomerService {
         if (data.phoneNumber) {
             const existing = await this.customerRepo.getCustomerByPhone(data.phoneNumber)
             if (existing && existing.id !== id) {
-                throw new Error('Số điện thoại này đã được sử dụng bởi khách hàng khác')
+                const err = new Error('Số điện thoại này đã được sử dụng bởi khách hàng khác')
+                ;(err as any).status = 409
+                throw err
             }
         }
 
-        const updated = await this.customerRepo.updateCustomer(id, data)
+        const payload = { ...data }
+        if (payload.password) {
+            payload.password = await bcrypt.hash(payload.password, 10)
+        }
+
+        const updated = await this.customerRepo.updateCustomer(id, payload)
         if (!updated) {
-            throw new Error('Cập nhật thất bại hoặc không tìm thấy khách hàng')
+            const err = new Error('Cập nhật thất bại hoặc không tìm thấy khách hàng')
+            ;(err as any).status = 404
+            throw err
         }
 
         return {
             message: 'Cập nhật thông tin khách hàng thành công',
             data: updated,
+        }
+    }
+
+    async deleteCustomer(id: number) {
+        const success = await this.customerRepo.softDeleteCustomer(id)
+        if (!success) {
+            const err = new Error('Xóa thất bại hoặc không tìm thấy khách hàng')
+            ;(err as any).status = 404
+            throw err
+        }
+        return {
+            message: 'Xóa thông tin khách hàng thành công',
         }
     }
 }
@@ -4844,9 +5621,9 @@ export class LoyaltyController {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\customer-loyalty\loyalty\loyalty.repo.ts` |
-| Size | 6,168 bytes |
+| Size | 8,555 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.198003 |
+| Modified | 2026-09-30 19:17:55.059351 |
 
 ```typescript
 import { getPool, sql } from '@/config/database'
@@ -4877,13 +5654,15 @@ export class LoyaltyRepo {
         }
 
         if (fromDate) {
-            request.input('fromDate', sql.DateTime2, new Date(fromDate))
+            request.input('fromDate', sql.DateTime2, fromDate)
             conditions.push('lt.createdAt >= @fromDate')
         }
 
         if (toDate) {
-            request.input('toDate', sql.DateTime2, new Date(toDate))
-            conditions.push('lt.createdAt <= @toDate')
+            const endDate = new Date(toDate)
+            endDate.setDate(endDate.getDate() + 1)
+            request.input('toDate', sql.DateTime2, endDate)
+            conditions.push('lt.createdAt < @toDate')
         }
 
         const whereClause = `WHERE ${conditions.join(' AND ')}`
@@ -4909,7 +5688,7 @@ export class LoyaltyRepo {
       FROM LoyaltyTransaction lt
       JOIN Customer c ON lt.customerId = c.id
       ${whereClause}
-      ORDER BY lt.createdAt DESC
+      ORDER BY lt.createdAt DESC, lt.id DESC
       OFFSET @offset ROWS
       FETCH NEXT @limit ROWS ONLY
     `
@@ -4948,6 +5727,40 @@ export class LoyaltyRepo {
                 throw new Error('Khách hàng không tồn tại hoặc đã bị xóa')
             }
 
+            // Nếu truyền orderId, validate đơn hàng & kiểm tra thuộc về customerId
+            if (data.orderId) {
+                const orderReq = new sql.Request(transaction)
+                orderReq.input('orderId', sql.Int, data.orderId)
+                const orderRes = await orderReq.query(`
+          SELECT id, customerId 
+          FROM [Order] 
+          WHERE id = @orderId AND deletedAt IS NULL
+        `)
+
+                if (orderRes.recordset.length === 0) {
+                    throw new Error('Đơn hàng không tồn tại')
+                }
+
+                const order = orderRes.recordset[0]
+                if (order.customerId && order.customerId !== data.customerId) {
+                    throw new Error('Đơn hàng không thuộc về khách hàng này')
+                }
+
+                // Chống EARN trùng order nếu mỗi order chỉ được cộng điểm một lần
+                if (data.transactionType === 'EARN') {
+                    const dupReq = new sql.Request(transaction)
+                    dupReq.input('orderId', sql.Int, data.orderId)
+                    const dupRes = await dupReq.query(`
+            SELECT TOP 1 id FROM LoyaltyTransaction 
+            WHERE orderId = @orderId AND transactionType = 'EARN'
+          `)
+
+                    if (dupRes.recordset.length > 0) {
+                        throw new Error('Đơn hàng này đã được cộng điểm thưởng trước đó')
+                    }
+                }
+            }
+
             const currentPoints: number = customerRes.recordset[0].rewardPoints
             let newBalance = currentPoints
 
@@ -4960,11 +5773,25 @@ export class LoyaltyRepo {
                 newBalance -= data.points
             }
 
-            // Xác định hạng thành viên mới theo mốc điểm
+            // Tính tổng điểm tích lũy lifetime (Lifetime Earned Points) để xét hạng membershipTier
+            const lifetimeReq = new sql.Request(transaction)
+            lifetimeReq.input('customerId', sql.Int, data.customerId)
+            const lifetimeRes = await lifetimeReq.query(`
+        SELECT ISNULL(SUM(points), 0) AS totalEarned
+        FROM LoyaltyTransaction
+        WHERE customerId = @customerId AND transactionType = 'EARN'
+      `)
+
+            let lifetimePoints = Number(lifetimeRes.recordset[0]?.totalEarned || 0)
+            if (data.transactionType === 'EARN') {
+                lifetimePoints += data.points
+            }
+
+            // Xác định hạng thành viên theo Lifetime Points để không bị tụt hạng khi đổi điểm (REDEEM)
             let newTier = 'STANDARD'
-            if (newBalance >= 1000) newTier = 'DIAMOND'
-            else if (newBalance >= 500) newTier = 'GOLD'
-            else if (newBalance >= 200) newTier = 'SILVER'
+            if (lifetimePoints >= 1000) newTier = 'DIAMOND'
+            else if (lifetimePoints >= 500) newTier = 'GOLD'
+            else if (lifetimePoints >= 200) newTier = 'SILVER'
 
             // Cập nhật Customer
             const updateReq = new sql.Request(transaction)
@@ -5022,22 +5849,39 @@ export class LoyaltyRepo {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\customer-loyalty\loyalty\loyalty.routes.ts` |
-| Size | 421 bytes |
+| Size | 797 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.199005 |
+| Modified | 2026-09-29 23:31:02.823797 |
 
 ```typescript
 import { Router } from 'express'
 import { LoyaltyController } from './loyalty.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  AdjustPointsSchema,
+  FilterLoyaltyHistoryQuerySchema,
+} from './loyalty.schema'
 
 export const loyaltyRouter = Router()
 const controller = new LoyaltyController()
 
-// GET /api/v1/customer-loyalty/loyalty/history
-loyaltyRouter.get('/history', controller.getHistory)
+loyaltyRouter.use(authGuard)
 
-// POST /api/v1/customer-loyalty/loyalty/adjust (Tích / Tiêu điểm thưởng)
-loyaltyRouter.post('/adjust', controller.adjustPoints)
+// Tra cứu lịch sử biến động điểm
+loyaltyRouter.get(
+  '/history',
+  roleGuard('CUSTOMER', 'CASHIER', 'MANAGER'),
+  validatePipe(FilterLoyaltyHistoryQuerySchema, 'query'),
+  controller.getHistory
+)
+
+// Điều chỉnh tăng/giảm điểm thủ công: Chỉ MANAGER
+loyaltyRouter.post(
+  '/adjust',
+  roleGuard('MANAGER'),
+  validatePipe(AdjustPointsSchema, 'body'),
+  controller.adjustPoints
+)
 ```
 
 # src\modules\customer-loyalty\loyalty\loyalty.schema.ts
@@ -5045,9 +5889,9 @@ loyaltyRouter.post('/adjust', controller.adjustPoints)
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\customer-loyalty\loyalty\loyalty.schema.ts` |
-| Size | 1,167 bytes |
+| Size | 1,613 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.200006 |
+| Modified | 2026-09-30 19:17:55.060298 |
 
 ```typescript
 import { z } from 'zod'
@@ -5062,15 +5906,33 @@ export const AdjustPointsSchema = z.object({
     description: z.string().max(500).optional().nullable(),
 })
 
-export const FilterLoyaltyHistoryQuerySchema = z.object({
-    customerId: z.coerce.number().int().positive().optional(),
-    orderId: z.coerce.number().int().positive().optional(),
-    transactionType: z.enum(['EARN', 'REDEEM']).optional(),
-    fromDate: z.string().optional(),
-    toDate: z.string().optional(),
-    page: z.coerce.number().int().positive().default(1),
-    limit: z.coerce.number().int().positive().default(20),
-})
+export const FilterLoyaltyHistoryQuerySchema = z
+    .object({
+        customerId: z.coerce.number().int().positive().optional(),
+        orderId: z.coerce.number().int().positive().optional(),
+        transactionType: z.enum(['EARN', 'REDEEM']).optional(),
+        fromDate: z.coerce.date().optional(),
+        toDate: z.coerce.date().optional(),
+        page: z.coerce.number().int().positive().default(1),
+        limit: z.coerce
+            .number()
+            .int()
+            .positive()
+            .max(100)
+            .default(20),
+    })
+    .refine(
+        data => {
+            if (data.fromDate && data.toDate) {
+                return data.fromDate <= data.toDate
+            }
+            return true
+        },
+        {
+            message: 'fromDate must be less than or equal to toDate',
+            path: ['toDate'],
+        },
+    )
 
 export type AdjustPointsType = z.infer<typeof AdjustPointsSchema>
 export type FilterLoyaltyHistoryQueryType = z.infer<typeof FilterLoyaltyHistoryQuerySchema>
@@ -5200,22 +6062,37 @@ export class AdjustmentRepo {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\inventory-bom\adjustment\adjustment.routes.ts` |
-| Size | 397 bytes |
+| Size | 798 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.204004 |
+| Modified | 2026-09-29 23:30:19.738399 |
 
 ```typescript
 import { Router } from 'express'
 import { AdjustmentController } from './adjustment.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  CreateAdjustmentSchema,
+  FilterAdjustmentQuerySchema,
+} from './adjustment.schema'
 
 export const adjustmentRouter = Router()
 const controller = new AdjustmentController()
 
-// GET /api/v1/inventory/adjustments
-adjustmentRouter.get('/', controller.list)
+adjustmentRouter.use(authGuard, roleGuard('STOREKEEPER', 'MANAGER'))
 
-// POST /api/v1/inventory/adjustments (Cân kho, điều chỉnh hao hụt)
-adjustmentRouter.post('/', controller.create)
+// GET /api/v1/inventory/adjustments - Xem lịch sử điều chỉnh cân kho
+adjustmentRouter.get(
+  '/',
+  validatePipe(FilterAdjustmentQuerySchema, 'query'),
+  controller.list
+)
+
+// POST /api/v1/inventory/adjustments - Lập phiếu cân kho hao hụt
+adjustmentRouter.post(
+  '/',
+  validatePipe(CreateAdjustmentSchema, 'body'),
+  controller.create
+)
 ```
 
 # src\modules\inventory-bom\adjustment\adjustment.schema.ts
@@ -5441,31 +6318,59 @@ export class BOMRepo {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\inventory-bom\bom\bom.routes.ts` |
-| Size | 797 bytes |
+| Size | 1,082 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.210002 |
+| Modified | 2026-09-29 23:30:32.499211 |
 
 ```typescript
 import { Router } from 'express'
 import { BOMController } from './bom.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  GetVariantBOMQuerySchema,
+  RecipeBOMSchema,
+  ToppingBOMSchema,
+} from './bom.schema'
 
 export const bomRouter = Router()
 const controller = new BOMController()
 
-// GET /api/v1/inventory/boms/recipes?variantId=1
-bomRouter.get('/recipes', controller.getRecipes)
+bomRouter.use(authGuard)
 
-// GET /api/v1/inventory/boms/toppings/:toppingId
-bomRouter.get('/toppings/:toppingId', controller.getToppingBOM)
+// Xem định lượng món và topping
+bomRouter.get(
+  '/recipes',
+  roleGuard('BARISTA', 'MANAGER'),
+  validatePipe(GetVariantBOMQuerySchema, 'query'),
+  controller.getRecipes
+)
 
-// POST /api/v1/inventory/boms/recipes (Cấu hình định lượng món)
-bomRouter.post('/recipes', controller.upsertRecipe)
+bomRouter.get(
+  '/toppings/:toppingId',
+  roleGuard('BARISTA', 'MANAGER'),
+  controller.getToppingBOM
+)
 
-// POST /api/v1/inventory/boms/toppings (Cấu hình định lượng topping)
-bomRouter.post('/toppings', controller.upsertTopping)
+// Cấu hình định mức tiêu hao
+bomRouter.post(
+  '/recipes',
+  roleGuard('MANAGER'),
+  validatePipe(RecipeBOMSchema, 'body'),
+  controller.upsertRecipe
+)
 
-// DELETE /api/v1/inventory/boms/recipes/:variantId/:ingredientId
-bomRouter.delete('/recipes/:variantId/:ingredientId', controller.deleteRecipe)
+bomRouter.post(
+  '/toppings',
+  roleGuard('MANAGER'),
+  validatePipe(ToppingBOMSchema, 'body'),
+  controller.upsertTopping
+)
+
+bomRouter.delete(
+  '/recipes/:variantId/:ingredientId',
+  roleGuard('MANAGER'),
+  controller.deleteRecipe
+)
 ```
 
 # src\modules\inventory-bom\bom\bom.schema.ts
@@ -5714,25 +6619,45 @@ export class ImportRepo {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\inventory-bom\import\import.routes.ts` |
-| Size | 573 bytes |
+| Size | 1,000 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.214002 |
+| Modified | 2026-09-29 23:30:02.629013 |
 
 ```typescript
 import { Router } from 'express'
 import { ImportController } from './import.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  CreateImportTicketSchema,
+  ImportTicketParamsSchema,
+  QueryImportTicketSchema,
+} from './import.schema'
 
 export const importRouter = Router()
 const controller = new ImportController()
 
-// GET /api/v1/inventory/imports (Danh sách phiếu nhập)
-importRouter.get('/', controller.getImportTickets)
+importRouter.use(authGuard, roleGuard('STOREKEEPER', 'MANAGER'))
 
-// GET /api/v1/inventory/imports/:importId (Chi tiết phiếu nhập kèm danh sách hàng hóa)
-importRouter.get('/:importId', controller.getImportDetailById)
+// GET /api/v1/inventory/imports - Lấy danh sách phiếu nhập
+importRouter.get(
+  '/',
+  validatePipe(QueryImportTicketSchema, 'query'),
+  controller.getImportTickets
+)
 
-// POST /api/v1/inventory/imports (Tạo phiếu nhập mới)
-importRouter.post('/', controller.createImportTicket)
+// GET /api/v1/inventory/imports/:importId - Xem chi tiết phiếu nhập
+importRouter.get(
+  '/:importId',
+  validatePipe(ImportTicketParamsSchema, 'params'),
+  controller.getImportDetailById
+)
+
+// POST /api/v1/inventory/imports - Tạo phiếu nhập kho mới
+importRouter.post(
+  '/',
+  validatePipe(CreateImportTicketSchema, 'body'),
+  controller.createImportTicket
+)
 ```
 
 # src\modules\inventory-bom\import\import.schema.ts
@@ -6026,31 +6951,64 @@ export class IngredientRepo {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\inventory-bom\ingredient\ingredient.routes.ts` |
-| Size | 771 bytes |
+| Size | 1,420 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.220005 |
+| Modified | 2026-09-29 23:29:52.037301 |
 
 ```typescript
 import { Router } from 'express'
 import { IngredientController } from './ingredient.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  CreateIngredientSchema,
+  IngredientParamsSchema,
+  QueryIngredientSchema,
+  UpdateIngredientSchema,
+} from './ingredient.schema'
 
 export const ingredientRouter = Router()
 const controller = new IngredientController()
 
-// GET /api/v1/inventory/ingredients?isLowStock=true
-ingredientRouter.get('/', controller.getIngredients)
+ingredientRouter.use(authGuard)
 
-// GET /api/v1/inventory/ingredients/:ingredientId
-ingredientRouter.get('/:ingredientId', controller.getIngredientById)
+// Xem nguyên liệu
+ingredientRouter.get(
+  '/',
+  roleGuard('STOREKEEPER', 'MANAGER', 'BARISTA'),
+  validatePipe(QueryIngredientSchema, 'query'),
+  controller.getIngredients
+)
 
-// POST /api/v1/inventory/ingredients
-ingredientRouter.post('/', controller.createIngredient)
+ingredientRouter.get(
+  '/:ingredientId',
+  roleGuard('STOREKEEPER', 'MANAGER', 'BARISTA'),
+  validatePipe(IngredientParamsSchema, 'params'),
+  controller.getIngredientById
+)
 
-// PUT /api/v1/inventory/ingredients/:ingredientId
-ingredientRouter.put('/:ingredientId', controller.updateIngredient)
+// Tạo mới & cập nhật nguyên liệu
+ingredientRouter.post(
+  '/',
+  roleGuard('STOREKEEPER', 'MANAGER'),
+  validatePipe(CreateIngredientSchema, 'body'),
+  controller.createIngredient
+)
 
-// DELETE /api/v1/inventory/ingredients/:ingredientId
-ingredientRouter.delete('/:ingredientId', controller.deleteIngredient)
+ingredientRouter.put(
+  '/:ingredientId',
+  roleGuard('STOREKEEPER', 'MANAGER'),
+  validatePipe(IngredientParamsSchema, 'params'),
+  validatePipe(UpdateIngredientSchema, 'body'),
+  controller.updateIngredient
+)
+
+// Xóa mềm nguyên liệu
+ingredientRouter.delete(
+  '/:ingredientId',
+  roleGuard('MANAGER'),
+  validatePipe(IngredientParamsSchema, 'params'),
+  controller.deleteIngredient
+)
 ```
 
 # src\modules\inventory-bom\ingredient\ingredient.schema.ts
@@ -6393,25 +7351,48 @@ export class KDSRepo {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\kds\kds.routes.ts` |
-| Size | 641 bytes |
+| Size | 1,206 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 23:07:30.664148 |
+| Modified | 2026-09-29 23:29:18.094657 |
 
 ```typescript
 import { Router } from 'express'
 import { KDSController } from './kds.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  KdsParamSchema,
+  NotifyOrderReadySchema,
+  QueryKdsQueueSchema,
+  UpdateItemStatusSchema,
+} from './kds.schema'
 
 export const kdsRouter = Router()
 const controller = new KDSController()
 
-// GET /api/v1/kds/queue?status=PENDING (Lấy hàng đợi KDS cho Barista)
-kdsRouter.get('/queue', controller.getQueue)
+// Chặn toàn bộ: Yêu cầu đăng nhập và chỉ cho phép BARISTA hoặc MANAGER
+kdsRouter.use(authGuard, roleGuard('BARISTA', 'MANAGER'))
 
-// PATCH /api/v1/kds/items/:orderDetailId/status (Cập nhật hoàn thành món -> Kích hoạt Trigger trừ kho)
-kdsRouter.patch('/items/:orderDetailId/status', controller.updateItemStatus)
+// GET /api/v1/kds/queue - Xem danh sách món đang chờ pha chế
+kdsRouter.get(
+  '/queue',
+  validatePipe(QueryKdsQueueSchema, 'query'),
+  controller.getQueue
+)
 
-// POST /api/v1/kds/orders/:orderId/notify-ready (Bấm chuông rung báo khách lấy nước)
-kdsRouter.post('/orders/:orderId/notify-ready', controller.notifyReady)
+// PATCH /api/v1/kds/items/:orderDetailId/status - Cập nhật trạng thái ly nước (DONE kích hoạt Trigger trừ kho)
+kdsRouter.patch(
+  '/items/:orderDetailId/status',
+  validatePipe(KdsParamSchema, 'params'),
+  validatePipe(UpdateItemStatusSchema, 'body'),
+  controller.updateItemStatus
+)
+
+// POST /api/v1/kds/orders/:orderId/notify-ready - Kích hoạt rung chuông thẻ rung báo khách lấy nước
+kdsRouter.post(
+  '/orders/:orderId/notify-ready',
+  validatePipe(NotifyOrderReadySchema, 'params'),
+  controller.notifyReady
+)
 ```
 
 # src\modules\kds\kds.schema.ts
@@ -6492,64 +7473,73 @@ export class KDSService {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\category\category.controller.ts` |
-| Size | 2,074 bytes |
+| Size | 2,502 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.272442 |
+| Modified | 2026-09-30 19:34:54.063253 |
 
 ```typescript
-import { Request, Response } from 'express';
-import { CategoryService } from './category.service';
-import { createCategorySchema, updateCategorySchema } from './category.schema';
+import { Request, Response } from 'express'
+import { CategoryService } from './category.service'
 
 export class CategoryController {
-  private categoryService = new CategoryService();
+  private categoryService = new CategoryService()
 
   getAll = async (req: Request, res: Response) => {
     try {
-      const categories = await this.categoryService.getAllCategories();
-      res.status(200).json({ success: true, data: categories });
+      const categories = await this.categoryService.getAllCategories(req.query as any)
+      res.status(200).json({ success: true, data: categories })
     } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: error.message || 'Lỗi hệ thống' })
     }
-  };
+  }
 
   getById = async (req: Request, res: Response) => {
     try {
-      const category = await this.categoryService.getCategoryById(req.params.id);
-      res.status(200).json({ success: true, data: category });
+      const category = await this.categoryService.getCategoryById(Number(req.params.id))
+      res.status(200).json({ success: true, data: category })
     } catch (error: any) {
-      res.status(404).json({ success: false, message: error.message });
+      res.status(404).json({ success: false, message: error.message || 'Danh mục không tồn tại' })
     }
-  };
+  }
 
   create = async (req: Request, res: Response) => {
     try {
-      const validated = createCategorySchema.parse(req.body);
-      const newCategory = await this.categoryService.createCategory(validated);
-      res.status(201).json({ success: true, data: newCategory });
+      const newCategory = await this.categoryService.createCategory(req.body)
+      res.status(201).json({ success: true, data: newCategory })
     } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message || error.errors });
+      const message = error.message || 'Lỗi tạo danh mục'
+      const statusCode = message.includes('đã tồn tại') ? 409 : 400
+      res.status(statusCode).json({ success: false, message })
     }
-  };
+  }
 
   update = async (req: Request, res: Response) => {
     try {
-      const validated = updateCategorySchema.parse(req.body);
-      const updated = await this.categoryService.updateCategory(req.params.id, validated);
-      res.status(200).json({ success: true, data: updated });
+      const updated = await this.categoryService.updateCategory(Number(req.params.id), req.body)
+      res.status(200).json({ success: true, data: updated })
     } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message || error.errors });
+      const message = error.message || 'Lỗi cập nhật danh mục'
+      let statusCode = 400
+      if (message.includes('không tồn tại')) statusCode = 404
+      if (message.includes('đã tồn tại')) statusCode = 409
+
+      res.status(statusCode).json({ success: false, message })
     }
-  };
+  }
 
   delete = async (req: Request, res: Response) => {
     try {
-      await this.categoryService.deleteCategory(req.params.id);
-      res.status(200).json({ success: true, message: 'Xóa danh mục thành công' });
+      await this.categoryService.deleteCategory(Number(req.params.id))
+      res.status(200).json({ success: true, message: 'Đã xóa danh mục thành công' })
     } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message });
+      const message = error.message || 'Lỗi xóa danh mục'
+      let statusCode = 400
+      if (message.includes('không tồn tại')) statusCode = 404
+      if (message.includes('sản phẩm liên kết')) statusCode = 409
+
+      res.status(statusCode).json({ success: false, message })
     }
-  };
+  }
 }
 ```
 
@@ -6558,85 +7548,174 @@ export class CategoryController {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\category\category.repo.ts` |
-| Size | 2,586 bytes |
+| Size | 5,045 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.273442 |
+| Modified | 2026-09-30 19:34:54.065461 |
 
 ```typescript
-import pool from '../../../config/database';
+import { getPool, sql } from '@/config/database'
+import {
+  CreateCategoryType,
+  FilterCategoryQueryType,
+  UpdateCategoryType,
+} from './category.schema'
 
 export interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  sort_order: number;
-  is_active: boolean;
-  created_at?: Date;
+  id: number
+  name: string
+  displayStatus: 'SHOW' | 'HIDE'
+  createdAt: Date
+  updatedAt?: Date | null
+  deletedAt?: Date | null
 }
 
 export class CategoryRepository {
-  async findAll(): Promise<Category[]> {
+  /**
+   * Lấy danh sách danh mục (hỗ trợ lọc displayStatus & tìm kiếm name)
+   */
+  async findAll(filters?: FilterCategoryQueryType): Promise<Category[]> {
+    const pool = await getPool()
+    const req = pool.request()
+    const conditions: string[] = ['deletedAt IS NULL']
+
+    const displayStatus =
+      typeof filters?.displayStatus === 'string' ? filters.displayStatus : undefined
+    const search =
+      typeof filters?.search === 'string' ? filters.search : undefined
+
+    if (displayStatus) {
+      req.input('displayStatus', sql.NVarChar(50), displayStatus)
+      conditions.push('displayStatus = @displayStatus')
+    }
+
+    if (search) {
+      req.input('search', sql.NVarChar(150), `%${search}%`)
+      conditions.push('name LIKE @search')
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`
     const query = `
-      SELECT id, name, slug, description, sort_order, is_active 
-      FROM categories 
-      ORDER BY sort_order ASC, name ASC
-    `;
-    const { rows } = await pool.query(query);
-    return rows;
+      SELECT id, name, displayStatus, createdAt, updatedAt
+      FROM Category
+      ${whereClause}
+      ORDER BY id ASC
+    `
+    const result = await req.query<Category>(query)
+    return result.recordset
   }
 
-  async findById(id: string): Promise<Category | null> {
-    const query = `SELECT * FROM categories WHERE id = $1`;
-    const { rows } = await pool.query(query, [id]);
-    return rows[0] || null;
+  /**
+   * Lấy chi tiết danh mục theo ID
+   */
+  async findById(id: number): Promise<Category | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+    const result = await req.query<Category>(`
+      SELECT id, name, displayStatus, createdAt, updatedAt
+      FROM Category
+      WHERE id = @id AND deletedAt IS NULL
+    `)
+    return result.recordset[0] || null
   }
 
-  async findBySlug(slug: string): Promise<Category | null> {
-    const query = `SELECT * FROM categories WHERE slug = $1`;
-    const { rows } = await pool.query(query, [slug]);
-    return rows[0] || null;
+  /**
+   * Tìm danh mục theo tên (hỗ trợ loại trừ ID khi update)
+   */
+  async findByName(name: string, excludeId?: number): Promise<Category | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(150), name)
+
+    let query = `
+      SELECT id, name, displayStatus, createdAt, updatedAt
+      FROM Category
+      WHERE name = @name AND deletedAt IS NULL
+    `
+
+    if (excludeId) {
+      req.input('excludeId', sql.Int, excludeId)
+      query += ` AND id <> @excludeId`
+    }
+
+    const result = await req.query<Category>(query)
+    return result.recordset[0] || null
   }
 
-  async create(data: Partial<Category>): Promise<Category> {
+  /**
+   * Đếm số lượng sản phẩm thuộc danh mục
+   */
+  async countProductsByCategoryId(categoryId: number): Promise<number> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('categoryId', sql.Int, categoryId)
+    const result = await req.query<{ count: number }>(`
+      SELECT COUNT(1) AS count 
+      FROM Product 
+      WHERE categoryId = @categoryId AND deletedAt IS NULL
+    `)
+    return result.recordset[0]?.count || 0
+  }
+
+  /**
+   * Tạo danh mục mới
+   */
+  async create(data: CreateCategoryType): Promise<Category> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(150), data.name)
+    req.input('displayStatus', sql.NVarChar(50), data.displayStatus || 'SHOW')
+
+    const result = await req.query<Category>(`
+      INSERT INTO Category (name, displayStatus, createdAt)
+      OUTPUT INSERTED.id, INSERTED.name, INSERTED.displayStatus, INSERTED.createdAt, INSERTED.updatedAt
+      VALUES (@name, @displayStatus, SYSDATETIME())
+    `)
+    return result.recordset[0]
+  }
+
+  /**
+   * Cập nhật thông tin danh mục
+   */
+  async update(id: number, data: UpdateCategoryType): Promise<Category | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+
+    const setClauses: string[] = ['updatedAt = SYSDATETIME()']
+
+    if (data.name !== undefined) {
+      req.input('name', sql.NVarChar(150), data.name)
+      setClauses.push('name = @name')
+    }
+    if (data.displayStatus !== undefined) {
+      req.input('displayStatus', sql.NVarChar(50), data.displayStatus)
+      setClauses.push('displayStatus = @displayStatus')
+    }
+
     const query = `
-      INSERT INTO categories (name, slug, description, sort_order, is_active)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *
-    `;
-    const values = [data.name, data.slug, data.description || null, data.sort_order ?? 0, data.is_active ?? true];
-    const { rows } = await pool.query(query, values);
-    return rows[0];
+      UPDATE Category
+      SET ${setClauses.join(', ')}
+      OUTPUT INSERTED.id, INSERTED.name, INSERTED.displayStatus, INSERTED.createdAt, INSERTED.updatedAt
+      WHERE id = @id AND deletedAt IS NULL
+    `
+    const result = await req.query<Category>(query)
+    return result.recordset[0] || null
   }
 
-  async update(id: string, data: Partial<Category>): Promise<Category | null> {
-    const fields: string[] = [];
-    const values: any[] = [];
-    let idx = 1;
-
-    if (data.name !== undefined) { fields.push(`name = $${idx++}`); values.push(data.name); }
-    if (data.slug !== undefined) { fields.push(`slug = $${idx++}`); values.push(data.slug); }
-    if (data.description !== undefined) { fields.push(`description = $${idx++}`); values.push(data.description); }
-    if (data.sort_order !== undefined) { fields.push(`sort_order = $${idx++}`); values.push(data.sort_order); }
-    if (data.is_active !== undefined) { fields.push(`is_active = $${idx++}`); values.push(data.is_active); }
-
-    if (fields.length === 0) return this.findById(id);
-
-    values.push(id);
-    const query = `
-      UPDATE categories 
-      SET ${fields.join(', ')} 
-      WHERE id = $${idx} 
-      RETURNING *
-    `;
-    const { rows } = await pool.query(query, values);
-    return rows[0] || null;
-  }
-
-  async delete(id: string): Promise<boolean> {
-    const query = `DELETE FROM categories WHERE id = $1`;
-    const result = await pool.query(query, [id]);
-    return (result.rowCount ?? 0) > 0;
+  /**
+   * Xóa mềm danh mục
+   */
+  async delete(id: number): Promise<boolean> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+    const result = await req.query(`
+      UPDATE Category 
+      SET deletedAt = SYSDATETIME() 
+      WHERE id = @id AND deletedAt IS NULL
+    `)
+    return (result.rowsAffected[0] ?? 0) > 0
   }
 }
 ```
@@ -6646,24 +7725,62 @@ export class CategoryRepository {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\category\category.routes.ts` |
-| Size | 550 bytes |
+| Size | 1,256 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 23:12:58.844942 |
+| Modified | 2026-09-30 19:35:22.874179 |
 
 ```typescript
-import { Router } from 'express';
-import { CategoryController } from './category.controller';
+import { Router } from 'express'
+import { CategoryController } from './category.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  CategoryParamSchema,
+  CreateCategorySchema,
+  FilterCategoryQuerySchema,
+  UpdateCategorySchema,
+} from './category.schema'
 
-export const categoryRouter = Router(); // Đổi từ const router sang export const categoryRouter
-const controller = new CategoryController();
+export const categoryRouter = Router()
+const controller = new CategoryController()
 
-categoryRouter.get('/', controller.getAll);
-categoryRouter.get('/:id', controller.getById);
-categoryRouter.post('/', controller.create);
-categoryRouter.put('/:id', controller.update);
-categoryRouter.delete('/:id', controller.delete);
+// Xem danh mục: Public cho Customer tra cứu menu và Cashier bán hàng
+categoryRouter.get(
+  '/',
+  validatePipe(FilterCategoryQuerySchema, 'query'),
+  controller.getAll
+)
 
-// Xóa bỏ hoặc thay thế dòng "export default router;"
+categoryRouter.get(
+    '/:id',
+    validatePipe(CategoryParamSchema, 'params'),
+    controller.getById
+)
+
+// Quản lý danh mục: Yêu cầu quyền MANAGER
+categoryRouter.post(
+    '/',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(CreateCategorySchema, 'body'),
+    controller.create
+)
+
+categoryRouter.put(
+    '/:id',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(CategoryParamSchema, 'params'),
+    validatePipe(UpdateCategorySchema, 'body'),
+    controller.update
+)
+
+categoryRouter.delete(
+    '/:id',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(CategoryParamSchema, 'params'),
+    controller.delete
+)
 ```
 
 # src\modules\menu-catalog\category\category.schema.ts
@@ -6671,25 +7788,41 @@ categoryRouter.delete('/:id', controller.delete);
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\category\category.schema.ts` |
-| Size | 613 bytes |
+| Size | 1,084 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.275446 |
+| Modified | 2026-09-30 19:34:54.069941 |
 
 ```typescript
-import { z } from 'zod';
+import { z } from 'zod'
 
-export const createCategorySchema = z.object({
-  name: z.string().min(1, 'Tên danh mục không được để trống').max(100),
-  slug: z.string().min(1, 'Slug không được để trống').max(120),
-  description: z.string().optional(),
-  sortOrder: z.number().int().nonnegative().optional().default(0),
-  isActive: z.boolean().optional().default(true),
-});
+export const CreateCategorySchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Tên danh mục không được để trống')
+    .max(150, 'Tên danh mục tối đa 150 ký tự'),
+  displayStatus: z.enum(['SHOW', 'HIDE']).default('SHOW'),
+})
 
-export const updateCategorySchema = createCategorySchema.partial();
+export const UpdateCategorySchema = CreateCategorySchema.partial()
 
-export type CreateCategoryDto = z.infer<typeof createCategorySchema>;
-export type UpdateCategoryDto = z.infer<typeof updateCategorySchema>;
+export const CategoryParamSchema = z.object({
+  id: z.coerce.number().int().positive('ID danh mục không hợp lệ'),
+})
+
+export const FilterCategoryQuerySchema = z.object({
+  displayStatus: z.enum(['SHOW', 'HIDE']).optional(),
+  search: z.string().trim().optional(),
+})
+
+export type CreateCategoryType = z.infer<typeof CreateCategorySchema>
+export type UpdateCategoryType = z.infer<typeof UpdateCategorySchema>
+export type CategoryParamType = z.infer<typeof CategoryParamSchema>
+export type FilterCategoryQueryType = z.infer<typeof FilterCategoryQuerySchema>
+
+// DTO aliases for compatibility
+export type CreateCategoryDto = CreateCategoryType
+export type UpdateCategoryDto = UpdateCategoryType
 ```
 
 # src\modules\menu-catalog\category\category.service.ts
@@ -6697,57 +7830,64 @@ export type UpdateCategoryDto = z.infer<typeof updateCategorySchema>;
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\category\category.service.ts` |
-| Size | 1,382 bytes |
+| Size | 1,631 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.276442 |
+| Modified | 2026-09-30 19:34:54.071940 |
 
 ```typescript
-import { CategoryRepository } from './category.repo';
-import { CreateCategoryDto, UpdateCategoryDto } from './category.schema';
+import { CategoryRepository } from './category.repo'
+import {
+  CreateCategoryType,
+  FilterCategoryQueryType,
+  UpdateCategoryType,
+} from './category.schema'
 
 export class CategoryService {
-  private categoryRepo = new CategoryRepository();
+  private categoryRepo = new CategoryRepository()
 
-  async getAllCategories() {
-    return await this.categoryRepo.findAll();
+  async getAllCategories(filters?: FilterCategoryQueryType) {
+    return await this.categoryRepo.findAll(filters)
   }
 
-  async getCategoryById(id: string) {
-    const category = await this.categoryRepo.findById(id);
+  async getCategoryById(id: number) {
+    const category = await this.categoryRepo.findById(id)
     if (!category) {
-      throw new Error('Danh mục không tồn tại');
+      throw new Error('Danh mục không tồn tại')
     }
-    return category;
+    return category
   }
 
-  async createCategory(dto: CreateCategoryDto) {
-    const existingSlug = await this.categoryRepo.findBySlug(dto.slug);
-    if (existingSlug) {
-      throw new Error('Slug danh mục đã tồn tại');
+  async createCategory(dto: CreateCategoryType) {
+    const existing = await this.categoryRepo.findByName(dto.name)
+    if (existing) {
+      throw new Error('Tên danh mục đã tồn tại')
     }
-    return await this.categoryRepo.create({
-      name: dto.name,
-      slug: dto.slug,
-      description: dto.description,
-      sort_order: dto.sortOrder,
-      is_active: dto.isActive,
-    });
+    return await this.categoryRepo.create(dto)
   }
 
-  async updateCategory(id: string, dto: UpdateCategoryDto) {
-    await this.getCategoryById(id);
-    return await this.categoryRepo.update(id, {
-      name: dto.name,
-      slug: dto.slug,
-      description: dto.description,
-      sort_order: dto.sortOrder,
-      is_active: dto.isActive,
-    });
+  async updateCategory(id: number, dto: UpdateCategoryType) {
+    await this.getCategoryById(id)
+
+    if (dto.name) {
+      const existing = await this.categoryRepo.findByName(dto.name, id)
+      if (existing) {
+        throw new Error('Tên danh mục đã tồn tại')
+      }
+    }
+
+    return await this.categoryRepo.update(id, dto)
   }
 
-  async deleteCategory(id: string) {
-    await this.getCategoryById(id);
-    return await this.categoryRepo.delete(id);
+  async deleteCategory(id: number) {
+    await this.getCategoryById(id)
+
+    // Kiểm tra xem danh mục có đang chứa sản phẩm hay không
+    const productCount = await this.categoryRepo.countProductsByCategoryId(id)
+    if (productCount > 0) {
+      throw new Error(`Không thể xóa danh mục đang có ${productCount} sản phẩm liên kết`)
+    }
+
+    return await this.categoryRepo.delete(id)
   }
 }
 ```
@@ -6778,66 +7918,85 @@ menuRouter.use('/toppings', toppingRouter)
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\product\product.controller.ts` |
-| Size | 2,192 bytes |
+| Size | 2,651 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.278439 |
+| Modified | 2026-09-30 19:34:54.074675 |
 
 ```typescript
-import { Request, Response } from 'express';
-import { ProductService } from './product.service';
-import { createProductSchema } from './product.schema';
+import { Request, Response } from 'express'
+import { ProductService } from './product.service'
 
 export class ProductController {
-  private productService = new ProductService();
+  private productService = new ProductService()
 
+  /**
+   * Lấy danh sách sản phẩm (có lọc/tìm kiếm)
+   */
   getAll = async (req: Request, res: Response) => {
     try {
-      const categoryId = req.query.categoryId as string;
-      const isAvailable = req.query.isAvailable !== undefined ? req.query.isAvailable === 'true' : undefined;
-      const products = await this.productService.getProducts(categoryId, isAvailable);
-      res.status(200).json({ success: true, data: products });
+      const products = await this.productService.getProducts(req.query as any)
+      res.status(200).json({ success: true, data: products })
     } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: error.message || 'Lỗi hệ thống' })
     }
-  };
+  }
 
+  /**
+   * Lấy chi tiết sản phẩm theo ID
+   */
   getById = async (req: Request, res: Response) => {
     try {
-      const product = await this.productService.getProductById(req.params.id);
-      res.status(200).json({ success: true, data: product });
+      const product = await this.productService.getProductById(Number(req.params.id))
+      res.status(200).json({ success: true, data: product })
     } catch (error: any) {
-      res.status(404).json({ success: false, message: error.message });
+      res.status(404).json({ success: false, message: error.message || 'Sản phẩm không tồn tại' })
     }
-  };
+  }
 
+  /**
+   * Tạo sản phẩm mới
+   */
   create = async (req: Request, res: Response) => {
     try {
-      const validated = createProductSchema.parse(req.body);
-      const product = await this.productService.createProduct(validated);
-      res.status(201).json({ success: true, data: product });
+      const product = await this.productService.createProduct(req.body)
+      res.status(201).json({ success: true, data: product })
     } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message || error.errors });
+      const message = error.message || 'Lỗi tạo sản phẩm'
+      const statusCode = message.includes('đã tồn tại') ? 409 : 400
+      res.status(statusCode).json({ success: false, message })
     }
-  };
+  }
 
-  toggleAvailability = async (req: Request, res: Response) => {
+  /**
+   * Cập nhật sản phẩm
+   */
+  update = async (req: Request, res: Response) => {
     try {
-      const { isAvailable } = req.body;
-      const updated = await this.productService.toggleAvailability(req.params.id, Boolean(isAvailable));
-      res.status(200).json({ success: true, data: updated });
+      const updated = await this.productService.updateProduct(Number(req.params.id), req.body)
+      res.status(200).json({ success: true, data: updated })
     } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message });
-    }
-  };
+      const message = error.message || 'Lỗi cập nhật sản phẩm'
+      let statusCode = 400
+      if (message.includes('không tồn tại')) statusCode = 404
+      if (message.includes('đã tồn tại')) statusCode = 409
 
+      res.status(statusCode).json({ success: false, message })
+    }
+  }
+
+  /**
+   * Xóa mềm sản phẩm
+   */
   delete = async (req: Request, res: Response) => {
     try {
-      await this.productService.deleteProduct(req.params.id);
-      res.status(200).json({ success: true, message: 'Đã xóa sản phẩm' });
+      await this.productService.deleteProduct(Number(req.params.id))
+      res.status(200).json({ success: true, message: 'Đã xóa sản phẩm thành công' })
     } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message });
+      const message = error.message || 'Lỗi xóa sản phẩm'
+      const statusCode = message.includes('không tồn tại') ? 404 : 400
+      res.status(statusCode).json({ success: false, message })
     }
-  };
+  }
 }
 ```
 
@@ -6846,120 +8005,338 @@ export class ProductController {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\product\product.repo.ts` |
-| Size | 3,607 bytes |
+| Size | 10,810 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.279440 |
+| Modified | 2026-09-30 19:34:54.076688 |
 
 ```typescript
-import pool from '../../../config/database';
+import { getPool, sql } from '@/config/database'
+import {
+  CreateProductType,
+  FilterProductQueryType,
+  UpdateProductType,
+} from './product.schema'
+
+export interface ProductVariantRow {
+  id: number
+  productId: number
+  size: 'S' | 'M' | 'L' | 'XL'
+  price: number
+  createdAt: Date
+  updatedAt?: Date | null
+}
+
+export interface ProductDetail {
+  id: number
+  categoryId: number
+  categoryName?: string
+  name: string
+  description?: string | null
+  image?: string | null
+  status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK'
+  createdAt: Date
+  updatedAt?: Date | null
+  variants: ProductVariantRow[]
+}
 
 export class ProductRepository {
-  async findAll(categoryId?: string, isAvailable?: boolean) {
-    let query = `
-      SELECT p.*, c.name as category_name
-      FROM products p
-      JOIN categories c ON p.category_id = c.id
-      WHERE p.is_active = true
-    `;
-    const params: any[] = [];
+  /**
+   * Lấy danh sách sản phẩm kèm mảng biến thể (Dùng FOR JSON PATH - 1 query duy nhất)
+   */
+  async findAll(filter: FilterProductQueryType): Promise<ProductDetail[]> {
+    const pool = await getPool()
+    const req = pool.request()
 
-    if (categoryId) {
-      params.push(categoryId);
-      query += ` AND p.category_id = $${params.length}`;
-    }
-    if (isAvailable !== undefined) {
-      params.push(isAvailable);
-      query += ` AND p.is_available = $${params.length}`;
+    const conditions: string[] = ['p.deletedAt IS NULL']
+
+    if (filter.categoryId) {
+      req.input('categoryId', sql.Int, filter.categoryId)
+      conditions.push('p.categoryId = @categoryId')
     }
 
-    query += ` ORDER BY p.created_at DESC`;
-    const { rows } = await pool.query(query, params);
-    return rows;
+    if (filter.status) {
+      req.input('status', sql.NVarChar(50), filter.status)
+      conditions.push('p.status = @status')
+    }
+
+    if (filter.search) {
+      req.input('search', sql.NVarChar(200), `%${filter.search}%`)
+      conditions.push('p.name LIKE @search')
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`
+
+    const query = `
+      SELECT 
+        p.id, 
+        p.categoryId, 
+        c.name AS categoryName, 
+        p.name, 
+        p.description, 
+        p.image, 
+        p.status, 
+        p.createdAt, 
+        p.updatedAt,
+        (
+          SELECT id, productId, size, price, createdAt, updatedAt
+          FROM ProductVariant pv
+          WHERE pv.productId = p.id AND pv.deletedAt IS NULL
+          ORDER BY pv.price ASC
+          FOR JSON PATH
+        ) AS variantsJson
+      FROM Product p
+      JOIN Category c ON p.categoryId = c.id
+      ${whereClause}
+      ORDER BY p.id DESC
+    `
+
+    const result = await req.query<any>(query)
+
+    return result.recordset.map((row) => ({
+      id: row.id,
+      categoryId: row.categoryId,
+      categoryName: row.categoryName,
+      name: row.name,
+      description: row.description,
+      image: row.image,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      variants: row.variantsJson ? JSON.parse(row.variantsJson) : [],
+    }))
   }
 
-  async findById(id: string) {
-    const productQuery = `SELECT * FROM products WHERE id = $1 AND is_active = true`;
-    const variantsQuery = `SELECT * FROM product_variants WHERE product_id = $1`;
-    const toppingsQuery = `
-      SELECT t.* 
-      FROM topping_options t
-      JOIN product_toppings pt ON t.id = pt.topping_id
-      WHERE pt.product_id = $1 AND t.is_available = true
-    `;
+  /**
+   * Lấy chi tiết sản phẩm theo ID
+   */
+  async findById(id: number): Promise<ProductDetail | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
 
-    const productRes = await pool.query(productQuery, [id]);
-    if (productRes.rows.length === 0) return null;
+    const query = `
+      SELECT 
+        p.id, 
+        p.categoryId, 
+        c.name AS categoryName, 
+        p.name, 
+        p.description, 
+        p.image, 
+        p.status, 
+        p.createdAt, 
+        p.updatedAt,
+        (
+          SELECT id, productId, size, price, createdAt, updatedAt
+          FROM ProductVariant pv
+          WHERE pv.productId = p.id AND pv.deletedAt IS NULL
+          ORDER BY pv.price ASC
+          FOR JSON PATH
+        ) AS variantsJson
+      FROM Product p
+      JOIN Category c ON p.categoryId = c.id
+      WHERE p.id = @id AND p.deletedAt IS NULL
+    `
 
-    const variantsRes = await pool.query(variantsQuery, [id]);
-    const toppingsRes = await pool.query(toppingsQuery, [id]);
+    const result = await req.query<any>(query)
+    if (result.recordset.length === 0) return null
 
+    const row = result.recordset[0]
     return {
-      ...productRes.rows[0],
-      variants: variantsRes.rows,
-      toppings: toppingsRes.rows,
-    };
+      id: row.id,
+      categoryId: row.categoryId,
+      categoryName: row.categoryName,
+      name: row.name,
+      description: row.description,
+      image: row.image,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      variants: row.variantsJson ? JSON.parse(row.variantsJson) : [],
+    }
   }
 
-  async findByCode(code: string) {
-    const query = `SELECT * FROM products WHERE code = $1`;
-    const { rows } = await pool.query(query, [code]);
-    return rows[0] || null;
+  /**
+   * Tìm sản phẩm theo tên (Phục vụ check trùng tên)
+   */
+  async findByName(name: string, excludeId?: number): Promise<any | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(200), name)
+
+    let query = `SELECT id FROM Product WHERE name = @name AND deletedAt IS NULL`
+    if (excludeId) {
+      req.input('excludeId', sql.Int, excludeId)
+      query += ` AND id != @excludeId`
+    }
+
+    const result = await req.query(query)
+    return result.recordset[0] || null
   }
 
-  async createWithDetails(data: any) {
-    const client = await pool.connect();
+  /**
+   * Tạo món mới kèm các biến thể size
+   */
+  async createWithVariants(data: CreateProductType): Promise<ProductDetail> {
+    const pool = await getPool()
+    const transaction = new sql.Transaction(pool)
+    await transaction.begin()
+
     try {
-      await client.query('BEGIN');
+      const productReq = new sql.Request(transaction)
+      productReq.input('categoryId', sql.Int, data.categoryId)
+      productReq.input('name', sql.NVarChar(200), data.name)
+      productReq.input('description', sql.NVarChar(sql.MAX), data.description || null)
+      productReq.input('image', sql.NVarChar(500), data.image || null)
+      productReq.input('status', sql.NVarChar(50), data.status || 'ACTIVE')
 
-      const productQuery = `
-        INSERT INTO products (category_id, code, name, base_price, image_url, description, is_available)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *
-      `;
-      const productValues = [
-        data.categoryId, data.code, data.name, data.basePrice,
-        data.imageUrl || null, data.description || null, data.isAvailable ?? true
-      ];
-      const productRes = await client.query(productQuery, productValues);
-      const product = productRes.rows[0];
+      const productRes = await productReq.query(`
+        INSERT INTO Product (categoryId, name, description, image, status, createdAt)
+        OUTPUT INSERTED.id, INSERTED.categoryId, INSERTED.name, INSERTED.description, INSERTED.image, INSERTED.status, INSERTED.createdAt
+        VALUES (@categoryId, @name, @description, @image, @status, SYSDATETIME())
+      `)
+      const newProduct = productRes.recordset[0]
 
       for (const v of data.variants) {
-        await client.query(
-          `INSERT INTO product_variants (product_id, size_name, price_adjustment, is_default)
-           VALUES ($1, $2, $3, $4)`,
-          [product.id, v.sizeName, v.priceAdjustment, v.isDefault ?? false]
-        );
+        const variantReq = new sql.Request(transaction)
+        variantReq.input('productId', sql.Int, newProduct.id)
+        variantReq.input('size', sql.NVarChar(20), v.size)
+        variantReq.input('price', sql.Decimal(18, 2), v.price)
+
+        await variantReq.query(`
+          INSERT INTO ProductVariant (productId, size, price, createdAt)
+          VALUES (@productId, @size, @price, SYSDATETIME())
+        `)
       }
 
-      if (data.toppingIds && data.toppingIds.length > 0) {
-        for (const toppingId of data.toppingIds) {
-          await client.query(
-            `INSERT INTO product_toppings (product_id, topping_id) VALUES ($1, $2)`,
-            [product.id, toppingId]
-          );
+      await transaction.commit()
+      return (await this.findById(newProduct.id))!
+    } catch (error) {
+      await transaction.rollback()
+      throw error
+    }
+  }
+
+  /**
+   * Cập nhật món dùng cơ chế Smart Upsert (An toàn tuyệt đối cho Khóa ngoại)
+   */
+  async update(id: number, data: UpdateProductType): Promise<ProductDetail | null> {
+    const pool = await getPool()
+    const transaction = new sql.Transaction(pool)
+    await transaction.begin()
+
+    try {
+      const updateClauses: string[] = ['updatedAt = SYSDATETIME()']
+      const updateReq = new sql.Request(transaction)
+      updateReq.input('id', sql.Int, id)
+
+      if (data.categoryId !== undefined) {
+        updateReq.input('categoryId', sql.Int, data.categoryId)
+        updateClauses.push('categoryId = @categoryId')
+      }
+      if (data.name !== undefined) {
+        updateReq.input('name', sql.NVarChar(200), data.name)
+        updateClauses.push('name = @name')
+      }
+      if (data.description !== undefined) {
+        updateReq.input('description', sql.NVarChar(sql.MAX), data.description)
+        updateClauses.push('description = @description')
+      }
+      if (data.image !== undefined) {
+        updateReq.input('image', sql.NVarChar(500), data.image)
+        updateClauses.push('image = @image')
+      }
+      if (data.status !== undefined) {
+        updateReq.input('status', sql.NVarChar(50), data.status)
+        updateClauses.push('status = @status')
+      }
+
+      const productUpdateResult = await updateReq.query(`
+        UPDATE Product
+        SET ${updateClauses.join(', ')}
+        WHERE id = @id AND deletedAt IS NULL
+      `)
+
+      if (productUpdateResult.rowsAffected[0] === 0) {
+        await transaction.rollback()
+        return null
+      }
+
+      // Smart Upsert biến thể Size
+      if (data.variants && data.variants.length > 0) {
+        const incomingSizes = data.variants.map((v) => v.size)
+
+        // 1. Xóa mềm các size không còn nằm trong danh sách mới
+        const softDelReq = new sql.Request(transaction)
+        softDelReq.input('productId', sql.Int, id)
+        const sizeParams = incomingSizes.map((s, idx) => {
+          softDelReq.input(`s${idx}`, sql.NVarChar(20), s)
+          return `@s${idx}`
+        })
+
+        await softDelReq.query(`
+          UPDATE ProductVariant
+          SET deletedAt = SYSDATETIME(), updatedAt = SYSDATETIME()
+          WHERE productId = @productId 
+            AND deletedAt IS NULL 
+            AND size NOT IN (${sizeParams.join(',')})
+        `)
+
+        // 2. Loop qua danh sách mới: Cập nhật nếu đã có, Thêm mới nếu chưa có
+        for (const v of data.variants) {
+          const upsertReq = new sql.Request(transaction)
+          upsertReq.input('productId', sql.Int, id)
+          upsertReq.input('size', sql.NVarChar(20), v.size)
+          upsertReq.input('price', sql.Decimal(18, 2), v.price)
+
+          await upsertReq.query(`
+            IF EXISTS (SELECT 1 FROM ProductVariant WHERE productId = @productId AND size = @size AND deletedAt IS NULL)
+            BEGIN
+              UPDATE ProductVariant 
+              SET price = @price, updatedAt = SYSDATETIME()
+              WHERE productId = @productId AND size = @size AND deletedAt IS NULL
+            END
+            ELSE IF EXISTS (SELECT 1 FROM ProductVariant WHERE productId = @productId AND size = @size AND deletedAt IS NOT NULL)
+            BEGIN
+              UPDATE ProductVariant 
+              SET price = @price, deletedAt = NULL, updatedAt = SYSDATETIME()
+              WHERE productId = @productId AND size = @size
+            END
+            ELSE
+            BEGIN
+              INSERT INTO ProductVariant (productId, size, price, createdAt)
+              VALUES (@productId, @size, @price, SYSDATETIME())
+            END
+          `)
         }
       }
 
-      await client.query('COMMIT');
-      return product;
+      await transaction.commit()
+      return await this.findById(id)
     } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+      await transaction.rollback()
+      throw error
     }
   }
 
-  async updateAvailability(id: string, isAvailable: boolean) {
-    const query = `UPDATE products SET is_available = $1 WHERE id = $2 RETURNING *`;
-    const { rows } = await pool.query(query, [isAvailable, id]);
-    return rows[0] || null;
-  }
+  /**
+   * Xóa mềm Sản phẩm và toàn bộ Biến thể liên quan
+   */
+  async softDelete(id: number): Promise<boolean> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
 
-  async softDelete(id: string) {
-    const query = `UPDATE products SET is_active = false WHERE id = $1`;
-    const res = await pool.query(query, [id]);
-    return (res.rowCount ?? 0) > 0;
+    const result = await req.query(`
+      UPDATE Product
+      SET deletedAt = SYSDATETIME(), updatedAt = SYSDATETIME()
+      WHERE id = @id AND deletedAt IS NULL;
+
+      UPDATE ProductVariant
+      SET deletedAt = SYSDATETIME(), updatedAt = SYSDATETIME()
+      WHERE productId = @id AND deletedAt IS NULL;
+    `)
+
+    return (result.rowsAffected[0] ?? 0) > 0
   }
 }
 ```
@@ -6969,24 +8346,80 @@ export class ProductRepository {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\product\product.routes.ts` |
-| Size | 567 bytes |
+| Size | 1,770 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 23:13:10.533446 |
+| Modified | 2026-09-30 19:35:12.799022 |
 
 ```typescript
-import { Router } from 'express';
-import { ProductController } from './product.controller';
+import { Router } from 'express'
+import { ProductController } from './product.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+    CreateProductSchema,
+    FilterProductQuerySchema,
+    ProductParamSchema,
+    UpdateProductSchema,
+} from './product.schema'
 
-export const productRouter = Router(); // Đổi từ const router sang export const productRouter
-const controller = new ProductController();
+export const productRouter = Router()
+const controller = new ProductController()
 
-productRouter.get('/', controller.getAll);
-productRouter.get('/:id', controller.getById);
-productRouter.post('/', controller.create);
-productRouter.patch('/:id/availability', controller.toggleAvailability);
-productRouter.delete('/:id', controller.delete);
+/**
+ * @route   GET /api/v1/products
+ * @desc    Tra cứu danh sách thực đơn (Public cho Customer & Cashier)
+ */
+productRouter.get(
+    '/',
+    validatePipe(FilterProductQuerySchema, 'query'),
+    controller.getAll
+)
 
-// Xóa bỏ hoặc thay thế dòng "export default router;"
+/**
+ * @route   GET /api/v1/products/:id
+ * @desc    Xem chi tiết 1 sản phẩm theo ID (Public cho Customer & Cashier)
+ */
+productRouter.get(
+    '/:id',
+    validatePipe(ProductParamSchema, 'params'),
+    controller.getById
+)
+
+/**
+ * @route   POST /api/v1/products
+ * @desc    Tạo món mới (Yêu cầu Đăng nhập & Quyền MANAGER)
+ */
+productRouter.post(
+    '/',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(CreateProductSchema, 'body'),
+    controller.create
+)
+
+/**
+ * @route   PUT /api/v1/products/:id
+ * @desc    Cập nhật món & biến thể Size/Giá (Yêu cầu Đăng nhập & Quyền MANAGER)
+ */
+productRouter.put(
+    '/:id',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(ProductParamSchema, 'params'),
+    validatePipe(UpdateProductSchema, 'body'),
+    controller.update
+)
+
+/**
+ * @route   DELETE /api/v1/products/:id
+ * @desc    Xóa mềm món ăn (Yêu cầu Đăng nhập & Quyền MANAGER)
+ */
+productRouter.delete(
+    '/:id',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(ProductParamSchema, 'params'),
+    controller.delete
+)
 ```
 
 # src\modules\menu-catalog\product\product.schema.ts
@@ -6994,35 +8427,58 @@ productRouter.delete('/:id', controller.delete);
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\product\product.schema.ts` |
-| Size | 1,071 bytes |
+| Size | 2,238 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.281440 |
+| Modified | 2026-09-30 19:34:54.080687 |
 
 ```typescript
-import { z } from 'zod';
+import { z } from 'zod'
 
-export const variantSchema = z.object({
-  sizeName: z.string().min(1, 'Tên size không được để trống'),
-  priceAdjustment: z.number().default(0),
-  isDefault: z.boolean().optional().default(false),
-});
+export const VariantItemSchema = z.object({
+  size: z.enum(['S', 'M', 'L', 'XL']),
+  price: z.coerce.number().min(0, 'Giá biến thể phải lớn hơn hoặc bằng 0'),
+})
 
-export const createProductSchema = z.object({
-  categoryId: z.string().uuid('ID danh mục không hợp lệ'),
-  code: z.string().min(1, 'Mã sản phẩm không để trống'),
-  name: z.string().min(1, 'Tên sản phẩm không để trống'),
-  basePrice: z.number().positive('Giá gốc phải lớn hơn 0'),
-  imageUrl: z.string().url().optional(),
-  description: z.string().optional(),
-  isAvailable: z.boolean().optional().default(true),
-  variants: z.array(variantSchema).min(1, 'Sản phẩm phải có ít nhất 1 size'),
-  toppingIds: z.array(z.string().uuid()).optional().default([]),
-});
+export const CreateProductSchema = z.object({
+  categoryId: z.coerce.number().int().positive('Mã danh mục không hợp lệ'),
+  name: z.string().min(1, 'Tên món không được để trống').max(200),
+  description: z.string().optional().nullable(),
+  image: z.string().max(500).optional().nullable(),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']).default('ACTIVE'),
+  variants: z.array(VariantItemSchema).min(1, 'Sản phẩm phải có ít nhất 1 kích thước/biến thể'),
+})
 
-export const updateProductSchema = createProductSchema.partial();
+export const UpdateProductSchema = z.object({
+  categoryId: z.coerce.number().int().positive('Mã danh mục không hợp lệ').optional(),
+  name: z.string().min(1, 'Tên món không được để trống').max(200, 'Tên món tối đa 200 ký tự').optional(),
+  description: z.string().optional().nullable(),
+  image: z.string().max(500, 'Đường dẫn hình ảnh quá dài').optional().nullable(),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']).optional(),
+  variants: z
+    .array(VariantItemSchema)
+    .min(1, 'Nếu cập nhật biến thể, sản phẩm phải có ít nhất 1 kích thước/biến thể')
+    .optional(),
+})
 
-export type CreateProductDto = z.infer<typeof createProductSchema>;
-export type UpdateProductDto = z.infer<typeof updateProductSchema>;
+export const ProductParamSchema = z.object({
+  id: z.coerce.number().int().positive('ID sản phẩm không hợp lệ'),
+})
+
+export const FilterProductQuerySchema = z.object({
+  categoryId: z.coerce.number().int().positive().optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']).optional(),
+  search: z.string().optional(),
+})
+
+export type VariantItemType = z.infer<typeof VariantItemSchema>
+export type CreateProductType = z.infer<typeof CreateProductSchema>
+export type UpdateProductType = z.infer<typeof UpdateProductSchema>
+export type ProductParamType = z.infer<typeof ProductParamSchema>
+export type FilterProductQueryType = z.infer<typeof FilterProductQuerySchema>
+
+// DTO aliases for backwards compatibility
+export type CreateProductDto = CreateProductType
+export type UpdateProductDto = UpdateProductType
 ```
 
 # src\modules\menu-catalog\product\product.service.ts
@@ -7030,41 +8486,45 @@ export type UpdateProductDto = z.infer<typeof updateProductSchema>;
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\product\product.service.ts` |
-| Size | 1,099 bytes |
+| Size | 1,096 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.282439 |
+| Modified | 2026-09-30 19:34:54.082502 |
 
 ```typescript
-import { ProductRepository } from './product.repo';
-import { CreateProductDto } from './product.schema';
+import { ProductRepository } from './product.repo'
+import {
+  CreateProductType,
+  FilterProductQueryType,
+  UpdateProductType,
+} from './product.schema'
 
 export class ProductService {
-  private productRepo = new ProductRepository();
+  private productRepo = new ProductRepository()
 
-  async getProducts(categoryId?: string, isAvailable?: boolean) {
-    return await this.productRepo.findAll(categoryId, isAvailable);
+  async getProducts(filter: FilterProductQueryType) {
+    return await this.productRepo.findAll(filter)
   }
 
-  async getProductById(id: string) {
-    const product = await this.productRepo.findById(id);
-    if (!product) throw new Error('Sản phẩm không tồn tại');
-    return product;
+  async getProductById(id: number) {
+    const product = await this.productRepo.findById(id)
+    if (!product) throw new Error('Sản phẩm không tồn tại')
+    return product
   }
 
-  async createProduct(dto: CreateProductDto) {
-    const existing = await this.productRepo.findByCode(dto.code);
-    if (existing) throw new Error('Mã sản phẩm đã bị trùng lặp');
-    return await this.productRepo.createWithDetails(dto);
+  async createProduct(dto: CreateProductType) {
+    const existing = await this.productRepo.findByName(dto.name)
+    if (existing) throw new Error('Tên món đã tồn tại trong thực đơn')
+    return await this.productRepo.createWithVariants(dto)
   }
 
-  async toggleAvailability(id: string, isAvailable: boolean) {
-    await this.getProductById(id);
-    return await this.productRepo.updateAvailability(id, isAvailable);
+  async updateProduct(id: number, dto: UpdateProductType) {
+    await this.getProductById(id)
+    return await this.productRepo.update(id, dto)
   }
 
-  async deleteProduct(id: string) {
-    await this.getProductById(id);
-    return await this.productRepo.softDelete(id);
+  async deleteProduct(id: number) {
+    await this.getProductById(id)
+    return await this.productRepo.softDelete(id)
   }
 }
 ```
@@ -7074,64 +8534,85 @@ export class ProductService {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\topping\topping.controller.ts` |
-| Size | 1,991 bytes |
+| Size | 2,644 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.283441 |
+| Modified | 2026-09-30 19:34:54.084430 |
 
 ```typescript
-import { Request, Response } from 'express';
-import { ToppingService } from './topping.service';
-import { createToppingSchema, updateToppingSchema } from './topping.schema';
+import { Request, Response } from 'express'
+import { ToppingService } from './topping.service'
 
 export class ToppingController {
-  private toppingService = new ToppingService();
+  private toppingService = new ToppingService()
 
+  /**
+   * Lấy danh sách topping (hỗ trợ lọc status & tìm kiếm search)
+   */
   getAll = async (req: Request, res: Response) => {
     try {
-      const data = await this.toppingService.getAllToppings();
-      res.status(200).json({ success: true, data });
+      const toppings = await this.toppingService.getAllToppings(req.query as any)
+      res.status(200).json({ success: true, data: toppings })
     } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: error.message || 'Lỗi hệ thống' })
     }
-  };
+  }
 
+  /**
+   * Xem chi tiết 1 topping theo ID
+   */
   getById = async (req: Request, res: Response) => {
     try {
-      const data = await this.toppingService.getToppingById(req.params.id);
-      res.status(200).json({ success: true, data });
+      const topping = await this.toppingService.getToppingById(Number(req.params.id))
+      res.status(200).json({ success: true, data: topping })
     } catch (error: any) {
-      res.status(404).json({ success: false, message: error.message });
+      res.status(404).json({ success: false, message: error.message || 'Topping không tồn tại' })
     }
-  };
+  }
 
+  /**
+   * Tạo topping mới
+   */
   create = async (req: Request, res: Response) => {
     try {
-      const validated = createToppingSchema.parse(req.body);
-      const data = await this.toppingService.createTopping(validated);
-      res.status(201).json({ success: true, data });
+      const newTopping = await this.toppingService.createTopping(req.body)
+      res.status(201).json({ success: true, data: newTopping })
     } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message || error.errors });
+      const message = error.message || 'Lỗi tạo topping'
+      const statusCode = message.includes('đã tồn tại') ? 409 : 400
+      res.status(statusCode).json({ success: false, message })
     }
-  };
+  }
 
+  /**
+   * Cập nhật thông tin topping
+   */
   update = async (req: Request, res: Response) => {
     try {
-      const validated = updateToppingSchema.parse(req.body);
-      const data = await this.toppingService.updateTopping(req.params.id, validated);
-      res.status(200).json({ success: true, data });
+      const updated = await this.toppingService.updateTopping(Number(req.params.id), req.body)
+      res.status(200).json({ success: true, data: updated })
     } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message || error.errors });
-    }
-  };
+      const message = error.message || 'Lỗi cập nhật topping'
+      let statusCode = 400
+      if (message.includes('không tồn tại')) statusCode = 404
+      if (message.includes('đã tồn tại')) statusCode = 409
 
+      res.status(statusCode).json({ success: false, message })
+    }
+  }
+
+  /**
+   * Xóa mềm topping
+   */
   delete = async (req: Request, res: Response) => {
     try {
-      await this.toppingService.deleteTopping(req.params.id);
-      res.status(200).json({ success: true, message: 'Đã xóa topping thành công' });
+      await this.toppingService.deleteTopping(Number(req.params.id))
+      res.status(200).json({ success: true, message: 'Đã xóa topping thành công' })
     } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message });
+      const message = error.message || 'Lỗi xóa topping'
+      const statusCode = message.includes('không tồn tại') ? 404 : 400
+      res.status(statusCode).json({ success: false, message })
     }
-  };
+  }
 }
 ```
 
@@ -7140,54 +8621,164 @@ export class ToppingController {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\topping\topping.repo.ts` |
-| Size | 1,652 bytes |
+| Size | 4,706 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.285448 |
+| Modified | 2026-09-30 19:34:54.085953 |
 
 ```typescript
-import pool from '../../../config/database';
+import { getPool, sql } from '@/config/database'
+import {
+  CreateToppingType,
+  FilterToppingQueryType,
+  UpdateToppingType,
+} from './topping.schema'
+
+export interface Topping {
+  id: number
+  name: string
+  price: number
+  status: 'AVAILABLE' | 'UNAVAILABLE' | 'ACTIVE'
+  createdAt?: Date
+  updatedAt?: Date | null
+  deletedAt?: Date | null
+}
 
 export class ToppingRepository {
-  async findAll() {
-    const { rows } = await pool.query(`SELECT * FROM topping_options ORDER BY name ASC`);
-    return rows;
-  }
+  /**
+   * Lấy danh sách topping (có lọc status và tìm kiếm name)
+   */
+  async findAll(filters?: FilterToppingQueryType): Promise<Topping[]> {
+    const pool = await getPool()
+    const req = pool.request()
+    const conditions: string[] = ['deletedAt IS NULL']
 
-  async findById(id: string) {
-    const { rows } = await pool.query(`SELECT * FROM topping_options WHERE id = $1`, [id]);
-    return rows[0] || null;
-  }
+    // Ép kiểu an toàn: Chỉ lấy khi đúng là chuỗi (string)
+    const status = typeof filters?.status === 'string' ? filters.status : undefined
+    const search = typeof filters?.search === 'string' ? filters.search : undefined
 
-  async create(data: { name: string; price: number; isAvailable?: boolean }) {
+    if (status) {
+      req.input('status', sql.NVarChar(50), status)
+      conditions.push('status = @status')
+    }
+
+    if (search) {
+      req.input('search', sql.NVarChar(150), `%${search}%`)
+      conditions.push('name LIKE @search')
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`
     const query = `
-      INSERT INTO topping_options (name, price, is_available)
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `;
-    const { rows } = await pool.query(query, [data.name, data.price, data.isAvailable ?? true]);
-    return rows[0];
+    SELECT id, name, price, status, createdAt, updatedAt 
+    FROM Topping 
+    ${whereClause} 
+    ORDER BY name ASC
+  `
+    const result = await req.query<Topping>(query)
+    return result.recordset
   }
 
-  async update(id: string, data: Partial<{ name: string; price: number; isAvailable: boolean }>) {
-    const fields: string[] = [];
-    const values: any[] = [];
-    let idx = 1;
-
-    if (data.name !== undefined) { fields.push(`name = $${idx++}`); values.push(data.name); }
-    if (data.price !== undefined) { fields.push(`price = $${idx++}`); values.push(data.price); }
-    if (data.isAvailable !== undefined) { fields.push(`is_available = $${idx++}`); values.push(data.isAvailable); }
-
-    if (fields.length === 0) return this.findById(id);
-
-    values.push(id);
-    const query = `UPDATE topping_options SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`;
-    const { rows } = await pool.query(query, values);
-    return rows[0] || null;
+  /**
+   * Lấy chi tiết topping theo ID
+   */
+  async findById(id: number): Promise<Topping | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+    const result = await req.query<Topping>(`
+      SELECT id, name, price, status, createdAt, updatedAt 
+      FROM Topping 
+      WHERE id = @id AND deletedAt IS NULL
+    `)
+    return result.recordset[0] || null
   }
 
-  async delete(id: string) {
-    const res = await pool.query(`DELETE FROM topping_options WHERE id = $1`, [id]);
-    return (res.rowCount ?? 0) > 0;
+  /**
+   * Tim topping theo tên (hỗ trợ loại trừ ID khi update)
+   */
+  async findByName(name: string, excludeId?: number): Promise<Topping | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(150), name)
+
+    let query = `
+      SELECT id, name, price, status, createdAt, updatedAt 
+      FROM Topping 
+      WHERE name = @name AND deletedAt IS NULL
+    `
+
+    if (excludeId) {
+      req.input('excludeId', sql.Int, excludeId)
+      query += ` AND id <> @excludeId`
+    }
+
+    const result = await req.query<Topping>(query)
+    return result.recordset[0] || null
+  }
+
+  /**
+   * Tạo topping mới
+   */
+  async create(data: CreateToppingType): Promise<Topping> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('name', sql.NVarChar(150), data.name)
+    req.input('price', sql.Decimal(18, 2), data.price)
+    req.input('status', sql.NVarChar(50), data.status || 'AVAILABLE')
+
+    const result = await req.query<Topping>(`
+      INSERT INTO Topping (name, price, status, createdAt)
+      OUTPUT INSERTED.id, INSERTED.name, INSERTED.price, INSERTED.status, INSERTED.createdAt, INSERTED.updatedAt
+      VALUES (@name, @price, @status, SYSDATETIME())
+    `)
+    return result.recordset[0]
+  }
+
+  /**
+   * Cập nhật thông tin topping
+   */
+  async update(id: number, data: UpdateToppingType): Promise<Topping | null> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+
+    const setClauses: string[] = ['updatedAt = SYSDATETIME()']
+
+    if (data.name !== undefined) {
+      req.input('name', sql.NVarChar(150), data.name)
+      setClauses.push('name = @name')
+    }
+    if (data.price !== undefined) {
+      req.input('price', sql.Decimal(18, 2), data.price)
+      setClauses.push('price = @price')
+    }
+    if (data.status !== undefined) {
+      req.input('status', sql.NVarChar(50), data.status)
+      setClauses.push('status = @status')
+    }
+
+    const query = `
+      UPDATE Topping
+      SET ${setClauses.join(', ')}
+      OUTPUT INSERTED.id, INSERTED.name, INSERTED.price, INSERTED.status, INSERTED.createdAt, INSERTED.updatedAt
+      WHERE id = @id AND deletedAt IS NULL
+    `
+    const result = await req.query<Topping>(query)
+    return result.recordset[0] || null
+  }
+
+  /**
+   * Xóa mềm topping
+   */
+  async delete(id: number): Promise<boolean> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('id', sql.Int, id)
+    const result = await req.query(`
+      UPDATE Topping 
+      SET deletedAt = SYSDATETIME() 
+      WHERE id = @id AND deletedAt IS NULL
+    `)
+    return (result.rowsAffected[0] ?? 0) > 0
   }
 }
 ```
@@ -7197,24 +8788,80 @@ export class ToppingRepository {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\topping\topping.routes.ts` |
-| Size | 540 bytes |
+| Size | 1,735 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 23:13:18.987650 |
+| Modified | 2026-09-30 19:35:24.357715 |
 
 ```typescript
-import { Router } from 'express';
-import { ToppingController } from './topping.controller';
+import { Router } from 'express'
+import { ToppingController } from './topping.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import {
+  CreateToppingSchema,
+  FilterToppingQuerySchema,
+  ToppingParamSchema,
+  UpdateToppingSchema,
+} from './topping.schema'
 
-export const toppingRouter = Router(); // Đổi từ const router sang export const toppingRouter
-const controller = new ToppingController();
+export const toppingRouter = Router()
+const controller = new ToppingController()
 
-toppingRouter.get('/', controller.getAll);
-toppingRouter.get('/:id', controller.getById);
-toppingRouter.post('/', controller.create);
-toppingRouter.put('/:id', controller.update);
-toppingRouter.delete('/:id', controller.delete);
+/**
+ * @route   GET /api/v1/menu/toppings
+ * @desc    Xem danh sách topping (Public - hỗ trợ search & filter status)
+ */
+toppingRouter.get(
+  '/',
+  validatePipe(FilterToppingQuerySchema, 'query'),
+  controller.getAll
+)
 
-// Xóa bỏ hoặc thay thế dòng "export default router;"
+/**
+ * @route   GET /api/v1/menu/toppings/:id
+ * @desc    Xem chi tiết 1 topping theo ID (Public)
+ */
+toppingRouter.get(
+    '/:id',
+    validatePipe(ToppingParamSchema, 'params'),
+    controller.getById
+)
+
+/**
+ * @route   POST /api/v1/menu/toppings
+ * @desc    Tạo topping mới (Yêu cầu Đăng nhập & Quyền MANAGER)
+ */
+toppingRouter.post(
+    '/',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(CreateToppingSchema, 'body'),
+    controller.create
+)
+
+/**
+ * @route   PUT /api/v1/menu/toppings/:id
+ * @desc    Cập nhật topping (Yêu cầu Đăng nhập & Quyền MANAGER)
+ */
+toppingRouter.put(
+    '/:id',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(ToppingParamSchema, 'params'),
+    validatePipe(UpdateToppingSchema, 'body'),
+    controller.update
+)
+
+/**
+ * @route   DELETE /api/v1/menu/toppings/:id
+ * @desc    Xóa mềm topping (Yêu cầu Đăng nhập & Quyền MANAGER)
+ */
+toppingRouter.delete(
+    '/:id',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(ToppingParamSchema, 'params'),
+    controller.delete
+)
 ```
 
 # src\modules\menu-catalog\topping\topping.schema.ts
@@ -7222,23 +8869,38 @@ toppingRouter.delete('/:id', controller.delete);
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\topping\topping.schema.ts` |
-| Size | 485 bytes |
+| Size | 1,043 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.287443 |
+| Modified | 2026-09-30 19:34:54.089948 |
 
 ```typescript
-import { z } from 'zod';
+import { z } from 'zod'
 
-export const createToppingSchema = z.object({
-  name: z.string().min(1, 'Tên topping không được để trống'),
-  price: z.number().nonnegative('Giá topping không được âm'),
-  isAvailable: z.boolean().optional().default(true),
-});
+export const CreateToppingSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Tên topping không được để trống')
+    .max(150, 'Tên topping tối đa 150 ký tự'),
+  price: z.coerce.number().min(0, 'Giá topping phải lớn hơn hoặc bằng 0'),
+  status: z.enum(['AVAILABLE', 'UNAVAILABLE', 'ACTIVE']).default('AVAILABLE'),
+})
 
-export const updateToppingSchema = createToppingSchema.partial();
+export const UpdateToppingSchema = CreateToppingSchema.partial()
 
-export type CreateToppingDto = z.infer<typeof createToppingSchema>;
-export type UpdateToppingDto = z.infer<typeof updateToppingSchema>;
+export const ToppingParamSchema = z.object({
+  id: z.coerce.number().int().positive('ID topping không hợp lệ'),
+})
+
+export const FilterToppingQuerySchema = z.object({
+  status: z.enum(['AVAILABLE', 'UNAVAILABLE', 'ACTIVE']).optional(),
+  search: z.string().trim().optional(),
+})
+
+export type CreateToppingType = z.infer<typeof CreateToppingSchema>
+export type UpdateToppingType = z.infer<typeof UpdateToppingSchema>
+export type ToppingParamType = z.infer<typeof ToppingParamSchema>
+export type FilterToppingQueryType = z.infer<typeof FilterToppingQuerySchema>
 ```
 
 # src\modules\menu-catalog\topping\topping.service.ts
@@ -7246,43 +8908,57 @@ export type UpdateToppingDto = z.infer<typeof updateToppingSchema>;
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\menu-catalog\topping\topping.service.ts` |
-| Size | 955 bytes |
+| Size | 1,291 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:27.288443 |
+| Modified | 2026-09-30 19:34:54.091948 |
 
 ```typescript
-import { ToppingRepository } from './topping.repo';
-import { CreateToppingDto, UpdateToppingDto } from './topping.schema';
+import { ToppingRepository } from './topping.repo'
+import {
+  CreateToppingType,
+  FilterToppingQueryType,
+  UpdateToppingType,
+} from './topping.schema'
 
 export class ToppingService {
-  private toppingRepo = new ToppingRepository();
+  private toppingRepo = new ToppingRepository()
 
-  async getAllToppings() {
-    return await this.toppingRepo.findAll();
+  async getAllToppings(filters?: FilterToppingQueryType) {
+    return await this.toppingRepo.findAll(filters)
   }
 
-  async getToppingById(id: string) {
-    const topping = await this.toppingRepo.findById(id);
-    if (!topping) throw new Error('Topping không tồn tại');
-    return topping;
+  async getToppingById(id: number) {
+    const topping = await this.toppingRepo.findById(id)
+    if (!topping) {
+      throw new Error('Topping không tồn tại')
+    }
+    return topping
   }
 
-  async createTopping(dto: CreateToppingDto) {
-    return await this.toppingRepo.create({
-      name: dto.name,
-      price: dto.price,
-      isAvailable: dto.isAvailable,
-    });
+  async createTopping(dto: CreateToppingType) {
+    const existing = await this.toppingRepo.findByName(dto.name)
+    if (existing) {
+      throw new Error('Tên topping đã tồn tại')
+    }
+    return await this.toppingRepo.create(dto)
   }
 
-  async updateTopping(id: string, dto: UpdateToppingDto) {
-    await this.getToppingById(id);
-    return await this.toppingRepo.update(id, dto);
+  async updateTopping(id: number, dto: UpdateToppingType) {
+    await this.getToppingById(id)
+
+    if (dto.name) {
+      const existing = await this.toppingRepo.findByName(dto.name, id)
+      if (existing) {
+        throw new Error('Tên topping đã tồn tại')
+      }
+    }
+
+    return await this.toppingRepo.update(id, dto)
   }
 
-  async deleteTopping(id: string) {
-    await this.getToppingById(id);
-    return await this.toppingRepo.delete(id);
+  async deleteTopping(id: number) {
+    await this.getToppingById(id)
+    return await this.toppingRepo.delete(id)
   }
 }
 ```
@@ -7292,11 +8968,133 @@ export class ToppingService {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\pos-order\order\order.controller.ts` |
-| Size | 0 bytes |
+| Size | 3,773 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:32.656053 |
+| Modified | 2026-09-30 19:35:12.802688 |
 
 ```typescript
+import { NextFunction, Request, Response } from 'express'
+import { OrderService } from './order.service'
+import {
+  ApplyLoyaltyPointsSchema,
+  CancelOrderSchema,
+  CompletePaymentSchema,
+  CreateOrderSchema,
+  FilterOrderQuerySchema,
+  OrderDetailParamSchema,
+  OrderParamSchema,
+} from './order.schema'
+
+export class OrderController {
+  private orderService = new OrderService()
+
+  /**
+   * Lấy danh sách đơn hàng có phân trang & bộ lọc
+   */
+  list = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const query = FilterOrderQuerySchema.parse(req.query)
+      const result = await this.orderService.getOrders(query)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * Lấy thông tin chi tiết đơn hàng
+   */
+  detail = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = OrderParamSchema.parse(req.params)
+      const data = await this.orderService.getOrderById(id)
+      res.status(200).json({ success: true, data })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * Xuất hóa đơn chi tiết phục vụ in ấn từ View v_InvoiceDetails
+   */
+  invoice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = OrderParamSchema.parse(req.params)
+      const data = await this.orderService.getInvoice(id)
+      res.status(200).json({ success: true, data })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * Tạo đơn hàng mới tại quầy POS
+   */
+  create = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const body = CreateOrderSchema.parse(req.body)
+      const result = await this.orderService.createOrder(body)
+      res.status(201).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * Hoàn tất thanh toán đơn hàng & tích điểm
+   */
+  completePayment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = OrderParamSchema.parse(req.params)
+      const body = CompletePaymentSchema.parse(req.body)
+      const result = await this.orderService.completePayment(id, body)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * Hủy đơn hàng & giải phóng thẻ rung
+   */
+  cancel = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = OrderParamSchema.parse(req.params)
+      const body = CancelOrderSchema.parse(req.body)
+      const result = await this.orderService.cancelOrder(id, body)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * Đổi điểm thưởng hội viên lấy chiết khấu giảm giá đơn hàng
+   */
+  applyPoints = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = OrderParamSchema.parse(req.params)
+      const body = ApplyLoyaltyPointsSchema.parse(req.body)
+      const result = await this.orderService.applyLoyaltyPoints(id, body)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * Xóa một món khỏi đơn hàng chưa chế biến
+   */
+  removeItem = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { detailId } = OrderDetailParamSchema.parse(req.params)
+      const result = await this.orderService.removeOrderItem(detailId)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+}
 
 ```
 
@@ -7305,11 +9103,447 @@ export class ToppingService {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\pos-order\order\order.repo.ts` |
-| Size | 0 bytes |
+| Size | 13,908 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:32.668055 |
+| Modified | 2026-09-30 19:35:12.803831 |
 
 ```typescript
+import { getPool, sql } from '@/config/database'
+import {
+  CreateOrderType,
+  FilterOrderQueryType,
+  OrderItemType,
+} from './order.schema'
+
+export class OrderRepo {
+  /**
+   * Khởi tạo Table-Valued Parameter (TVP) udt_OrderDetailList theo đúng schema Database
+   */
+  private buildOrderDetailTVP(items: OrderItemType[]): sql.Table {
+    const tvp = new sql.Table('udt_OrderDetailList')
+    tvp.columns.add('variantId', sql.Int, { nullable: false })
+    tvp.columns.add('quantity', sql.Int, { nullable: false })
+    tvp.columns.add('note', sql.NVarChar(255), { nullable: true })
+    tvp.columns.add('itemSnapshotName', sql.NVarChar(200), { nullable: false })
+    tvp.columns.add('sizeSnapshot', sql.NVarChar(50), { nullable: false })
+    tvp.columns.add('unitPrice', sql.Decimal(18, 2), { nullable: false })
+    tvp.columns.add('totalToppingPriceSnapshot', sql.Decimal(18, 2), { nullable: false })
+    tvp.columns.add('totalPrice', sql.Decimal(18, 2), { nullable: false })
+
+    for (const item of items) {
+      tvp.rows.add(
+        item.variantId,
+        item.quantity,
+        item.note || null,
+        item.itemSnapshotName,
+        item.sizeSnapshot,
+        item.unitPrice,
+        item.totalToppingPriceSnapshot ?? 0,
+        item.totalPrice
+      )
+    }
+    return tvp
+  }
+
+  /**
+   * Tạo đơn hàng tại quầy thông qua Stored Procedure sp_CreateCounterOrder
+   */
+  async createCounterOrder(data: CreateOrderType): Promise<number> {
+    const pool = await getPool()
+    const request = pool.request()
+
+    const tvp = this.buildOrderDetailTVP(data.items)
+
+    request.input('OrderCode', sql.VarChar(64), data.orderCode)
+    request.input('EmployeeId', sql.Int, data.employeeId)
+    request.input('CustomerId', sql.Int, data.customerId || null)
+    request.input('PagerId', sql.Int, data.pagerId || null)
+    request.input('SubTotal', sql.Decimal(18, 2), data.subTotal)
+    request.input('DiscountAmount', sql.Decimal(18, 2), data.discountAmount || 0)
+    request.input('TotalAmount', sql.Decimal(18, 2), data.totalAmount)
+    request.input('PaymentMethod', sql.NVarChar(50), data.paymentMethod)
+    request.input('OrderDetails', tvp)
+    request.output('NewOrderId', sql.Int)
+
+    const result = await request.execute('sp_CreateCounterOrder')
+    const newOrderId: number = result.output.NewOrderId
+
+    // Lưu chi tiết Topping (nếu có)
+    await this.saveOrderToppings(newOrderId, data.items)
+
+    return newOrderId
+  }
+
+  /**
+   * Tạo đơn hàng kết hợp cấp phát thẻ rung qua Stored Procedure sp_CreateOrderWithPager
+   */
+  async createOrderWithPager(data: CreateOrderType): Promise<number> {
+    const pool = await getPool()
+    const request = pool.request()
+
+    const tvp = this.buildOrderDetailTVP(data.items)
+
+    request.input('OrderCode', sql.VarChar(64), data.orderCode)
+    request.input('OrderChannel', sql.NVarChar(50), data.orderChannel)
+    request.input('PagerCode', sql.VarChar(50), data.pagerCode)
+    request.input('EmployeeId', sql.Int, data.employeeId)
+    request.input('CustomerId', sql.Int, data.customerId || null)
+    request.input('SubTotal', sql.Decimal(18, 2), data.subTotal)
+    request.input('DiscountAmount', sql.Decimal(18, 2), data.discountAmount || 0)
+    request.input('PaymentMethod', sql.NVarChar(50), data.paymentMethod)
+    request.input('OrderDetails', tvp)
+    request.output('NewOrderId', sql.Int)
+
+    const result = await request.execute('sp_CreateOrderWithPager')
+    const newOrderId: number = result.output.NewOrderId
+
+    // Lưu chi tiết Topping (nếu có)
+    await this.saveOrderToppings(newOrderId, data.items)
+
+    return newOrderId
+  }
+
+  /**
+   * Lưu thông tin Topping đính kèm cho từng OrderDetail
+   */
+  private async saveOrderToppings(orderId: number, items: OrderItemType[]): Promise<void> {
+    const hasToppings = items.some((item) => item.toppings && item.toppings.length > 0)
+    if (!hasToppings) return
+
+    const pool = await getPool()
+
+    // Lấy danh sách orderDetailId vừa tạo của order này theo thứ tự
+    const detailsRes = await pool
+      .request()
+      .input('orderId', sql.Int, orderId)
+      .query(`SELECT id, variantId FROM OrderDetail WHERE orderId = @orderId ORDER BY id ASC`)
+
+    const details = detailsRes.recordset
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      const detailRecord = details[i]
+      if (detailRecord && item.toppings && item.toppings.length > 0) {
+        for (const topping of item.toppings) {
+          await pool
+            .request()
+            .input('orderDetailId', sql.Int, detailRecord.id)
+            .input('toppingId', sql.Int, topping.toppingId || null)
+            .input('toppingSnapshotName', sql.NVarChar(150), topping.toppingSnapshotName)
+            .input('toppingPrice', sql.Decimal(18, 2), topping.toppingPrice)
+            .input('quantity', sql.Int, topping.quantity || 1)
+            .query(`
+              INSERT INTO OrderDetailTopping (orderDetailId, toppingId, toppingSnapshotName, toppingPrice, quantity)
+              VALUES (@orderDetailId, @toppingId, @toppingSnapshotName, @toppingPrice, @quantity)
+            `)
+        }
+      }
+    }
+  }
+
+  /**
+   * Hoàn tất thanh toán qua Stored Procedure sp_CompleteOrderPayment
+   */
+  async completeOrderPayment(orderId: number, paymentMethod: string): Promise<void> {
+    const pool = await getPool()
+    await pool
+      .request()
+      .input('OrderId', sql.Int, orderId)
+      .input('PaymentMethod', sql.NVarChar(50), paymentMethod)
+      .execute('sp_CompleteOrderPayment')
+  }
+
+  /**
+   * Hủy đơn hàng và giải phóng thẻ rung qua Stored Procedure sp_CancelOrder
+   */
+  async cancelOrder(orderId: number, employeeId: number, cancelReason: string): Promise<void> {
+    const pool = await getPool()
+    await pool
+      .request()
+      .input('OrderId', sql.Int, orderId)
+      .input('EmployeeId', sql.Int, employeeId)
+      .input('CancelReason', sql.NVarChar(500), cancelReason)
+      .execute('sp_CancelOrder')
+  }
+
+  /**
+   * Áp dụng điểm thưởng hội viên để chiết khấu qua Stored Procedure sp_ApplyLoyaltyPoints
+   */
+  async applyLoyaltyPoints(
+    orderId: number,
+    customerId: number,
+    pointsToRedeem: number,
+    conversionRate: number = 1000
+  ): Promise<void> {
+    const pool = await getPool()
+    await pool
+      .request()
+      .input('OrderId', sql.Int, orderId)
+      .input('CustomerId', sql.Int, customerId)
+      .input('PointsToRedeem', sql.Int, pointsToRedeem)
+      .input('ConversionRate', sql.Decimal(18, 2), conversionRate)
+      .execute('sp_ApplyLoyaltyPoints')
+  }
+
+  /**
+   * Xóa món khỏi đơn hàng chưa chế biến qua Stored Procedure sp_RemoveOrderItem
+   */
+  async removeOrderItem(orderDetailId: number): Promise<void> {
+    const pool = await getPool()
+    await pool
+      .request()
+      .input('OrderDetailId', sql.Int, orderDetailId)
+      .execute('sp_RemoveOrderItem')
+  }
+
+  /**
+   * Kiểm tra tính khả dụng của thẻ rung thông qua Function fn_IsPagerAvailable
+   */
+  async isPagerAvailable(pagerId: number): Promise<boolean> {
+    const pool = await getPool()
+    const result = await pool
+      .request()
+      .input('pagerId', sql.Int, pagerId)
+      .query(`SELECT dbo.fn_IsPagerAvailable(@pagerId) AS isAvailable`)
+
+    return result.recordset[0]?.isAvailable === true || result.recordset[0]?.isAvailable === 1
+  }
+
+  /**
+   * Lấy danh sách đơn hàng có phân trang và bộ lọc
+   */
+  async getOrders(filter: FilterOrderQueryType) {
+    const pool = await getPool()
+    const request = pool.request()
+
+    const {
+      search,
+      status,
+      paymentMethod,
+      orderChannel,
+      employeeId,
+      customerId,
+      fromDate,
+      toDate,
+      page = 1,
+      limit = 20,
+    } = filter
+
+    const offset = (page - 1) * limit
+    const conditions: string[] = ['o.deletedAt IS NULL']
+
+    if (search) {
+      request.input('search', sql.NVarChar(150), `%${search}%`)
+      conditions.push(
+        '(o.orderCode LIKE @search OR c.fullName LIKE @search OR c.phoneNumber LIKE @search)'
+      )
+    }
+
+    if (status) {
+      request.input('status', sql.NVarChar(50), status)
+      conditions.push('o.status = @status')
+    }
+
+    if (paymentMethod) {
+      request.input('paymentMethod', sql.NVarChar(50), paymentMethod)
+      conditions.push('o.paymentMethod = @paymentMethod')
+    }
+
+    if (orderChannel) {
+      request.input('orderChannel', sql.NVarChar(50), orderChannel)
+      conditions.push('o.orderChannel = @orderChannel')
+    }
+
+    if (employeeId) {
+      request.input('employeeId', sql.Int, employeeId)
+      conditions.push('o.employeeId = @employeeId')
+    }
+
+    if (customerId) {
+      request.input('customerId', sql.Int, customerId)
+      conditions.push('o.customerId = @customerId')
+    }
+
+    if (fromDate) {
+      request.input('fromDate', sql.DateTime2, new Date(fromDate))
+      conditions.push('o.createdAt >= @fromDate')
+    }
+
+    if (toDate) {
+      request.input('toDate', sql.DateTime2, new Date(toDate))
+      conditions.push('o.createdAt <= @toDate')
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`
+
+    // Đếm tổng số bản ghi
+    const countRes = await request.query(
+      `SELECT COUNT(1) AS total 
+       FROM [Order] o 
+       LEFT JOIN Customer c ON o.customerId = c.id 
+       ${whereClause}`
+    )
+    const totalItems = countRes.recordset[0]?.total || 0
+
+    // Lấy dữ liệu phân trang
+    request.input('offset', sql.Int, offset)
+    request.input('limit', sql.Int, limit)
+
+    const listQuery = `
+      SELECT 
+        o.id,
+        o.orderCode,
+        o.orderChannel,
+        o.status,
+        o.paymentMethod,
+        o.subTotal,
+        o.discountAmount,
+        o.totalAmount,
+        o.paidAt,
+        o.pickupAt,
+        o.cancelReason,
+        o.createdAt,
+        o.updatedAt,
+        e.id AS employeeId,
+        e.fullName AS employeeName,
+        c.id AS customerId,
+        c.fullName AS customerName,
+        c.phoneNumber AS customerPhone,
+        p.id AS pagerId,
+        p.pagerCode
+      FROM [Order] o
+      LEFT JOIN Employee e ON o.employeeId = e.id
+      LEFT JOIN Customer c ON o.customerId = c.id
+      LEFT JOIN PagerDevice p ON o.pagerId = p.id
+      ${whereClause}
+      ORDER BY o.createdAt DESC
+      OFFSET @offset ROWS
+      FETCH NEXT @limit ROWS ONLY
+    `
+
+    const listRes = await request.query(listQuery)
+
+    return {
+      items: listRes.recordset,
+      meta: {
+        page,
+        limit,
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit),
+      },
+    }
+  }
+
+  /**
+   * Lấy chi tiết đơn hàng (Header, Item Details, Toppings)
+   */
+  async getOrderById(id: number) {
+    const pool = await getPool()
+    const request = pool.request()
+    request.input('id', sql.Int, id)
+
+    // Lấy thông tin Header của Order
+    const orderRes = await request.query(`
+      SELECT 
+        o.id,
+        o.orderCode,
+        o.orderChannel,
+        o.status,
+        o.paymentMethod,
+        o.subTotal,
+        o.discountAmount,
+        o.totalAmount,
+        o.paidAt,
+        o.pickupAt,
+        o.cancelReason,
+        o.createdAt,
+        o.updatedAt,
+        e.id AS employeeId,
+        e.fullName AS employeeName,
+        c.id AS customerId,
+        c.fullName AS customerName,
+        c.phoneNumber AS customerPhone,
+        c.membershipTier AS customerTier,
+        c.rewardPoints AS customerPoints,
+        p.id AS pagerId,
+        p.pagerCode,
+        p.status AS pagerStatus
+      FROM [Order] o
+      LEFT JOIN Employee e ON o.employeeId = e.id
+      LEFT JOIN Customer c ON o.customerId = c.id
+      LEFT JOIN PagerDevice p ON o.pagerId = p.id
+      WHERE o.id = @id AND o.deletedAt IS NULL
+    `)
+
+    const order = orderRes.recordset[0]
+    if (!order) return null
+
+    // Lấy danh sách OrderDetail
+    const itemsRes = await pool
+      .request()
+      .input('orderId', sql.Int, id)
+      .query(`
+        SELECT 
+          od.id,
+          od.variantId,
+          od.quantity,
+          od.note,
+          od.itemSnapshotName,
+          od.sizeSnapshot,
+          od.unitPrice,
+          od.totalToppingPriceSnapshot,
+          od.totalPrice,
+          od.itemStatus,
+          od.createdAt
+        FROM OrderDetail od
+        WHERE od.orderId = @orderId
+        ORDER BY od.id ASC
+      `)
+
+    const items = itemsRes.recordset
+
+    // Lấy Topping cho từng item nếu có
+    if (items.length > 0) {
+      const detailIds = items.map((i: any) => i.id)
+      const toppingsRes = await pool
+        .request()
+        .query(`
+          SELECT 
+            id,
+            orderDetailId,
+            toppingId,
+            toppingSnapshotName,
+            toppingPrice,
+            quantity
+          FROM OrderDetailTopping
+          WHERE orderDetailId IN (${detailIds.join(',')})
+        `)
+
+      const toppings = toppingsRes.recordset
+      for (const item of items) {
+        item.toppings = toppings.filter((t: any) => t.orderDetailId === item.id)
+      }
+    }
+
+    return {
+      ...order,
+      items,
+    }
+  }
+
+  /**
+   * Truy vấn thông tin chi tiết hóa đơn từ View v_InvoiceDetails
+   */
+  async getInvoiceDetails(orderId: number) {
+    const pool = await getPool()
+    const result = await pool
+      .request()
+      .input('orderId', sql.Int, orderId)
+      .query(`SELECT * FROM v_InvoiceDetails WHERE orderId = @orderId`)
+
+    return result.recordset
+  }
+}
 
 ```
 
@@ -7318,14 +9552,40 @@ export class ToppingService {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\pos-order\order\order.routes.ts` |
-| Size | 141 bytes |
+| Size | 1,090 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-27 21:08:02.871526 |
+| Modified | 2026-09-30 19:35:12.804833 |
 
 ```typescript
 import { Router } from 'express'
+import { OrderController } from './order.controller'
+
 export const orderRouter = Router()
-orderRouter.get('/',(_,res)=>{res.json({message:'orderRouter ready'})})
+const controller = new OrderController()
+
+// 1. Lấy danh sách đơn hàng có phân trang & bộ lọc
+orderRouter.get('/', controller.list)
+
+// 2. Tạo đơn hàng mới tại quầy (hoặc kèm thẻ rung)
+orderRouter.post('/', controller.create)
+
+// 3. Xóa món khỏi đơn hàng
+orderRouter.delete('/items/:detailId', controller.removeItem)
+
+// 4. Lấy chi tiết đơn hàng
+orderRouter.get('/:id', controller.detail)
+
+// 5. Xuất hóa đơn chi tiết phục vụ in ấn từ View v_InvoiceDetails
+orderRouter.get('/:id/invoice', controller.invoice)
+
+// 6. Hoàn tất thanh toán đơn hàng & tích điểm
+orderRouter.patch('/:id/pay', controller.completePayment)
+
+// 7. Hủy đơn hàng & giải phóng thẻ rung
+orderRouter.patch('/:id/cancel', controller.cancel)
+
+// 8. Đổi điểm thưởng hội viên lấy chiết khấu giảm giá đơn hàng
+orderRouter.post('/:id/apply-points', controller.applyPoints)
 
 ```
 
@@ -7334,11 +9594,99 @@ orderRouter.get('/',(_,res)=>{res.json({message:'orderRouter ready'})})
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\pos-order\order\order.schema.ts` |
-| Size | 0 bytes |
+| Size | 4,727 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:32.673052 |
+| Modified | 2026-09-30 19:35:12.806026 |
 
 ```typescript
+import { z } from 'zod'
+
+// 1. Schema cho Topping của món
+export const OrderItemToppingSchema = z.object({
+  toppingId: z.number().int().positive().optional().nullable(),
+  toppingSnapshotName: z.string().min(1, 'Tên topping không được để trống').max(150),
+  toppingPrice: z.number().nonnegative('Giá topping phải >= 0'),
+  quantity: z.number().int().positive('Số lượng topping phải >= 1').default(1),
+})
+
+// 2. Schema cho từng món trong đơn hàng
+export const OrderItemSchema = z.object({
+  variantId: z.number().int().positive('ID phân loại món không hợp lệ'),
+  quantity: z.number().int().positive('Số lượng món phải >= 1'),
+  note: z.string().max(255, 'Ghi chú tối đa 255 ký tự').optional().nullable(),
+  itemSnapshotName: z.string().min(1, 'Tên món không được để trống').max(200),
+  sizeSnapshot: z.string().min(1, 'Size không được để trống').max(50),
+  unitPrice: z.number().nonnegative('Đơn giá phải >= 0'),
+  totalToppingPriceSnapshot: z.number().nonnegative('Tổng tiền topping phải >= 0').default(0),
+  totalPrice: z.number().nonnegative('Tổng tiền món phải >= 0'),
+  toppings: z.array(OrderItemToppingSchema).optional().default([]),
+})
+
+// 3. Schema tạo đơn hàng tại quầy (POS Order)
+export const CreateOrderSchema = z.object({
+  orderCode: z.string().max(64).optional(),
+  employeeId: z.number().int().positive('ID nhân viên không hợp lệ'),
+  customerId: z.number().int().positive('ID khách hàng không hợp lệ').optional().nullable(),
+  pagerId: z.number().int().positive('ID thẻ rung không hợp lệ').optional().nullable(),
+  pagerCode: z.string().max(50).optional().nullable(), // Mã thẻ rung nếu gán bằng mã thẻ
+  orderChannel: z.enum(['ORDER_AT_COUNTER', 'TAKE_AWAY', 'DINE_IN']).default('ORDER_AT_COUNTER'),
+  subTotal: z.number().nonnegative('Tạm tính phải >= 0'),
+  discountAmount: z.number().nonnegative('Tiền giảm giá phải >= 0').default(0),
+  totalAmount: z.number().nonnegative('Tổng tiền thanh toán phải >= 0'),
+  paymentMethod: z.enum(['CASH', 'BANKING', 'MOMO', 'VNPAY', 'CREDIT_CARD', 'POINT_EXCHANGE']).default('CASH'),
+  items: z.array(OrderItemSchema).min(1, 'Đơn hàng phải có ít nhất 1 món'),
+})
+
+// 4. Schema hoàn tất thanh toán
+export const CompletePaymentSchema = z.object({
+  paymentMethod: z.enum(['CASH', 'BANKING', 'MOMO', 'VNPAY', 'CREDIT_CARD', 'POINT_EXCHANGE'], {
+    required_error: 'Phương thức thanh toán là bắt buộc',
+  }),
+})
+
+// 5. Schema hủy đơn hàng
+export const CancelOrderSchema = z.object({
+  employeeId: z.number().int().positive('ID nhân viên hủy đơn là bắt buộc'),
+  cancelReason: z.string().min(1, 'Lý do hủy đơn không được để trống').max(500, 'Lý do tối đa 500 ký tự'),
+})
+
+// 6. Schema áp dụng điểm thưởng trừ tiền
+export const ApplyLoyaltyPointsSchema = z.object({
+  customerId: z.number().int().positive('ID khách hàng là bắt buộc'),
+  pointsToRedeem: z.number().int().positive('Số điểm đổi phải lớn hơn 0'),
+  conversionRate: z.number().positive().default(1000), // Mặc định 1 điểm = 1.000 VNĐ
+})
+
+// 7. Schema Params
+export const OrderParamSchema = z.object({
+  id: z.coerce.number().int().positive('ID đơn hàng không hợp lệ'),
+})
+
+export const OrderDetailParamSchema = z.object({
+  detailId: z.coerce.number().int().positive('ID chi tiết đơn hàng không hợp lệ'),
+})
+
+// 8. Schema Filter Query
+export const FilterOrderQuerySchema = z.object({
+  search: z.string().optional(), // Tìm theo orderCode, customerName, customerPhone
+  status: z.enum(['PENDING_PREP', 'PREPARING', 'READY_FOR_PICKUP', 'COMPLETED', 'CANCELLED']).optional(),
+  paymentMethod: z.string().optional(),
+  orderChannel: z.string().optional(),
+  employeeId: z.coerce.number().int().positive().optional(),
+  customerId: z.coerce.number().int().positive().optional(),
+  fromDate: z.string().optional(),
+  toDate: z.string().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().default(20),
+})
+
+export type OrderItemToppingType = z.infer<typeof OrderItemToppingSchema>
+export type OrderItemType = z.infer<typeof OrderItemSchema>
+export type CreateOrderType = z.infer<typeof CreateOrderSchema>
+export type CompletePaymentType = z.infer<typeof CompletePaymentSchema>
+export type CancelOrderType = z.infer<typeof CancelOrderSchema>
+export type ApplyLoyaltyPointsType = z.infer<typeof ApplyLoyaltyPointsSchema>
+export type FilterOrderQueryType = z.infer<typeof FilterOrderQuerySchema>
 
 ```
 
@@ -7347,11 +9695,200 @@ orderRouter.get('/',(_,res)=>{res.json({message:'orderRouter ready'})})
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\pos-order\order\order.service.ts` |
-| Size | 0 bytes |
+| Size | 6,090 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:32.661054 |
+| Modified | 2026-09-30 19:35:12.807143 |
 
 ```typescript
+import { OrderRepo } from './order.repo'
+import {
+  ApplyLoyaltyPointsType,
+  CancelOrderType,
+  CompletePaymentType,
+  CreateOrderType,
+  FilterOrderQueryType,
+} from './order.schema'
+
+export class OrderService {
+  private orderRepo = new OrderRepo()
+
+  /**
+   * Sinh mã hóa đơn tự động chuẩn POS: ORD-YYYYMMDD-XXXX
+   */
+  private generateOrderCode(): string {
+    const now = new Date()
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '')
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000)
+    return `ORD-${dateStr}-${randomSuffix}`
+  }
+
+  /**
+   * Lấy danh sách đơn hàng có phân trang & lọc
+   */
+  async getOrders(filter: FilterOrderQueryType) {
+    return await this.orderRepo.getOrders(filter)
+  }
+
+  /**
+   * Lấy chi tiết đơn hàng theo ID
+   */
+  async getOrderById(id: number) {
+    const order = await this.orderRepo.getOrderById(id)
+    if (!order) {
+      throw new Error(`Đơn hàng #${id} không tồn tại hoặc đã bị xóa`)
+    }
+    return order
+  }
+
+  /**
+   * Lấy thông tin hóa đơn phục vụ in ấn từ View v_InvoiceDetails
+   */
+  async getInvoice(id: number) {
+    const rows = await this.orderRepo.getInvoiceDetails(id)
+    if (!rows || rows.length === 0) {
+      throw new Error(`Không tìm thấy hóa đơn cho đơn hàng #${id}`)
+    }
+
+    const first = rows[0]
+    return {
+      orderId: first.orderId,
+      orderCode: first.orderCode,
+      orderChannel: first.orderChannel,
+      orderStatus: first.orderStatus,
+      paymentMethod: first.paymentMethod,
+      subTotal: first.subTotal,
+      discountAmount: first.discountAmount,
+      totalAmount: first.totalAmount,
+      paidAt: first.paidAt,
+      orderCreatedAt: first.orderCreatedAt,
+      employeeName: first.employeeName,
+      customerName: first.customerName,
+      customerPhone: first.customerPhone,
+      items: rows.map((r: any) => ({
+        orderDetailId: r.orderDetailId,
+        itemSnapshotName: r.itemSnapshotName,
+        sizeSnapshot: r.sizeSnapshot,
+        quantity: r.quantity,
+        unitPrice: r.unitPrice,
+        totalToppingPriceSnapshot: r.totalToppingPriceSnapshot,
+        lineTotalPrice: r.lineTotalPrice,
+        itemStatus: r.itemStatus,
+        itemNote: r.itemNote,
+      })),
+    }
+  }
+
+  /**
+   * Tạo đơn hàng mới tại quầy POS
+   */
+  async createOrder(data: CreateOrderType) {
+    // 1. Tự động sinh orderCode nếu chưa có
+    if (!data.orderCode) {
+      data.orderCode = this.generateOrderCode()
+    }
+
+    // 2. Kiểm tra tính khả dụng của thẻ rung nếu có gán pagerId
+    if (data.pagerId) {
+      const isAvailable = await this.orderRepo.isPagerAvailable(data.pagerId)
+      if (!isAvailable) {
+        throw new Error(`Thẻ rung #${data.pagerId} hiện không khả dụng hoặc pin < 15%`)
+      }
+    }
+
+    // 3. Thực thi Stored Procedure tạo đơn
+    let newOrderId: number
+    if (data.pagerCode && data.pagerCode.trim().length > 0) {
+      newOrderId = await this.orderRepo.createOrderWithPager(data)
+    } else {
+      newOrderId = await this.orderRepo.createCounterOrder(data)
+    }
+
+    // 4. Lấy lại dữ liệu đơn hàng hoàn chỉnh vừa tạo
+    const createdOrder = await this.getOrderById(newOrderId)
+
+    return {
+      message: 'Tạo đơn hàng POS thành công',
+      orderId: newOrderId,
+      data: createdOrder,
+    }
+  }
+
+  /**
+   * Hoàn tất thanh toán đơn hàng & tự động tích điểm hội viên
+   */
+  async completePayment(orderId: number, body: CompletePaymentType) {
+    const order = await this.getOrderById(orderId)
+    if (order.status === 'CANCELLED') {
+      throw new Error('Không thể thanh toán đơn hàng đã bị hủy')
+    }
+    if (order.status === 'COMPLETED' || order.paidAt) {
+      throw new Error('Đơn hàng này đã được thanh toán trước đó')
+    }
+
+    await this.orderRepo.completeOrderPayment(orderId, body.paymentMethod)
+    const updatedOrder = await this.getOrderById(orderId)
+
+    return {
+      message: 'Thanh toán đơn hàng thành công và đã cập nhật điểm thưởng hội viên',
+      data: updatedOrder,
+    }
+  }
+
+  /**
+   * Hủy đơn hàng và tự động giải phóng thẻ rung
+   */
+  async cancelOrder(orderId: number, body: CancelOrderType) {
+    const order = await this.getOrderById(orderId)
+    if (order.status === 'COMPLETED' || order.paidAt) {
+      throw new Error('Không thể hủy đơn hàng đã hoàn tất hoặc đã thanh toán')
+    }
+    if (order.status === 'CANCELLED') {
+      throw new Error('Đơn hàng này đã bị hủy trước đó')
+    }
+
+    await this.orderRepo.cancelOrder(orderId, body.employeeId, body.cancelReason)
+    const updatedOrder = await this.getOrderById(orderId)
+
+    return {
+      message: 'Hủy đơn hàng và giải phóng thẻ rung thành công',
+      data: updatedOrder,
+    }
+  }
+
+  /**
+   * Áp dụng điểm thưởng hội viên để giảm giá đơn hàng
+   */
+  async applyLoyaltyPoints(orderId: number, body: ApplyLoyaltyPointsType) {
+    const order = await this.getOrderById(orderId)
+    if (order.status === 'COMPLETED' || order.status === 'CANCELLED') {
+      throw new Error('Chỉ có thể áp dụng điểm thưởng cho đơn hàng đang xử lý')
+    }
+
+    await this.orderRepo.applyLoyaltyPoints(
+      orderId,
+      body.customerId,
+      body.pointsToRedeem,
+      body.conversionRate
+    )
+
+    const updatedOrder = await this.getOrderById(orderId)
+
+    return {
+      message: 'Áp dụng điểm thưởng đổi chiết khấu thành công',
+      data: updatedOrder,
+    }
+  }
+
+  /**
+   * Xóa món khỏi đơn hàng chưa chế biến
+   */
+  async removeOrderItem(orderDetailId: number) {
+    await this.orderRepo.removeOrderItem(orderDetailId)
+    return {
+      message: 'Xóa món khỏi đơn hàng thành công',
+    }
+  }
+}
 
 ```
 
@@ -7360,11 +9897,166 @@ orderRouter.get('/',(_,res)=>{res.json({message:'orderRouter ready'})})
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\pos-order\pager\pager.controller.ts` |
-| Size | 0 bytes |
+| Size | 4,782 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:32.681054 |
+| Modified | 2026-09-30 19:35:12.808091 |
 
 ```typescript
+import { NextFunction, Request, Response } from 'express'
+import { PagerService } from './pager.service'
+import {
+  CreatePagerSchema,
+  FilterPagerQuerySchema,
+  PagerParamSchema,
+  UpdateBatterySchema,
+  UpdatePagerStatusSchema,
+  UpdatePagerSchema,
+} from './pager.schema'
+
+export class PagerController {
+  private pagerService = new PagerService()
+
+  /**
+   * GET /api/v1/pos/pagers
+   * Lấy danh sách thẻ rung có phân trang & bộ lọc
+   */
+  list = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const query = FilterPagerQuerySchema.parse(req.query)
+      const result = await this.pagerService.getPagers(query)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * GET /api/v1/pos/pagers/available
+   * Danh sách các thẻ rung sẵn sàng phát cho khách (AVAILABLE & Pin >= 15%)
+   */
+  available = async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await this.pagerService.getAvailablePagers()
+      res.status(200).json({ success: true, data })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * GET /api/v1/pos/pagers/dashboard
+   * Dashboard điều phối và theo dõi thời gian chờ của khách theo View v_ActivePagerDashboard
+   */
+  dashboard = async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await this.pagerService.getActiveDashboard()
+      res.status(200).json({ success: true, data })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * GET /api/v1/pos/pagers/:id
+   * Chi tiết 1 thiết bị thẻ rung
+   */
+  detail = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = PagerParamSchema.parse(req.params)
+      const data = await this.pagerService.getPagerById(id)
+      res.status(200).json({ success: true, data })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * POST /api/v1/pos/pagers
+   * Tạo mới thiết bị thẻ rung
+   */
+  create = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const body = CreatePagerSchema.parse(req.body)
+      const result = await this.pagerService.createPager(body)
+      res.status(201).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * PUT /api/v1/pos/pagers/:id
+   * Cập nhật toàn diện thông tin thẻ rung
+   */
+  update = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = PagerParamSchema.parse(req.params)
+      const body = UpdatePagerSchema.parse(req.body)
+      const result = await this.pagerService.updatePager(id, body)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * PATCH /api/v1/pos/pagers/:id/status
+   * Cập nhật trạng thái thẻ rung (AVAILABLE, IN_USE, CHARGING, MAINTENANCE)
+   */
+  updateStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = PagerParamSchema.parse(req.params)
+      const body = UpdatePagerStatusSchema.parse(req.body)
+      const result = await this.pagerService.updateStatus(id, body)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * PATCH /api/v1/pos/pagers/:id/battery
+   * Cập nhật mức pin thiết bị thẻ rung
+   */
+  updateBattery = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = PagerParamSchema.parse(req.params)
+      const body = UpdateBatterySchema.parse(req.body)
+      const result = await this.pagerService.updateBattery(id, body)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * POST /api/v1/pos/pagers/:id/release
+   * Thu hồi / chuyển trạng thái thẻ rung về AVAILABLE
+   */
+  release = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = PagerParamSchema.parse(req.params)
+      const result = await this.pagerService.releasePager(id)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * DELETE /api/v1/pos/pagers/:id
+   * Xóa mềm thiết bị thẻ rung
+   */
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = PagerParamSchema.parse(req.params)
+      const result = await this.pagerService.deletePager(id)
+      res.status(200).json({ success: true, ...result })
+    } catch (error) {
+      next(error)
+    }
+  }
+}
 
 ```
 
@@ -7373,11 +10065,331 @@ orderRouter.get('/',(_,res)=>{res.json({message:'orderRouter ready'})})
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\pos-order\pager\pager.repo.ts` |
-| Size | 0 bytes |
+| Size | 8,633 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:32.686053 |
+| Modified | 2026-09-30 19:35:12.810029 |
 
 ```typescript
+import { getPool, sql } from '@/config/database'
+import {
+  CreatePagerType,
+  FilterPagerQueryType,
+  UpdatePagerType,
+} from './pager.schema'
+
+export class PagerRepo {
+  /**
+   * Lấy danh sách thẻ rung có phân trang và bộ lọc
+   */
+  async getPagers(filter: FilterPagerQueryType) {
+    const pool = await getPool()
+    const request = pool.request()
+
+    const { search, status, minBattery, page = 1, limit = 20 } = filter
+    const offset = (page - 1) * limit
+    const conditions: string[] = ['deletedAt IS NULL']
+
+    if (search) {
+      request.input('search', sql.NVarChar(50), `%${search}%`)
+      conditions.push('pagerCode LIKE @search')
+    }
+
+    if (status) {
+      request.input('status', sql.NVarChar(50), status)
+      conditions.push('status = @status')
+    }
+
+    if (minBattery !== undefined) {
+      request.input('minBattery', sql.Int, minBattery)
+      conditions.push('batteryLevel >= @minBattery')
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`
+
+    // Đếm tổng số bản ghi
+    const countRes = await request.query(
+      `SELECT COUNT(1) AS total FROM PagerDevice ${whereClause}`
+    )
+    const totalItems = countRes.recordset[0]?.total || 0
+
+    // Lấy dữ liệu phân trang
+    request.input('offset', sql.Int, offset)
+    request.input('limit', sql.Int, limit)
+
+    const listQuery = `
+      SELECT 
+        id,
+        pagerCode,
+        status,
+        batteryLevel,
+        createdAt,
+        updatedAt
+      FROM PagerDevice
+      ${whereClause}
+      ORDER BY 
+        CASE status 
+          WHEN 'AVAILABLE' THEN 1 
+          WHEN 'IN_USE' THEN 2 
+          WHEN 'CHARGING' THEN 3 
+          ELSE 4 
+        END,
+        pagerCode ASC
+      OFFSET @offset ROWS
+      FETCH NEXT @limit ROWS ONLY
+    `
+
+    const listRes = await request.query(listQuery)
+
+    return {
+      items: listRes.recordset,
+      meta: {
+        page,
+        limit,
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit),
+      },
+    }
+  }
+
+  /**
+   * Lấy thông tin chi tiết thẻ rung theo ID
+   */
+  async getPagerById(id: number) {
+    const pool = await getPool()
+    const request = pool.request()
+
+    request.input('id', sql.Int, id)
+    const query = `
+      SELECT 
+        id,
+        pagerCode,
+        status,
+        batteryLevel,
+        createdAt,
+        updatedAt
+      FROM PagerDevice
+      WHERE id = @id AND deletedAt IS NULL
+    `
+    const result = await request.query(query)
+    return result.recordset[0] || null
+  }
+
+  /**
+   * Tìm thẻ rung theo mã pagerCode
+   */
+  async getPagerByCode(pagerCode: string) {
+    const pool = await getPool()
+    const request = pool.request()
+
+    request.input('pagerCode', sql.VarChar(50), pagerCode)
+    const query = `
+      SELECT 
+        id,
+        pagerCode,
+        status,
+        batteryLevel,
+        createdAt,
+        updatedAt
+      FROM PagerDevice
+      WHERE pagerCode = @pagerCode AND deletedAt IS NULL
+    `
+    const result = await request.query(query)
+    return result.recordset[0] || null
+  }
+
+  /**
+   * Lấy danh sách thẻ rung sẵn sàng cấp cho khách (AVAILABLE và pin >= 15%)
+   */
+  async getAvailablePagers() {
+    const pool = await getPool()
+    const query = `
+      SELECT 
+        id,
+        pagerCode,
+        status,
+        batteryLevel,
+        createdAt
+      FROM PagerDevice
+      WHERE status = 'AVAILABLE' 
+        AND batteryLevel >= 15 
+        AND deletedAt IS NULL
+      ORDER BY batteryLevel DESC, pagerCode ASC
+    `
+    const result = await pool.request().query(query)
+    return result.recordset
+  }
+
+  /**
+   * Kiểm tra thẻ rung có khả dụng không qua Function fn_IsPagerAvailable
+   */
+  async isPagerAvailable(pagerId: number): Promise<boolean> {
+    const pool = await getPool()
+    const result = await pool
+      .request()
+      .input('pagerId', sql.Int, pagerId)
+      .query(`SELECT dbo.fn_IsPagerAvailable(@pagerId) AS isAvailable`)
+
+    return result.recordset[0]?.isAvailable === true || result.recordset[0]?.isAvailable === 1
+  }
+
+  /**
+   * Tạo mới thiết bị thẻ rung
+   */
+  async createPager(data: CreatePagerType) {
+    const pool = await getPool()
+    const request = pool.request()
+
+    request.input('pagerCode', sql.VarChar(50), data.pagerCode)
+    request.input('status', sql.NVarChar(50), data.status)
+    request.input('batteryLevel', sql.Int, data.batteryLevel)
+
+    const query = `
+      INSERT INTO PagerDevice (pagerCode, status, batteryLevel, createdAt)
+      OUTPUT 
+        INSERTED.id,
+        INSERTED.pagerCode,
+        INSERTED.status,
+        INSERTED.batteryLevel,
+        INSERTED.createdAt
+      VALUES (@pagerCode, @status, @batteryLevel, SYSDATETIME())
+    `
+    const result = await request.query(query)
+    return result.recordset[0]
+  }
+
+  /**
+   * Cập nhật thông tin thẻ rung
+   */
+  async updatePager(id: number, data: UpdatePagerType) {
+    const pool = await getPool()
+    const request = pool.request()
+    const updateFields: string[] = []
+
+    request.input('id', sql.Int, id)
+
+    if (data.pagerCode !== undefined) {
+      request.input('pagerCode', sql.VarChar(50), data.pagerCode)
+      updateFields.push('pagerCode = @pagerCode')
+    }
+
+    if (data.status !== undefined) {
+      request.input('status', sql.NVarChar(50), data.status)
+      updateFields.push('status = @status')
+    }
+
+    if (data.batteryLevel !== undefined) {
+      request.input('batteryLevel', sql.Int, data.batteryLevel)
+      updateFields.push('batteryLevel = @batteryLevel')
+    }
+
+    if (updateFields.length === 0) return null
+
+    updateFields.push('updatedAt = SYSDATETIME()')
+
+    const query = `
+      UPDATE PagerDevice
+      SET ${updateFields.join(', ')}
+      OUTPUT 
+        INSERTED.id,
+        INSERTED.pagerCode,
+        INSERTED.status,
+        INSERTED.batteryLevel,
+        INSERTED.updatedAt
+      WHERE id = @id AND deletedAt IS NULL
+    `
+    const result = await request.query(query)
+    return result.recordset[0] || null
+  }
+
+  /**
+   * Cập nhật trạng thái thẻ rung
+   */
+  async updateStatus(id: number, status: string) {
+    const pool = await getPool()
+    const request = pool.request()
+
+    request.input('id', sql.Int, id)
+    request.input('status', sql.NVarChar(50), status)
+
+    const query = `
+      UPDATE PagerDevice
+      SET status = @status, updatedAt = SYSDATETIME()
+      OUTPUT 
+        INSERTED.id,
+        INSERTED.pagerCode,
+        INSERTED.status,
+        INSERTED.batteryLevel,
+        INSERTED.updatedAt
+      WHERE id = @id AND deletedAt IS NULL
+    `
+    const result = await request.query(query)
+    return result.recordset[0] || null
+  }
+
+  /**
+   * Cập nhật mức pin của thẻ rung
+   */
+  async updateBattery(id: number, batteryLevel: number) {
+    const pool = await getPool()
+    const request = pool.request()
+
+    request.input('id', sql.Int, id)
+    request.input('batteryLevel', sql.Int, batteryLevel)
+
+    const query = `
+      UPDATE PagerDevice
+      SET batteryLevel = @batteryLevel, updatedAt = SYSDATETIME()
+      OUTPUT 
+        INSERTED.id,
+        INSERTED.pagerCode,
+        INSERTED.status,
+        INSERTED.batteryLevel,
+        INSERTED.updatedAt
+      WHERE id = @id AND deletedAt IS NULL
+    `
+    const result = await request.query(query)
+    return result.recordset[0] || null
+  }
+
+  /**
+   * Xóa mềm thiết bị thẻ rung
+   */
+  async softDeletePager(id: number): Promise<boolean> {
+    const pool = await getPool()
+    const request = pool.request()
+
+    request.input('id', sql.Int, id)
+    const query = `
+      UPDATE PagerDevice
+      SET deletedAt = SYSDATETIME()
+      WHERE id = @id AND deletedAt IS NULL
+    `
+    const result = await request.query(query)
+    return result.rowsAffected[0] > 0
+  }
+
+  /**
+   * Bảng điều phối theo dõi thẻ rung đang cấp cho khách từ View v_ActivePagerDashboard
+   */
+  async getActivePagerDashboard() {
+    const pool = await getPool()
+    const query = `
+      SELECT 
+        pagerCode,
+        pagerStatus,
+        batteryLevel,
+        orderId,
+        orderCode,
+        customerName,
+        customerPhone,
+        waitingMinutes
+      FROM v_ActivePagerDashboard
+      ORDER BY waitingMinutes DESC
+    `
+    const result = await pool.request().query(query)
+    return result.recordset
+  }
+}
 
 ```
 
@@ -7386,14 +10398,56 @@ orderRouter.get('/',(_,res)=>{res.json({message:'orderRouter ready'})})
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\pos-order\pager\pager.routes.ts` |
-| Size | 141 bytes |
+| Size | 1,692 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-27 21:08:02.884606 |
+| Modified | 2026-09-30 19:35:12.811338 |
 
 ```typescript
 import { Router } from 'express'
+import { PagerController } from './pager.controller'
+
 export const pagerRouter = Router()
-pagerRouter.get('/',(_,res)=>{res.json({message:'pagerRouter ready'})})
+const controller = new PagerController()
+
+// 1. Lấy danh sách thẻ rung (Phân trang, lọc theo trạng thái, mức pin, tìm kiếm mã)
+// GET /api/v1/pos/pagers
+pagerRouter.get('/', controller.list)
+
+// 2. Danh sách thẻ rung sẵn sàng cấp cho khách (AVAILABLE & Pin >= 15%)
+// GET /api/v1/pos/pagers/available
+pagerRouter.get('/available', controller.available)
+
+// 3. Dashboard điều phối theo dõi thời gian chờ của khách theo View v_ActivePagerDashboard
+// GET /api/v1/pos/pagers/dashboard
+pagerRouter.get('/dashboard', controller.dashboard)
+
+// 4. Lấy thông tin chi tiết 1 thẻ rung
+// GET /api/v1/pos/pagers/:id
+pagerRouter.get('/:id', controller.detail)
+
+// 5. Thêm mới thiết bị thẻ rung
+// POST /api/v1/pos/pagers
+pagerRouter.post('/', controller.create)
+
+// 6. Cập nhật thông tin thẻ rung
+// PUT /api/v1/pos/pagers/:id
+pagerRouter.put('/:id', controller.update)
+
+// 7. Cập nhật trạng thái thẻ rung (AVAILABLE, IN_USE, CHARGING, MAINTENANCE)
+// PATCH /api/v1/pos/pagers/:id/status
+pagerRouter.patch('/:id/status', controller.updateStatus)
+
+// 8. Cập nhật mức pin thiết bị thẻ rung
+// PATCH /api/v1/pos/pagers/:id/battery
+pagerRouter.patch('/:id/battery', controller.updateBattery)
+
+// 9. Thu hồi thẻ rung khi khách trả thẻ
+// POST /api/v1/pos/pagers/:id/release
+pagerRouter.post('/:id/release', controller.release)
+
+// 10. Xóa mềm thiết bị thẻ rung
+// DELETE /api/v1/pos/pagers/:id
+pagerRouter.delete('/:id', controller.delete)
 
 ```
 
@@ -7402,11 +10456,77 @@ pagerRouter.get('/',(_,res)=>{res.json({message:'pagerRouter ready'})})
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\pos-order\pager\pager.schema.ts` |
-| Size | 0 bytes |
+| Size | 2,397 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:32.692052 |
+| Modified | 2026-09-30 19:35:12.812675 |
 
 ```typescript
+import { z } from 'zod'
+
+// 1. Schema trạng thái thẻ rung
+export const PagerStatusEnum = z.enum(['AVAILABLE', 'IN_USE', 'CHARGING', 'MAINTENANCE'])
+
+// 2. Schema tạo mới thiết bị thẻ rung
+export const CreatePagerSchema = z.object({
+  pagerCode: z
+    .string()
+    .min(1, 'Mã thẻ rung không được để trống')
+    .max(50, 'Mã thẻ rung tối đa 50 ký tự'),
+  status: PagerStatusEnum.default('AVAILABLE'),
+  batteryLevel: z
+    .number()
+    .int('Mức pin phải là số nguyên')
+    .min(0, 'Mức pin tối thiểu 0%')
+    .max(100, 'Mức pin tối đa 100%')
+    .default(100),
+})
+
+// 3. Schema cập nhật thông tin thiết bị thẻ rung
+export const UpdatePagerSchema = z.object({
+  pagerCode: z.string().min(1, 'Mã thẻ rung không được để trống').max(50).optional(),
+  status: PagerStatusEnum.optional(),
+  batteryLevel: z
+    .number()
+    .int('Mức pin phải là số nguyên')
+    .min(0, 'Mức pin tối thiểu 0%')
+    .max(100, 'Mức pin tối đa 100%')
+    .optional(),
+})
+
+// 4. Schema cập nhật nhanh trạng thái thẻ
+export const UpdatePagerStatusSchema = z.object({
+  status: PagerStatusEnum,
+})
+
+// 5. Schema cập nhật mức pin
+export const UpdateBatterySchema = z.object({
+  batteryLevel: z
+    .number()
+    .int('Mức pin phải là số nguyên')
+    .min(0, 'Mức pin tối thiểu 0%')
+    .max(100, 'Mức pin tối đa 100%'),
+})
+
+// 6. Schema Params
+export const PagerParamSchema = z.object({
+  id: z.coerce.number().int().positive('ID thẻ rung không hợp lệ'),
+})
+
+// 7. Schema Filter Query
+export const FilterPagerQuerySchema = z.object({
+  search: z.string().optional(), // Tìm theo pagerCode
+  status: PagerStatusEnum.optional(),
+  minBattery: z.coerce.number().int().min(0).max(100).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().default(20),
+})
+
+export type PagerStatusType = z.infer<typeof PagerStatusEnum>
+export type CreatePagerType = z.infer<typeof CreatePagerSchema>
+export type UpdatePagerType = z.infer<typeof UpdatePagerSchema>
+export type UpdatePagerStatusType = z.infer<typeof UpdatePagerStatusSchema>
+export type UpdateBatteryType = z.infer<typeof UpdateBatterySchema>
+export type FilterPagerQueryType = z.infer<typeof FilterPagerQuerySchema>
 
 ```
 
@@ -7415,11 +10535,150 @@ pagerRouter.get('/',(_,res)=>{res.json({message:'pagerRouter ready'})})
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\pos-order\pager\pager.service.ts` |
-| Size | 0 bytes |
+| Size | 4,040 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-23 23:09:32.683053 |
+| Modified | 2026-09-30 19:35:12.814081 |
 
 ```typescript
+import { PagerRepo } from './pager.repo'
+import {
+  CreatePagerType,
+  FilterPagerQueryType,
+  UpdateBatteryType,
+  UpdatePagerStatusType,
+  UpdatePagerType,
+} from './pager.schema'
+
+export class PagerService {
+  private pagerRepo = new PagerRepo()
+
+  /**
+   * Lấy danh sách thẻ rung có phân trang & lọc
+   */
+  async getPagers(filter: FilterPagerQueryType) {
+    return await this.pagerRepo.getPagers(filter)
+  }
+
+  /**
+   * Lấy thông tin chi tiết thẻ rung theo ID
+   */
+  async getPagerById(id: number) {
+    const pager = await this.pagerRepo.getPagerById(id)
+    if (!pager) {
+      throw new Error(`Thẻ rung #${id} không tồn tại hoặc đã bị xóa`)
+    }
+    return pager
+  }
+
+  /**
+   * Lấy danh sách thẻ rung đang sẵn sàng phục vụ khách
+   */
+  async getAvailablePagers() {
+    return await this.pagerRepo.getAvailablePagers()
+  }
+
+  /**
+   * Bảng điều phối theo dõi thời gian chờ của các thẻ đang phát cho khách
+   */
+  async getActiveDashboard() {
+    return await this.pagerRepo.getActivePagerDashboard()
+  }
+
+  /**
+   * Tạo mới thiết bị thẻ rung
+   */
+  async createPager(data: CreatePagerType) {
+    const existing = await this.pagerRepo.getPagerByCode(data.pagerCode)
+    if (existing) {
+      throw new Error(`Mã thẻ rung '${data.pagerCode}' đã tồn tại trên hệ thống`)
+    }
+
+    const created = await this.pagerRepo.createPager(data)
+    return {
+      message: 'Thêm thiết bị thẻ rung thành công',
+      data: created,
+    }
+  }
+
+  /**
+   * Cập nhật thông tin thẻ rung
+   */
+  async updatePager(id: number, data: UpdatePagerType) {
+    await this.getPagerById(id)
+
+    if (data.pagerCode) {
+      const existing = await this.pagerRepo.getPagerByCode(data.pagerCode)
+      if (existing && existing.id !== id) {
+        throw new Error(`Mã thẻ rung '${data.pagerCode}' đã được sử dụng cho thiết bị khác`)
+      }
+    }
+
+    const updated = await this.pagerRepo.updatePager(id, data)
+    return {
+      message: 'Cập nhật thông tin thẻ rung thành công',
+      data: updated,
+    }
+  }
+
+  /**
+   * Cập nhật trạng thái thẻ rung (AVAILABLE, IN_USE, CHARGING, MAINTENANCE)
+   */
+  async updateStatus(id: number, body: UpdatePagerStatusType) {
+    await this.getPagerById(id)
+    const updated = await this.pagerRepo.updateStatus(id, body.status)
+    return {
+      message: `Cập nhật trạng thái thẻ rung thành '${body.status}' thành công`,
+      data: updated,
+    }
+  }
+
+  /**
+   * Cập nhật mức pin của thẻ rung
+   */
+  async updateBattery(id: number, body: UpdateBatteryType) {
+    const pager = await this.getPagerById(id)
+
+    // Nếu pin dưới 15% mà đang để AVAILABLE, có thể tự động cảnh báo
+    const updated = await this.pagerRepo.updateBattery(id, body.batteryLevel)
+
+    return {
+      message: `Cập nhật mức pin (${body.batteryLevel}%) thành công`,
+      data: updated,
+    }
+  }
+
+  /**
+   * Thu hồi / giải phóng thẻ rung về trạng thái AVAILABLE khi khách trả thẻ
+   */
+  async releasePager(id: number) {
+    await this.getPagerById(id)
+    const updated = await this.pagerRepo.updateStatus(id, 'AVAILABLE')
+    return {
+      message: 'Đã thu hồi và chuyển trạng thái thẻ rung về AVAILABLE',
+      data: updated,
+    }
+  }
+
+  /**
+   * Xóa mềm thiết bị thẻ rung
+   */
+  async deletePager(id: number) {
+    const pager = await this.getPagerById(id)
+
+    if (pager.status === 'IN_USE') {
+      throw new Error('Không thể xóa thẻ rung đang được gán cho đơn hàng chưa hoàn tất!')
+    }
+
+    const success = await this.pagerRepo.softDeletePager(id)
+    if (!success) {
+      throw new Error('Xóa thiết bị thẻ rung thất bại')
+    }
+
+    return {
+      message: `Đã xóa thiết bị thẻ rung #${id} thành công`,
+    }
+  }
+}
 
 ```
 
@@ -7495,105 +10754,135 @@ export class ReportController {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\report\report.repo.ts` |
-| Size | 3,283 bytes |
+| Size | 3,787 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.255530 |
+| Modified | 2026-09-30 19:17:55.080950 |
 
 ```typescript
 import { getPool, sql } from '@/config/database'
 import { DateRangeReportType, TopProductsQueryType } from './report.schema'
 
 export class ReportRepo {
-    // Thống kê tổng quan: Doanh thu, số đơn, số tiền giảm giá
-    async getOverviewRevenue(filter: DateRangeReportType) {
-        const pool = await getPool()
-        const request = pool.request()
+  // Thống kê tổng quan: Doanh thu, số đơn, số tiền giảm giá
+  async getOverviewRevenue(filter: DateRangeReportType) {
+    const pool = await getPool()
+    const request = pool.request()
 
-        const conditions: string[] = ["status IN ('PAID', 'COMPLETED')", 'deletedAt IS NULL']
+    const conditions: string[] = [
+      "status IN ('PAID', 'COMPLETED')",
+      'deletedAt IS NULL',
+    ]
 
-        if (filter.fromDate) {
-            request.input('fromDate', sql.DateTime2, new Date(filter.fromDate))
-            conditions.push('createdAt >= @fromDate')
-        }
-        if (filter.toDate) {
-            request.input('toDate', sql.DateTime2, new Date(filter.toDate))
-            conditions.push('createdAt <= @toDate')
-        }
-
-        const whereClause = `WHERE ${conditions.join(' AND ')}`
-        const query = `
-      SELECT 
-        COUNT(id) AS totalOrders,
-        ISNULL(SUM(subTotal), 0) AS totalSubTotal,
-        ISNULL(SUM(discountAmount), 0) AS totalDiscount,
-        ISNULL(SUM(totalAmount), 0) AS netRevenue
-      FROM [Order]
-      ${whereClause}
-    `
-        const result = await request.query(query)
-        return result.recordset[0]
+    if (filter.fromDate) {
+      request.input('fromDate', sql.DateTime2, filter.fromDate)
+      conditions.push('ISNULL(paidAt, createdAt) >= @fromDate')
     }
 
-    // Top sản phẩm bán chạy nhất
-    async getTopSellingProducts(filter: TopProductsQueryType) {
-        const pool = await getPool()
-        const request = pool.request()
+    if (filter.toDate) {
+      // toDate là ngày kết thúc nên chuyển sang ngày tiếp theo
+      const endDate = new Date(filter.toDate)
+      endDate.setDate(endDate.getDate() + 1)
 
-        const conditions: string[] = [
-            "o.status IN ('PAID', 'COMPLETED')",
-            'o.deletedAt IS NULL',
-            "od.itemStatus NOT IN ('CANCELLED')",
-        ]
-
-        if (filter.fromDate) {
-            request.input('fromDate', sql.DateTime2, new Date(filter.fromDate))
-            conditions.push('o.createdAt >= @fromDate')
-        }
-        if (filter.toDate) {
-            request.input('toDate', sql.DateTime2, new Date(filter.toDate))
-            conditions.push('o.createdAt <= @toDate')
-        }
-
-        request.input('topLimit', sql.Int, filter.limit || 5)
-
-        const whereClause = `WHERE ${conditions.join(' AND ')}`
-        const query = `
-      SELECT TOP (@topLimit)
-        od.itemSnapshotName AS productName,
-        od.sizeSnapshot AS size,
-        SUM(od.quantity) AS totalQuantitySold,
-        SUM(od.totalPrice) AS totalRevenue
-      FROM OrderDetail od
-      JOIN [Order] o ON od.orderId = o.id
-      ${whereClause}
-      GROUP BY od.itemSnapshotName, od.sizeSnapshot
-      ORDER BY totalQuantitySold DESC
-    `
-        const result = await request.query(query)
-        return result.recordset
+      request.input('toDate', sql.DateTime2, endDate)
+      conditions.push('ISNULL(paidAt, createdAt) < @toDate')
     }
 
-    // Cảnh báo nguyên vật liệu sắp chạm hoặc dưới ngưỡng tối thiểu
-    async getLowStockIngredients() {
-        const pool = await getPool()
-        const request = pool.request()
+    const whereClause = `WHERE ${conditions.join(' AND ')}`
 
-        const query = `
-      SELECT 
-        id, 
-        name, 
-        unit, 
-        stockQuantity, 
-        minimumThreshold,
-        (minimumThreshold - stockQuantity) AS shortageAmount
-      FROM Ingredient
-      WHERE stockQuantity <= minimumThreshold AND deletedAt IS NULL
-      ORDER BY stockQuantity ASC
-    `
-        const result = await request.query(query)
-        return result.recordset
+    const query = `
+            SELECT
+                COUNT(id) AS totalOrders,
+                ISNULL(SUM(subTotal), 0) AS totalSubTotal,
+                ISNULL(SUM(discountAmount), 0) AS totalDiscount,
+                ISNULL(SUM(totalAmount), 0) AS netRevenue
+            FROM [Order]
+            ${whereClause}
+        `
+
+    const result = await request.query(query)
+
+    return result.recordset[0]
+  }
+
+  // Top sản phẩm bán chạy nhất (bao gồm cả size)
+  async getTopSellingProducts(filter: TopProductsQueryType) {
+    const pool = await getPool()
+    const request = pool.request()
+
+    const conditions: string[] = [
+      "o.status IN ('PAID', 'COMPLETED')",
+      'o.deletedAt IS NULL',
+      "od.itemStatus NOT IN ('CANCELLED')",
+    ]
+
+    if (filter.fromDate) {
+      request.input('fromDate', sql.DateTime2, filter.fromDate)
+      conditions.push('ISNULL(o.paidAt, o.createdAt) >= @fromDate')
     }
+
+    if (filter.toDate) {
+
+      const endDate = new Date(filter.toDate)
+      endDate.setDate(endDate.getDate() + 1)
+
+      request.input('toDate', sql.DateTime2, endDate)
+      conditions.push('ISNULL(o.paidAt, o.createdAt) < @toDate')
+    }
+
+    request.input('topLimit', sql.Int, filter.limit)
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`
+
+    const query = `
+            SELECT TOP (@topLimit)
+                od.itemSnapshotName AS productName,
+                od.sizeSnapshot AS size,
+                SUM(od.quantity) AS totalQuantitySold,
+                SUM(od.totalPrice) AS totalRevenue
+            FROM OrderDetail od
+            JOIN [Order] o ON od.orderId = o.id
+            ${whereClause}
+            GROUP BY
+                od.itemSnapshotName,
+                od.sizeSnapshot
+            ORDER BY
+                totalQuantitySold DESC,
+                totalRevenue DESC,
+                od.itemSnapshotName ASC
+        `
+
+    const result = await request.query(query)
+
+    return result.recordset
+  }
+
+  // Cảnh báo nguyên vật liệu sắp chạm hoặc dưới ngưỡng tối thiểu
+  async getLowStockIngredients() {
+    const pool = await getPool()
+    const request = pool.request()
+
+    const query = `
+            SELECT
+                id,
+                name,
+                unit,
+                stockQuantity,
+                minimumThreshold,
+                (minimumThreshold - stockQuantity) AS shortageAmount
+            FROM Ingredient
+            WHERE
+                stockQuantity <= minimumThreshold
+                AND deletedAt IS NULL
+            ORDER BY stockQuantity ASC
+        `
+
+    const result = await request.query(query)
+
+    return result.recordset
+  }
 }
+
+
 ```
 
 # src\modules\report\report.routes.ts
@@ -7601,25 +10890,41 @@ export class ReportRepo {
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\report\report.routes.ts` |
-| Size | 554 bytes |
+| Size | 961 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.256530 |
+| Modified | 2026-09-29 23:29:27.378512 |
 
 ```typescript
 import { Router } from 'express'
 import { ReportController } from './report.controller'
+import { authGuard, roleGuard, validatePipe } from '@/middlewares'
+import { DateRangeReportSchema, TopProductsQuerySchema } from './report.schema'
 
 export const reportRouter = Router()
 const controller = new ReportController()
 
-// GET /api/v1/report/revenue (Thống kê doanh thu theo mốc ngày)
-reportRouter.get('/revenue', controller.getRevenue)
+// Chặn toàn bộ: Chỉ MANAGER và ADMIN
+reportRouter.use(authGuard, roleGuard('MANAGER'))
 
-// GET /api/v1/report/top-products (Món bán chạy nhất)
-reportRouter.get('/top-products', controller.getTopProducts)
+// GET /api/v1/reports/revenue - Thống kê doanh thu theo khoảng ngày
+reportRouter.get(
+  '/revenue',
+  validatePipe(DateRangeReportSchema, 'query'),
+  controller.getRevenue
+)
 
-// GET /api/v1/report/low-stock (Cảnh báo hết nguyên liệu kho)
-reportRouter.get('/low-stock', controller.getLowStock)
+// GET /api/v1/reports/top-products - Báo cáo top món bán chạy nhất
+reportRouter.get(
+  '/top-products',
+  validatePipe(TopProductsQuerySchema, 'query'),
+  controller.getTopProducts
+)
+
+// GET /api/v1/reports/low-stock - Cảnh báo nguyên liệu sắp hết trong kho
+reportRouter.get(
+  '/low-stock',
+  controller.getLowStock
+)
 ```
 
 # src\modules\report\report.schema.ts
@@ -7627,24 +10932,57 @@ reportRouter.get('/low-stock', controller.getLowStock)
 | Property | Value |
 |----------|-------|
 | Path | `src\modules\report\report.schema.ts` |
-| Size | 437 bytes |
+| Size | 1,101 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 22:42:20.258532 |
+| Modified | 2026-09-30 19:17:55.082006 |
 
 ```typescript
 import { z } from 'zod'
 
-export const DateRangeReportSchema = z.object({
-    fromDate: z.string().optional(),
-    toDate: z.string().optional(),
+const BaseDateRangeSchema = z.object({
+    fromDate: z.coerce.date().optional(),
+    toDate: z.coerce.date().optional(),
 })
 
-export const TopProductsQuerySchema = DateRangeReportSchema.extend({
-    limit: z.coerce.number().int().positive().default(5),
-})
+export const DateRangeReportSchema = BaseDateRangeSchema.refine(
+    data => {
+        if (data.fromDate && data.toDate) {
+            return data.fromDate <= data.toDate
+        }
+
+        return true
+    },
+    {
+        message: 'fromDate must be less than or equal to toDate',
+        path: ['toDate'],
+    },
+)
+
+export const TopProductsQuerySchema = BaseDateRangeSchema.extend({
+    limit: z.coerce
+        .number()
+        .int()
+        .positive()
+        .max(100)
+        .default(5),
+}).refine(
+    data => {
+        if (data.fromDate && data.toDate) {
+            return data.fromDate <= data.toDate
+        }
+
+        return true
+    },
+    {
+        message: 'fromDate must be less than or equal to toDate',
+        path: ['toDate'],
+    },
+)
 
 export type DateRangeReportType = z.infer<typeof DateRangeReportSchema>
+
 export type TopProductsQueryType = z.infer<typeof TopProductsQuerySchema>
+
 ```
 
 # src\modules\report\report.service.ts

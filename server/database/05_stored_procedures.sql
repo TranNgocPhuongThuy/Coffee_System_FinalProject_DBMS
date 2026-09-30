@@ -107,19 +107,38 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        DECLARE @CustomerId INT, @TotalAmount DECIMAL(18, 2), @CurrentStatus NVARCHAR(50);
+        DECLARE @CustomerId INT, 
+                @TotalAmount DECIMAL(18, 2), 
+                @CurrentStatus NVARCHAR(50),
+                @CurrentPoints INT;
 
+        -- Khóa dòng Order để kiểm tra trạng thái
         SELECT @CustomerId = customerId, @TotalAmount = totalAmount, @CurrentStatus = status
         FROM [Order] WITH (UPDLOCK)
         WHERE id = @OrderId;
 
-        IF @CurrentStatus = N'CANCELLED'
+        IF @CurrentStatus IS NULL
         BEGIN
-            RAISERROR(N'Cannot complete payment for a cancelled order!', 16, 1);
+            RAISERROR(N'Đơn hàng không tồn tại!', 16, 1);
             ROLLBACK TRANSACTION;
             RETURN;
         END
 
+        IF @CurrentStatus = N'CANCELLED'
+        BEGIN
+            RAISERROR(N'Không thể hoàn tất thanh toán cho đơn hàng đã bị hủy!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        IF @CurrentStatus = N'COMPLETED'
+        BEGIN
+            RAISERROR(N'Đơn hàng này đã được thanh toán trước đó!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        -- Cập nhật trạng thái đơn hàng sang COMPLETED
         UPDATE [Order]
         SET status = N'COMPLETED',
             paymentMethod = @PaymentMethod,
@@ -127,22 +146,40 @@ BEGIN
             updatedAt = GETDATE()
         WHERE id = @OrderId;
 
-        -- Earn reward points (10,000 VND = 1 Point)
-        IF @CustomerId IS NOT NULL AND @TotalAmount > 0
+        -- Tích điểm hội viên (10,000 VNĐ = 1 Điểm)
+        IF @CustomerId IS NOT NULL AND @TotalAmount >= 10000
         BEGIN
-            DECLARE @PointsEarned INT = FLOOR(@TotalAmount / 10000);
+            DECLARE @PointsEarned INT = FLOOR(@TotalAmount / 10000.0);
+            
             IF @PointsEarned > 0
             BEGIN
-                UPDATE Customer
-                SET rewardPoints = rewardPoints + @PointsEarned,
-                    updatedAt = GETDATE()
+                -- Khóa dòng Customer và lấy số dư điểm hiện tại
+                SELECT @CurrentPoints = rewardPoints 
+                FROM Customer WITH (UPDLOCK) 
                 WHERE id = @CustomerId;
 
-                DECLARE @NewBalance INT;
-                SELECT @NewBalance = rewardPoints FROM Customer WHERE id = @CustomerId;
+                DECLARE @NewBalance INT = ISNULL(@CurrentPoints, 0) + @PointsEarned;
 
-                INSERT INTO LoyaltyTransaction (customerId, orderId, transactionType, points, balanceAfter, description, createdAt)
-                VALUES (@CustomerId, @OrderId, N'EARN', @PointsEarned, @NewBalance, N'Points earned from order #' + CAST(@OrderId AS NVARCHAR(20)), GETDATE());
+                -- Ghi vào sổ cái LoyaltyTransaction
+                -- Trigger trg_LoyaltyTransaction_SyncPoints sẽ tự động đồng bộ sang Customer.rewardPoints
+                INSERT INTO LoyaltyTransaction (
+                    customerId, 
+                    orderId, 
+                    transactionType, 
+                    points, 
+                    balanceAfter, 
+                    description, 
+                    createdAt
+                )
+                VALUES (
+                    @CustomerId, 
+                    @OrderId, 
+                    N'EARN', 
+                    @PointsEarned, 
+                    @NewBalance, 
+                    N'Tích điểm từ đơn hàng #' + CAST(@OrderId AS NVARCHAR(20)), 
+                    GETDATE()
+                );
             END
         END
 
@@ -469,59 +506,156 @@ IF OBJECT_ID('sp_UpsertCustomerMember', 'P') IS NOT NULL DROP PROCEDURE sp_Upser
 GO
 
 CREATE PROCEDURE sp_UpsertCustomerMember
-    @PhoneNumber VARCHAR(20),
-    @FullName NVARCHAR(150),
-    @PointsToAdd INT = 0,
-    @CustomerId INT OUTPUT,
+    @PhoneNumber   VARCHAR(20),
+    @FullName      NVARCHAR(150),
+    @PointsToAdd   INT = 0,
+    @CustomerId    INT OUTPUT,
     @CurrentPoints INT OUTPUT,
-    @CurrentTier NVARCHAR(50) OUTPUT
+    @CurrentTier   NVARCHAR(50) OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        SELECT @CustomerId = id, @CurrentPoints = rewardPoints, @CurrentTier = membershipTier
+        -- 1. Tra cứu và khóa dòng bản ghi Customer theo số điện thoại
+        SELECT @CustomerId = id, 
+               @CurrentPoints = rewardPoints, 
+               @CurrentTier = membershipTier
         FROM Customer WITH (UPDLOCK, ROWLOCK)
         WHERE phoneNumber = @PhoneNumber AND deletedAt IS NULL;
 
+        -- ====================================================================
+        -- TRƯỜNG HỢP 1: KHÁCH HÀNG CHƯA TỒN TẠI -> TẠO MỚI HỘI VIÊN
+        -- ====================================================================
         IF @CustomerId IS NULL
         BEGIN
+            -- Chặn trường hợp khởi tạo khách hàng mới với số điểm âm
+            IF @PointsToAdd < 0
+            BEGIN
+                RAISERROR(N'Số điểm thưởng khởi tạo không thể là số âm!', 16, 1);
+                ROLLBACK TRANSACTION;
+                RETURN;
+            END
+
+            SET @CurrentPoints = ISNULL(@PointsToAdd, 0);
+
+            -- Xét hạng thành viên ban đầu
+            IF @CurrentPoints >= 1000 SET @CurrentTier = N'DIAMOND';
+            ELSE IF @CurrentPoints >= 500 SET @CurrentTier = N'GOLD';
+            ELSE IF @CurrentPoints >= 200 SET @CurrentTier = N'SILVER';
+            ELSE SET @CurrentTier = N'STANDARD';
+
             INSERT INTO Customer (phoneNumber, fullName, rewardPoints, membershipTier, createdAt)
-            VALUES (@PhoneNumber, @FullName, ISNULL(@PointsToAdd, 0), N'BRONZE', GETDATE());
+            VALUES (@PhoneNumber, @FullName, @CurrentPoints, @CurrentTier, GETDATE());
 
             SET @CustomerId = SCOPE_IDENTITY();
-            SET @CurrentPoints = ISNULL(@PointsToAdd, 0);
-            SET @CurrentTier = N'BRONZE';
 
+            -- Nếu có điểm khởi tạo, ghi nhận vào sổ cái lịch sử
             IF @PointsToAdd > 0
             BEGIN
                 INSERT INTO LoyaltyTransaction (customerId, transactionType, points, balanceAfter, description, createdAt)
-                VALUES (@CustomerId, N'EARN', @PointsToAdd, @CurrentPoints, N'Initial loyalty points awarded', GETDATE());
+                VALUES (@CustomerId, N'EARN', @PointsToAdd, @CurrentPoints, N'Khởi tạo điểm thưởng thành viên mới', GETDATE());
             END
         END
+        -- ====================================================================
+        -- TRƯỜNG HỢP 2: KHÁCH HÀNG ĐÃ TỒN TẠI -> CẬP NHẬT THÔNG TIN / TÍCH - ĐỔI ĐIỂM
+        -- ====================================================================
         ELSE
         BEGIN
+            -- Cập nhật lại họ tên nếu có thay đổi
+            IF @FullName IS NOT NULL AND @FullName <> ''
+            BEGIN
+                UPDATE Customer
+                SET fullName = @FullName,
+                    updatedAt = GETDATE()
+                WHERE id = @CustomerId;
+            END
+
+            -- Nếu có phát sinh thay đổi điểm tích lũy
             IF @PointsToAdd <> 0
             BEGIN
+                -- Chặn đổi điểm vượt quá số dư hiện tại (chống âm điểm)
+                IF @PointsToAdd < 0 AND (@CurrentPoints + @PointsToAdd) < 0
+                BEGIN
+                    RAISERROR(N'Số dư điểm tích lũy không đủ để thực hiện giao dịch khấu trừ!', 16, 1);
+                    ROLLBACK TRANSACTION;
+                    RETURN;
+                END
+
+                -- Tính số dư điểm mới
                 SET @CurrentPoints = @CurrentPoints + @PointsToAdd;
 
+                -- Xét lại hạng thành viên theo số dư mới
                 IF @CurrentPoints >= 1000 SET @CurrentTier = N'DIAMOND';
                 ELSE IF @CurrentPoints >= 500 SET @CurrentTier = N'GOLD';
                 ELSE IF @CurrentPoints >= 200 SET @CurrentTier = N'SILVER';
-                ELSE SET @CurrentTier = N'BRONZE';
+                ELSE SET @CurrentTier = N'STANDARD';
 
+                -- Cập nhật hạng thành viên mới
                 UPDATE Customer
-                SET fullName = ISNULL(@FullName, fullName),
-                    rewardPoints = @CurrentPoints,
-                    membershipTier = @CurrentTier,
+                SET membershipTier = @CurrentTier,
                     updatedAt = GETDATE()
                 WHERE id = @CustomerId;
 
+                -- Ghi vào sổ cái LoyaltyTransaction
+                -- Trigger trg_LoyaltyTransaction_SyncPoints sẽ tự động cập nhật rewardPoints trên Customer
                 INSERT INTO LoyaltyTransaction (customerId, transactionType, points, balanceAfter, description, createdAt)
-                VALUES (@CustomerId, CASE WHEN @PointsToAdd > 0 THEN N'EARN' ELSE N'REDEEM' END, @PointsToAdd, @CurrentPoints, N'Loyalty points balance updated', GETDATE());
+                VALUES (
+                    @CustomerId, 
+                    CASE WHEN @PointsToAdd > 0 THEN N'EARN' ELSE N'REDEEM' END, 
+                    @PointsToAdd, 
+                    @CurrentPoints, 
+                    CASE WHEN @PointsToAdd > 0 THEN N'Tích lũy điểm hội viên' ELSE N'Khấu trừ/Đổi điểm hội viên' END, 
+                    GETDATE()
+                );
             END
         END
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+-- dieu chinh kho
+IF OBJECT_ID('sp_DieuChinhTonKho', 'P') IS NOT NULL DROP PROCEDURE sp_DieuChinhTonKho;
+GO
+CREATE PROCEDURE sp_DieuChinhTonKho
+    @ingredientId INT,
+    @employeeId INT,
+    @newQuantity DECIMAL(18, 3),
+    @reason NVARCHAR(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @oldQuantity DECIMAL(18, 3);
+        SELECT @oldQuantity = stockQuantity 
+        FROM Ingredient WITH (UPDLOCK, ROWLOCK) 
+        WHERE id = @ingredientId AND deletedAt IS NULL;
+
+        IF @oldQuantity IS NULL
+        BEGIN
+            RAISERROR(N'Nguyên liệu không tồn tại hoặc đã bị xóa!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        DECLARE @difference DECIMAL(18, 3) = @newQuantity - @oldQuantity;
+
+        UPDATE Ingredient 
+        SET stockQuantity = @newQuantity, updatedAt = SYSDATETIME() 
+        WHERE id = @ingredientId;
+
+        INSERT INTO InventoryAdjustment (ingredientId, employeeId, oldQuantity, newQuantity, difference, reason, adjustmentDate)
+        OUTPUT INSERTED.*
+        VALUES (@ingredientId, @employeeId, @oldQuantity, @newQuantity, @difference, @reason, SYSDATETIME());
 
         COMMIT TRANSACTION;
     END TRY
