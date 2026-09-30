@@ -2,10 +2,10 @@ import { Router } from 'express'
 import { ProductController } from './product.controller'
 import { authGuard, roleGuard, validatePipe } from '@/middlewares'
 import {
-  CreateProductSchema,
-  FilterProductQuerySchema,
-  ProductParamSchema,
-  UpdateProductSchema,
+    CreateProductSchema,
+    FilterProductQuerySchema,
+    ProductParamSchema,
+    UpdateProductSchema,
 } from './product.schema'
 
 export const productRouter = Router()
@@ -16,9 +16,9 @@ const controller = new ProductController()
  * @desc    Tra cứu danh sách thực đơn (Public cho Customer & Cashier)
  */
 productRouter.get(
-  '/',
-  validatePipe(FilterProductQuerySchema, 'query'),
-  controller.getAll
+    '/',
+    validatePipe(FilterProductQuerySchema, 'query'),
+    controller.getAll
 )
 
 /**
@@ -26,9 +26,9 @@ productRouter.get(
  * @desc    Xem chi tiết 1 sản phẩm theo ID (Public cho Customer & Cashier)
  */
 productRouter.get(
-  '/:id',
-  validatePipe(ProductParamSchema, 'params'),
-  controller.getById
+    '/:id',
+    validatePipe(ProductParamSchema, 'params'),
+    controller.getById
 )
 
 /**
@@ -36,11 +36,11 @@ productRouter.get(
  * @desc    Tạo món mới (Yêu cầu Đăng nhập & Quyền MANAGER)
  */
 productRouter.post(
-  '/',
-  authGuard,
-  roleGuard('MANAGER'),
-  validatePipe(CreateProductSchema, 'body'),
-  controller.create
+    '/',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(CreateProductSchema, 'body'),
+    controller.create
 )
 
 /**
@@ -48,12 +48,12 @@ productRouter.post(
  * @desc    Cập nhật món & biến thể Size/Giá (Yêu cầu Đăng nhập & Quyền MANAGER)
  */
 productRouter.put(
-  '/:id',
-  authGuard,
-  roleGuard('MANAGER'),
-  validatePipe(ProductParamSchema, 'params'),
-  validatePipe(UpdateProductSchema, 'body'),
-  controller.update
+    '/:id',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(ProductParamSchema, 'params'),
+    validatePipe(UpdateProductSchema, 'body'),
+    controller.update
 )
 
 /**
@@ -61,9 +61,9 @@ productRouter.put(
  * @desc    Xóa mềm món ăn (Yêu cầu Đăng nhập & Quyền MANAGER)
  */
 productRouter.delete(
-  '/:id',
-  authGuard,
-  roleGuard('MANAGER'),
-  validatePipe(ProductParamSchema, 'params'),
-  controller.delete
+    '/:id',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(ProductParamSchema, 'params'),
+    controller.delete
 )
