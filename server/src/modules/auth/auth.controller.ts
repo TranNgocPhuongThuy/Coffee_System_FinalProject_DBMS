@@ -1,9 +1,26 @@
 import { Request, Response, NextFunction } from 'express'
 import { AuthService } from './auth.service'
-import { ChangePasswordBodySchema, LoginBodySchema, SetupPasswordBodySchema } from './auth.schema'
+import { ChangePasswordBodySchema, LoginBodySchema, RegisterCustomerBodySchema, SetupPasswordBodySchema } from './auth.schema'
 
 export class AuthController {
   private authService = new AuthService()
+
+  register = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const body = RegisterCustomerBodySchema.parse(req.body)
+      const result = await this.authService.registerCustomer(body)
+      res.status(201).json({
+        success: true,
+        message: 'Đăng ký tài khoản thành công',
+        data: result,
+      })
+    } catch (error: any) {
+      res.status(error.statusCode || 400).json({
+        success: false,
+        message: error.message || 'Đăng ký thất bại',
+      })
+    }
+  }
 
   login = async (req: Request, res: Response, next: NextFunction) => {
     try {

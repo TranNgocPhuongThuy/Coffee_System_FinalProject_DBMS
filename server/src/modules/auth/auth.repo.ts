@@ -78,4 +78,45 @@ export class AuthRepo {
         WHERE id = @id AND deletedAt IS NULL
       `)
   }
+
+  async createCustomer(data: {
+    fullName: string
+    phoneNumber: string
+    passwordHash: string
+    address?: string
+  }) {
+    const pool = await getPool()
+    const result = await pool
+      .request()
+      .input('fullName', sql.NVarChar(100), data.fullName)
+      .input('phoneNumber', sql.VarChar(20), data.phoneNumber)
+      .input('password', sql.VarChar(255), data.passwordHash)
+      .input('address', sql.NVarChar(255), data.address || null)
+      .query(`
+        INSERT INTO Customer (fullName, phoneNumber, password, address, rewardPoints, membershipTier, createdAt, updatedAt)
+        OUTPUT INSERTED.id, INSERTED.fullName, INSERTED.phoneNumber, INSERTED.membershipTier, INSERTED.rewardPoints
+        VALUES (@fullName, @phoneNumber, @password, @address, 0, 'BRONZE', SYSDATETIME(), SYSDATETIME())
+      `)
+    return result.recordset[0]
+  }
+
+  async activateCustomerWithPassword(id: number, data: { fullName: string; passwordHash: string; address?: string }) {
+    const pool = await getPool()
+    const result = await pool
+      .request()
+      .input('id', sql.Int, id)
+      .input('fullName', sql.NVarChar(100), data.fullName)
+      .input('password', sql.VarChar(255), data.passwordHash)
+      .input('address', sql.NVarChar(255), data.address || null)
+      .query(`
+        UPDATE Customer 
+        SET fullName = @fullName,
+            password = @password,
+            address = COALESCE(@address, address),
+            updatedAt = SYSDATETIME()
+        OUTPUT INSERTED.id, INSERTED.fullName, INSERTED.phoneNumber, INSERTED.membershipTier, INSERTED.rewardPoints
+        WHERE id = @id AND deletedAt IS NULL
+      `)
+    return result.recordset[0]
+  }
 }

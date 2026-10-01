@@ -2,10 +2,67 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { envConfig } from '@/config/env.config'
 import { AuthRepo } from './auth.repo'
-import { ChangePasswordBodyType, LoginBodyType, SetupPasswordBodyType } from './auth.schema'
+import { ChangePasswordBodyType, LoginBodyType, RegisterCustomerBodyType, SetupPasswordBodyType } from './auth.schema'
 
 export class AuthService {
   private authRepo = new AuthRepo()
+
+  async registerCustomer(data: RegisterCustomerBodyType) {
+    const existingCustomer = await this.authRepo.findCustomerByPhone(data.phoneNumber)
+
+    // Trường hợp 1: SĐT đã có tài khoản và đã có mật khẩu
+    if (existingCustomer && existingCustomer.password) {
+      const err: any = new Error('Số điện thoại này đã được đăng ký tài khoản. Vui lòng đăng nhập.')
+      err.statusCode = 409
+      throw err
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password, 10)
+    let customer: any
+
+    // Trường hợp 2: Khách đã từng mua tích điểm tại quầy (chưa có pass), giờ đăng ký online
+    if (existingCustomer && !existingCustomer.password) {
+      customer = await this.authRepo.activateCustomerWithPassword(existingCustomer.id, {
+        fullName: data.fullName,
+        passwordHash: hashedPassword,
+        address: data.address,
+      })
+    } else {
+      // Trường hợp 3: Khách hàng mới hoàn toàn
+      customer = await this.authRepo.createCustomer({
+        fullName: data.fullName,
+        phoneNumber: data.phoneNumber,
+        passwordHash: hashedPassword,
+        address: data.address,
+      })
+    }
+
+    // Tự động cấp token đăng nhập ngay sau khi tạo tài khoản thành công
+    const accessToken = jwt.sign(
+      {
+        id: customer.id,
+        phoneNumber: customer.phoneNumber,
+        fullName: customer.fullName,
+        role: 'CUSTOMER',
+        userType: 'CUSTOMER',
+      },
+      envConfig.JWT_SECRET,
+      { expiresIn: envConfig.JWT_EXPIRES_IN }
+    )
+
+    return {
+      accessToken,
+      user: {
+        id: customer.id,
+        fullName: customer.fullName,
+        phoneNumber: customer.phoneNumber,
+        membershipTier: customer.membershipTier,
+        rewardPoints: customer.rewardPoints,
+        role: 'CUSTOMER',
+        userType: 'CUSTOMER',
+      },
+    }
+  }
 
   async login(data: LoginBodyType) {
     const { identifier, password, userType } = data
