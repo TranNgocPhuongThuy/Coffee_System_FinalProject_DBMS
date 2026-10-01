@@ -1,7 +1,7 @@
 export default function Loading() {
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <p>Đang tải...</p>
-    </div>
-  );
+    return (
+        <div className="flex min-h-screen items-center justify-center">
+            <p>Đang tải...</p>
+        </div>
+    );
 }
