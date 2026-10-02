@@ -1,5 +1,4 @@
-USE coffee_ecom;
-GO
+-- USE coffee_ecom;
 
 -- ==============================================================
 -- 1. TẠO CÁC DATABASE ROLES NẾU CHƯA TỒN TẠI
