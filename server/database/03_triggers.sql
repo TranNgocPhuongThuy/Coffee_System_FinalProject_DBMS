@@ -63,25 +63,25 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Nếu là lệnh UPDATE nhưng không đổi variantId hay quantity thì bỏ qua kiểm tra kho
-    IF (EXISTS (SELECT 1 FROM deleted)) AND (NOT UPDATE(variantId) AND NOT UPDATE(quantity))
+    IF (EXISTS (SELECT 1 FROM deleted)) 
+       AND (NOT UPDATE(variantId) AND NOT UPDATE(quantity) AND NOT UPDATE(itemStatus))
     BEGIN
         RETURN;
     END
 
+    -- Khai báo cờ để nhận diện có thiếu tồn kho hay không
+    DECLARE @IsOutOfStock BIT = 0;
+
     ;WITH ConsumedOld AS (
-        -- Lượng nguyên liệu tiêu hao của các dòng cũ (khi UPDATE)
         SELECT 
             rb.ingredientId,
             SUM(rb.consumedQuantity * d.quantity) AS oldConsumed
         FROM deleted d
         INNER JOIN RecipeBOM rb ON d.variantId = rb.variantId
-        -- Chỉ tính nếu trước đó dòng món chưa hoàn thành (DONE) hoặc chưa hủy (CANCELLED)
         WHERE d.itemStatus NOT IN (N'DONE', N'CANCELLED')
         GROUP BY rb.ingredientId
     ),
     ConsumedNew AS (
-        -- Lượng nguyên liệu tiêu hao của các dòng mới thêm hoặc sau khi sửa
         SELECT 
             rb.ingredientId,
             SUM(rb.consumedQuantity * i.quantity) AS newConsumed
@@ -91,21 +91,21 @@ BEGIN
         GROUP BY rb.ingredientId
     ),
     DeltaRequirement AS (
-        -- Tính lượng chênh lệch thực tế cần tiêu hao thêm (Net Delta)
         SELECT 
             COALESCE(cn.ingredientId, co.ingredientId) AS ingredientId,
             ISNULL(cn.newConsumed, 0) - ISNULL(co.oldConsumed, 0) AS additionalConsumed
         FROM ConsumedNew cn
         FULL OUTER JOIN ConsumedOld co ON cn.ingredientId = co.ingredientId
     )
-    -- Kiểm tra: Nếu lượng tiêu hao tăng thêm vượt quá tồn kho thực tế hiện tại
-    IF EXISTS (
-        SELECT 1
-        FROM DeltaRequirement dr
-        INNER JOIN Ingredient ig ON dr.ingredientId = ig.id
-        WHERE dr.additionalConsumed > 0 
-          AND ig.stockQuantity < dr.additionalConsumed
-    )
+
+    SELECT TOP 1 @IsOutOfStock = 1
+    FROM DeltaRequirement dr
+    INNER JOIN Ingredient ig ON dr.ingredientId = ig.id
+    WHERE dr.additionalConsumed > 0 
+      AND ig.stockQuantity < dr.additionalConsumed;
+
+    -- Kiểm tra cờ và báo lỗi
+    IF @IsOutOfStock = 1
     BEGIN
         RAISERROR(N'Nguyên liệu trong kho không đủ để đáp ứng số lượng món yêu cầu!', 16, 1);
         ROLLBACK TRANSACTION;
@@ -113,7 +113,6 @@ BEGIN
     END
 END;
 GO
-
 -- ============================================================================
 -- 2. ORDER & PAGER DEVICE TRIGGERS
 -- ============================================================================
