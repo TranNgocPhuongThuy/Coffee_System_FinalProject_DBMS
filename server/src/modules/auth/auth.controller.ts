@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { AuthService } from './auth.service'
-import { ChangePasswordBodySchema, LoginBodySchema, RegisterCustomerBodySchema, SetupPasswordBodySchema } from './auth.schema'
+import { ChangePasswordBodySchema, LoginBodySchema, RegisterCustomerBodySchema, RegisterEmployeeBodySchema, SetupPasswordBodySchema } from './auth.schema'
+
 
 export class AuthController {
   private authService = new AuthService()
@@ -21,6 +22,24 @@ export class AuthController {
       })
     }
   }
+
+  registerEmployee = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const body = RegisterEmployeeBodySchema.parse(req.body)
+      const result = await this.authService.registerEmployee(body)
+      res.status(201).json({
+        success: true,
+        message: 'Tạo tài khoản nhân viên thành công',
+        data: result,
+      })
+    } catch (error: any) {
+      res.status(error.statusCode || 400).json({
+        success: false,
+        message: error.message || 'Tạo tài khoản nhân viên thất bại',
+      })
+    }
+  }
+
 
   login = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -57,6 +76,14 @@ export class AuthController {
     }
   }
 
+  logout = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(200).json({ success: true, message: 'Đăng xuất thành công' })
+    } catch (error) {
+      next(error)
+    }
+  }
+
   getMe = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user!
@@ -66,4 +93,4 @@ export class AuthController {
       next(error)
     }
   }
-}
+}

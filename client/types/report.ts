@@ -1,12 +1,49 @@
-export interface DailyRevenue {
-  date: string;
-  revenue: number;
+import { OrderChannel, OrderDetailItemStatus, OrderStatus } from './enums';
+
+export interface DailyRevenueReport {
+  revenueDate: string;
   totalOrders: number;
+  totalOriginalAmount: number;
+  totalDiscountAmount: number;
+  totalNetRevenue: number;
 }
 
 export interface TopProductReport {
-  productId: string;
+  productId: number;
   productName: string;
-  quantitySold: number;
+  totalQuantitySold: number;
   totalRevenue: number;
+}
+
+export interface ProductRecipeDetailReport {
+  productName: string;
+  productSize: string;
+  ingredientName: string;
+  consumedQuantity: number;
+  ingredientUnit: string;
+}
+
+export interface InvoiceDetailReport {
+  orderId: number;
+  orderCode: string;
+  orderChannel: OrderChannel;
+  orderStatus: OrderStatus;
+  paymentMethod: string;
+  subTotal: number;
+  discountAmount: number;
+  totalAmount: number;
+  paidAt?: string | null;
+  orderCreatedAt: string;
+  employeeName?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  orderDetailId: number;
+  itemSnapshotName: string;
+  sizeSnapshot: string;
+  quantity: number;
+  unitPrice: number;
+  totalToppingPriceSnapshot: number;
+  lineTotalPrice: number;
+  itemStatus: OrderDetailItemStatus;
+  itemNote?: string | null;
 }

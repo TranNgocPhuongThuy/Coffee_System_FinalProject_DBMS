@@ -1,13 +1,14 @@
 import apiClient from './client';
-import { API_ENDPOINTS } from './endpoints';
+import { ENDPOINTS } from './endpoints';
 
 export const kdsService = {
   getQueue: async () => {
-    return apiClient.get(API_ENDPOINTS.KDS);
+    return apiClient.get(ENDPOINTS.KDS.QUEUE);
   },
-  updateItemStatus: async (itemId: string, status: string) => {
-    return apiClient.patch(`${API_ENDPOINTS.KDS}/${itemId}`, { status });
+  updateItemStatus: async (itemId: string | number, status: string) => {
+    return apiClient.patch(ENDPOINTS.KDS.UPDATE_ITEM_STATUS(itemId), { status });
   },
 };
 
 export default kdsService;
+

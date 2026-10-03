@@ -53,12 +53,18 @@ CREATE TABLE Customer (
     phoneNumber VARCHAR(20) NOT NULL,
     fullName NVARCHAR(150) NOT NULL,
     password VARCHAR(255),
+    address NVARCHAR(255),
     rewardPoints INT NOT NULL,
     membershipTier NVARCHAR(50) NOT NULL,
     createdAt DATETIME2(7),
     updatedAt DATETIME2(7),
     deletedAt DATETIME2(7)
 );
+GO
+
+-- Thêm trường Address cho Customer
+ALTER TABLE Customer
+ADD address NVARCHAR(255) NULL;
 GO
 
 CREATE TABLE PagerDevice (
