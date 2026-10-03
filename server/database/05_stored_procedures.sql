@@ -90,9 +90,6 @@ GO
 -- ============================================================================
 
 -- 1.1. sp_CreateCounterOrder
-IF OBJECT_ID('sp_CreateCounterOrder', 'P') IS NOT NULL DROP PROCEDURE sp_CreateCounterOrder;
-GO
-
 CREATE PROCEDURE sp_CreateCounterOrder
     @OrderCode VARCHAR(64),
     @EmployeeId INT,
@@ -147,9 +144,6 @@ GO
 
 
 -- 1.2. sp_CompleteOrderPayment
-IF OBJECT_ID('sp_CompleteOrderPayment', 'P') IS NOT NULL DROP PROCEDURE sp_CompleteOrderPayment;
-GO
-
 CREATE PROCEDURE sp_CompleteOrderPayment
     @OrderId INT,
     @PaymentMethod NVARCHAR(50)
@@ -248,10 +242,6 @@ GO
 
 
 -- 1.3. sp_CancelOrder
-IF OBJECT_ID('sp_CancelOrder', 'P') IS NOT NULL 
-    DROP PROCEDURE sp_CancelOrder;
-GO
-
 CREATE PROCEDURE sp_CancelOrder
     @OrderId INT,
     @EmployeeId INT,
@@ -360,9 +350,6 @@ GO
 
 
 -- 1.4. sp_ApplyLoyaltyPoints
-IF OBJECT_ID('sp_ApplyLoyaltyPoints', 'P') IS NOT NULL DROP PROCEDURE sp_ApplyLoyaltyPoints;
-GO
-
 CREATE PROCEDURE sp_ApplyLoyaltyPoints
     @OrderId INT,
     @CustomerId INT,
@@ -416,9 +403,6 @@ GO
 
 
 -- 1.5. sp_RemoveOrderItem
-IF OBJECT_ID('sp_RemoveOrderItem', 'P') IS NOT NULL DROP PROCEDURE sp_RemoveOrderItem;
-GO
-
 CREATE PROCEDURE sp_RemoveOrderItem
     @OrderDetailId INT
 AS
@@ -453,9 +437,6 @@ GO
 -- ============================================================================
 
 -- 2.1. sp_UpsertRecipeBOM
-IF OBJECT_ID('sp_UpsertRecipeBOM', 'P') IS NOT NULL DROP PROCEDURE sp_UpsertRecipeBOM;
-GO
-
 CREATE PROCEDURE sp_UpsertRecipeBOM
     @VariantId INT,
     @IngredientId INT,
@@ -497,9 +478,6 @@ GO
 
 
 -- 2.2. sp_CreateInventoryImport
-IF OBJECT_ID('sp_CreateInventoryImport', 'P') IS NOT NULL DROP PROCEDURE sp_CreateInventoryImport;
-GO
-
 CREATE PROCEDURE sp_CreateInventoryImport
     @SupplierName NVARCHAR(255),
     @EmployeeId INT,
@@ -539,9 +517,6 @@ GO
 -- ============================================================================
 
 -- 3.1. sp_CreateOrderWithPager
-IF OBJECT_ID('sp_CreateOrderWithPager', 'P') IS NOT NULL DROP PROCEDURE sp_CreateOrderWithPager;
-GO
-
 CREATE PROCEDURE sp_CreateOrderWithPager
     @OrderCode VARCHAR(64),
     @OrderChannel NVARCHAR(50),
@@ -624,9 +599,6 @@ GO
 
 
 -- 3.2. sp_UpsertCustomerMember
-IF OBJECT_ID('sp_UpsertCustomerMember', 'P') IS NOT NULL DROP PROCEDURE sp_UpsertCustomerMember;
-GO
-
 CREATE PROCEDURE sp_UpsertCustomerMember
     @PhoneNumber   VARCHAR(20),
     @FullName      NVARCHAR(150),
@@ -746,8 +718,6 @@ END;
 GO
 
 -- dieu chinh kho
-IF OBJECT_ID('sp_DieuChinhTonKho', 'P') IS NOT NULL DROP PROCEDURE sp_DieuChinhTonKho;
-GO
 CREATE PROCEDURE sp_DieuChinhTonKho
     @ingredientId INT,
     @employeeId INT,
