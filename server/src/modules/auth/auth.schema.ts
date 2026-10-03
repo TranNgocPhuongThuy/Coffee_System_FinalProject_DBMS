@@ -65,8 +65,18 @@ export const RegisterCustomerBodySchema = z
     }
   })
 
-export type RegisterCustomerBodyType = z.infer<typeof RegisterCustomerBodySchema>
+export const RegisterEmployeeBodySchema = z
+  .object({
+    fullName: z.string().trim().min(2, 'Họ và tên tối thiểu 2 ký tự').max(100),
+    username: z.string().trim().min(3, 'Tên đăng nhập tối thiểu 3 ký tự').max(50),
+    password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
+    role: z.enum(['ADMIN', 'MANAGER', 'CASHIER', 'BARISTA', 'STOREKEEPER']),
+    phoneNumber: z.string().optional(),
+  })
+  .strict()
 
+export type RegisterCustomerBodyType = z.infer<typeof RegisterCustomerBodySchema>
+export type RegisterEmployeeBodyType = z.infer<typeof RegisterEmployeeBodySchema>
 export type LoginBodyType = z.infer<typeof LoginBodySchema>
 export type SetupPasswordBodyType = z.infer<typeof SetupPasswordBodySchema>
-export type ChangePasswordBodyType = z.infer<typeof ChangePasswordBodySchema>
+export type ChangePasswordBodyType = z.infer<typeof ChangePasswordBodySchema>

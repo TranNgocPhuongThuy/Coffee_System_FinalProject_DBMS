@@ -82,14 +82,15 @@ export const ENDPOINTS = {
   // CUSTOMER & LOYALTY
   CUSTOMER_LOYALTY: {
     CUSTOMERS: {
-      INDEX: '/customer-loyalty/customers',
-      DETAIL: (id: string | number) => `/customer-loyalty/customers/${id}`,
+      INDEX: '/loyalty/customers',
+      DETAIL: (id: string | number) => `/loyalty/customers/${id}`,
     },
     TRANSACTIONS: {
-      HISTORY: '/customer-loyalty/transactions/history',
-      ADJUST: '/customer-loyalty/transactions/adjust',
+      HISTORY: '/loyalty/transactions/history',
+      ADJUST: '/loyalty/transactions/adjust',
     },
   },
+
 
   // REPORTS
   REPORTS: {

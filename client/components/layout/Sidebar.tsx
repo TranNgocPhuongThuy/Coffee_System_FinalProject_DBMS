@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Coffee,
   LayoutDashboard,
@@ -11,43 +11,57 @@ import {
   Users,
   PieChart,
   LogOut,
-} from "lucide-react";
+  CookingPot,
+} from 'lucide-react';
+import { useAuthContext } from '@/context/AuthContext';
+import { isRouteAllowed } from '@/constants/roles';
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user, logout } = useAuthContext();
 
-  const menuItems = [
+  const allMenuItems = [
     {
-      name: "Tổng quan",
-      path: "/dashboard",
+      name: 'Tổng quan',
+      path: '/dashboard',
       icon: LayoutDashboard,
     },
     {
-      name: "Bán hàng POS",
-      path: "/pos/terminal",
+      name: 'Bán hàng POS',
+      path: '/pos/terminal',
       icon: MonitorSmartphone,
     },
     {
-      name: "Thực đơn",
-      path: "/dashboard/menu/products",
+      name: 'Bếp / Pha chế',
+      path: '/kds/queue',
+      icon: CookingPot,
+    },
+    {
+      name: 'Thực đơn',
+      path: '/dashboard/menu/products',
       icon: CupSoda,
     },
     {
-      name: "Kho nguyên liệu",
-      path: "/dashboard/inventory/ingredients",
+      name: 'Kho nguyên liệu',
+      path: '/dashboard/inventory/ingredients',
       icon: Package,
     },
     {
-      name: "Khách hàng",
-      path: "/dashboard/customers",
+      name: 'Khách hàng',
+      path: '/dashboard/customers',
       icon: Users,
     },
     {
-      name: "Báo cáo",
-      path: "/dashboard/reports",
+      name: 'Báo cáo',
+      path: '/dashboard/reports',
       icon: PieChart,
     },
   ];
+
+  // Lọc menu theo quyền của Role hiện tại
+  const allowedMenuItems = user?.role
+    ? allMenuItems.filter((item) => isRouteAllowed(item.path, user.role))
+    : allMenuItems;
 
   return (
     <aside className="w-64 h-screen fixed left-0 top-0 bg-white border-r border-gray-100 flex flex-col z-40">
@@ -68,11 +82,11 @@ export default function Sidebar() {
 
       {/* Navigation Menu */}
       <nav className="flex-1 py-5 px-3 space-y-1.5 overflow-y-auto">
-        {menuItems.map((item) => {
+        {allowedMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive =
-            item.path === "/dashboard"
-              ? pathname === "/dashboard"
+            item.path === '/dashboard'
+              ? pathname === '/dashboard'
               : pathname.startsWith(item.path);
 
           return (
@@ -81,13 +95,13 @@ export default function Sidebar() {
               href={item.path}
               className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                 isActive
-                  ? "bg-[#6F4E37] text-white shadow-sm"
-                  : "text-gray-600 hover:bg-[#F5EBE6] hover:text-[#6F4E37]"
+                  ? 'bg-[#6F4E37] text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-[#F5EBE6] hover:text-[#6F4E37]'
               }`}
             >
               <Icon
                 className={`w-5 h-5 shrink-0 ${
-                  isActive ? "text-white" : "text-gray-500 group-hover:text-[#6F4E37]"
+                  isActive ? 'text-white' : 'text-gray-500 group-hover:text-[#6F4E37]'
                 }`}
                 strokeWidth={isActive ? 2.2 : 1.8}
               />
@@ -99,13 +113,14 @@ export default function Sidebar() {
 
       {/* Bottom Actions: Logout */}
       <div className="p-3 border-t border-gray-100 mt-auto">
-        <Link
-          href="/sign-in"
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+        <button
+          type="button"
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
         >
           <LogOut className="w-5 h-5 shrink-0" strokeWidth={1.8} />
           <span>Đăng xuất</span>
-        </Link>
+        </button>
       </div>
     </aside>
   );

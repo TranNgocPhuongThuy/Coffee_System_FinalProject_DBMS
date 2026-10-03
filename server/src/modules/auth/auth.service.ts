@@ -2,12 +2,55 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { envConfig } from '@/config/env.config'
 import { AuthRepo } from './auth.repo'
-import { ChangePasswordBodyType, LoginBodyType, RegisterCustomerBodyType, SetupPasswordBodyType } from './auth.schema'
+import { ChangePasswordBodyType, LoginBodyType, RegisterCustomerBodyType, RegisterEmployeeBodyType, SetupPasswordBodyType } from './auth.schema'
+
 
 export class AuthService {
   private authRepo = new AuthRepo()
 
+  async registerEmployee(data: RegisterEmployeeBodyType) {
+    const existingEmp = await this.authRepo.findEmployeeByUsername(data.username)
+    if (existingEmp) {
+      const err: any = new Error('Tên đăng nhập này đã được sử dụng')
+      err.statusCode = 409
+      throw err
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password, 10)
+    const employee = await this.authRepo.createEmployee({
+      fullName: data.fullName,
+      username: data.username,
+      passwordHash: hashedPassword,
+      role: data.role,
+      phoneNumber: data.phoneNumber,
+    })
+
+    const accessToken = jwt.sign(
+      {
+        id: employee.id,
+        username: employee.username,
+        fullName: employee.fullName,
+        role: employee.role,
+        userType: 'EMPLOYEE',
+      },
+      envConfig.JWT_SECRET,
+      { expiresIn: envConfig.JWT_EXPIRES_IN }
+    )
+
+    return {
+      accessToken,
+      user: {
+        id: employee.id,
+        fullName: employee.fullName,
+        username: employee.username,
+        role: employee.role,
+        userType: 'EMPLOYEE',
+      },
+    }
+  }
+
   async registerCustomer(data: RegisterCustomerBodyType) {
+
     const existingCustomer = await this.authRepo.findCustomerByPhone(data.phoneNumber)
 
     // Trường hợp 1: SĐT đã có tài khoản và đã có mật khẩu

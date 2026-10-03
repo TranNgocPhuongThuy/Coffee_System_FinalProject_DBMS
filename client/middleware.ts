@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { ROLE_DEFAULT_ROUTES, ROLE_ROUTE_PERMISSIONS } from '@/constants/roles';
+import { ROLE_DEFAULT_ROUTES, isRouteAllowed } from '@/constants/roles';
 import { STORAGE_KEYS } from '@/constants/storage';
 import { UserRole } from '@/types/auth';
 
@@ -11,10 +11,9 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get(STORAGE_KEYS.ACCESS_TOKEN)?.value;
   const role = request.cookies.get(STORAGE_KEYS.ROLE)?.value as UserRole | undefined;
 
-
   const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
 
-  // 1. Chưa đăng nhập
+  // 1. Chưa đăng nhập mà truy cập trang bảo vệ -> Redirect về /login
   if (!token) {
     if (!isPublicRoute) {
       const loginUrl = new URL('/login', request.url);
@@ -24,20 +23,18 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Đã login mà vào route công khai
+  // 2. Đã đăng nhập mà truy cập trang công khai (/login, /register, /setup-password) -> Redirect về trang mặc định theo Role
   if (isPublicRoute) {
     const defaultRoute = (role && ROLE_DEFAULT_ROUTES[role]) || '/login';
     return NextResponse.redirect(new URL(defaultRoute, request.url));
   }
 
-  // 3. Phân quyền theo Role
+  // 3. Kiểm tra phân quyền RBAC theo ma trận cho người dùng đã đăng nhập
   if (role) {
-    const allowed = ROLE_ROUTE_PERMISSIONS[role] || [];
-    const hasPermission = allowed.some((prefix) => pathname.startsWith(prefix));
-
-    if (!hasPermission) {
-      const fallback = ROLE_DEFAULT_ROUTES[role] || '/login';
-      return NextResponse.redirect(new URL(fallback, request.url));
+    const allowed = isRouteAllowed(pathname, role);
+    if (!allowed) {
+      const fallbackRoute = ROLE_DEFAULT_ROUTES[role] || '/login';
+      return NextResponse.redirect(new URL(fallbackRoute, request.url));
     }
   }
 

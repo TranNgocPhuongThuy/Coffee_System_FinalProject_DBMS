@@ -119,4 +119,28 @@ export class AuthRepo {
       `)
     return result.recordset[0]
   }
-}
+
+  async createEmployee(data: {
+
+    fullName: string
+    username: string
+    passwordHash: string
+    role: string
+    phoneNumber?: string
+  }) {
+    const pool = await getPool()
+    const result = await pool
+      .request()
+      .input('fullName', sql.NVarChar(100), data.fullName)
+      .input('username', sql.VarChar(100), data.username)
+      .input('password', sql.VarChar(255), data.passwordHash)
+      .input('role', sql.VarChar(50), data.role)
+      .input('phoneNumber', sql.VarChar(20), data.phoneNumber || null)
+      .query(`
+        INSERT INTO Employee (fullName, username, password, role, phoneNumber, status, createdAt, updatedAt)
+        OUTPUT INSERTED.id, INSERTED.fullName, INSERTED.username, INSERTED.role, INSERTED.status
+        VALUES (@fullName, @username, @password, @role, @phoneNumber, 'ACTIVE', SYSDATETIME(), SYSDATETIME())
+      `)
+    return result.recordset[0]
+  }
+}
