@@ -1,21 +1,21 @@
-import { getPool, sql } from '@/config/database'
-import { QueryKdsQueueType, UpdateItemStatusType } from './kds.schema'
+import { getPool, sql } from "@/config/database";
+import { QueryKdsQueueType, UpdateItemStatusType } from "./kds.schema";
 
 export class KDSRepo {
   // 1. Lấy danh sách hàng đợi các món cần pha chế trên KDS (UC17)
   async getKdsQueue(query: QueryKdsQueueType) {
-    const pool = await getPool()
-    const req = pool.request()
+    const pool = await getPool();
+    const req = pool.request();
 
     const conditions: string[] = [
       "o.status IN ('PENDING_PREP', 'READY_FOR_PICKUP')",
       "od.itemStatus NOT IN ('DONE', 'CANCELLED')",
-      "o.deletedAt IS NULL"
-    ]
+      "o.deletedAt IS NULL",
+    ];
 
-    if (query.status !== 'ALL') {
-      req.input('itemStatus', sql.NVarChar(50), query.status)
-      conditions.push('od.itemStatus = @itemStatus')
+    if (query.status !== "ALL") {
+      req.input("itemStatus", sql.NVarChar(50), query.status);
+      conditions.push("od.itemStatus = @itemStatus");
     }
 
     const sqlStr = `
@@ -36,51 +36,61 @@ export class KDSRepo {
       FROM OrderDetail od
       JOIN [Order] o ON od.orderId = o.id
       LEFT JOIN PagerDevice p ON o.pagerId = p.id
-      WHERE ${conditions.join(' AND ')}
+      WHERE ${conditions.join(" AND ")}
       ORDER BY od.createdAt ASC
-    `
-    const itemsResult = await req.query(sqlStr)
+    `;
+    const itemsResult = await req.query(sqlStr);
 
     // Nếu không có món nào
     if (itemsResult.recordset.length === 0) {
-      return []
+      return [];
     }
 
     // Lấy kèm topping cho từng ly
-    const detailIds = itemsResult.recordset.map((item) => item.orderDetailId)
-    const toppingResult = await pool.request().query(`
-      SELECT 
-        orderDetailId, 
-        toppingSnapshotName, 
-        quantity 
-      FROM OrderDetailTopping
-      WHERE orderDetailId IN (${detailIds.join(',')})
-    `)
+    const detailIds = itemsResult.recordset.map((item) => item.orderDetailId);
+    let toppingsByDetailId: Record<number, any[]> = {};
 
-    const toppingsByDetailId = toppingResult.recordset.reduce((acc: any, top: any) => {
-      if (!acc[top.orderDetailId]) acc[top.orderDetailId] = []
-      acc[top.orderDetailId].push({
-        name: top.toppingSnapshotName,
-        quantity: top.quantity,
-      })
-      return acc
-    }, {})
+    if (detailIds.length > 0) {
+      const topReq = pool.request();
+      const paramNames = detailIds.map((id, index) => {
+        topReq.input(`id${index}`, sql.Int, id);
+        return `@id${index}`;
+      });
+
+      const toppingResult = await topReq.query(`
+    SELECT orderDetailId, toppingSnapshotName, quantity 
+    FROM OrderDetailTopping
+    WHERE orderDetailId IN (${paramNames.join(",")})
+  `);
+
+      toppingsByDetailId = toppingResult.recordset.reduce(
+        (acc: any, top: any) => {
+          if (!acc[top.orderDetailId]) acc[top.orderDetailId] = [];
+          acc[top.orderDetailId].push({
+            name: top.toppingSnapshotName,
+            quantity: top.quantity,
+          });
+          return acc;
+        },
+        {},
+      );
+    }
 
     // Ghép topping vào từng dòng ly nước
     return itemsResult.recordset.map((item) => ({
       ...item,
       toppings: toppingsByDetailId[item.orderDetailId] || [],
-    }))
+    }));
   }
 
-  // 2. Barista cập nhật trạng thái món -> Nếu chuyển sang 'DONE', 
+  // 2. Barista cập nhật trạng thái món -> Nếu chuyển sang 'DONE',
   // Trigger trg_Ingredient_TruKho_KhiHoanThanhMon dưới CSDL sẽ tự động trừ kho BOM!
   async updateItemStatus(orderDetailId: number, data: UpdateItemStatusType) {
-    const pool = await getPool()
-    const req = pool.request()
+    const pool = await getPool();
+    const req = pool.request();
 
-    req.input('orderDetailId', sql.Int, orderDetailId)
-    req.input('itemStatus', sql.NVarChar(50), data.itemStatus)
+    req.input("orderDetailId", sql.Int, orderDetailId);
+    req.input("itemStatus", sql.NVarChar(50), data.itemStatus);
 
     const result = await req.query(`
       UPDATE OrderDetail
@@ -94,16 +104,16 @@ export class KDSRepo {
         INSERTED.itemStatus,
         INSERTED.updatedAt
       WHERE id = @orderDetailId
-    `)
+    `);
 
-    return result.recordset[0] || null
+    return result.recordset[0] || null;
   }
 
   // 3. Rung chuông thẻ rung & Chuyển trạng thái Order sang READY_FOR_PICKUP (UC18, UC19)
   async triggerReadyAlarm(orderId: number) {
-    const pool = await getPool()
-    const req = pool.request()
-    req.input('orderId', sql.Int, orderId)
+    const pool = await getPool();
+    const req = pool.request();
+    req.input("orderId", sql.Int, orderId);
 
     // Kiểm tra xem tất cả các ly trong đơn đã xong (DONE) chưa
     const checkResult = await req.query(`
@@ -114,15 +124,17 @@ export class KDSRepo {
       JOIN [Order] o ON od.orderId = o.id
       WHERE o.id = @orderId
       GROUP BY o.id
-    `)
+    `);
 
     if (checkResult.recordset.length === 0) {
-      throw new Error(`Đơn hàng #${orderId} không tồn tại`)
+      throw new Error(`Đơn hàng #${orderId} không tồn tại`);
     }
 
-    const { pendingCount, pagerId } = checkResult.recordset[0]
+    const { pendingCount, pagerId } = checkResult.recordset[0];
     if (pendingCount > 0) {
-      throw new Error(`Đơn hàng vẫn còn ${pendingCount} món chưa pha chế xong, chưa thể rung chuông báo khách!`)
+      throw new Error(
+        `Đơn hàng vẫn còn ${pendingCount} món chưa pha chế xong, chưa thể rung chuông báo khách!`,
+      );
     }
 
     // Cập nhật Order sang READY_FOR_PICKUP
@@ -131,14 +143,15 @@ export class KDSRepo {
       SET status = 'READY_FOR_PICKUP',
           updatedAt = SYSDATETIME()
       WHERE id = @orderId
-    `)
+    `);
 
     return {
       orderId,
-      status: 'READY_FOR_PICKUP',
+      status: "READY_FOR_PICKUP",
       pagerId,
       alarmTriggered: true,
-      message: 'Đã kích hoạt thẻ rung và thông báo đơn sẵn sàng để nhận đồ uống',
-    }
+      message:
+        "Đã kích hoạt thẻ rung và thông báo đơn sẵn sàng để nhận đồ uống",
+    };
   }
 }

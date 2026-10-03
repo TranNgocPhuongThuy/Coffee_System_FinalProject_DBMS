@@ -11,6 +11,7 @@ import { inventoryRouter } from './modules/inventory-bom/inventory.routes'
 import { kdsRouter } from './modules/kds/kds.routes'
 import { customerLoyaltyRouter } from './modules/customer-loyalty/customer-loyalty.routes'
 import { reportRouter } from './modules/report/report.routes'
+import { authRouter } from './modules/auth/auth.routes'
 
 export const createApp = (): Express => {
   const app = express()
@@ -28,6 +29,7 @@ export const createApp = (): Express => {
   })
 
   // 3. Đăng ký các phân hệ (Prefix API v1)
+  app.use('/api/v1/auth', authRouter)
   app.use('/api/v1/pos', posRouter)
   app.use('/api/v1/menu', menuRouter)
   app.use('/api/v1/inventory', inventoryRouter)

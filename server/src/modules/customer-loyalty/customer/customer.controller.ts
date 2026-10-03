@@ -50,4 +50,14 @@ export class CustomerController {
             next(error)
         }
     }
+
+    delete = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { id } = CustomerParamSchema.parse(req.params)
+            const result = await this.customerService.deleteCustomer(id)
+            res.status(200).json({ success: true, ...result })
+        } catch (error) {
+            next(error)
+        }
+    }
 }

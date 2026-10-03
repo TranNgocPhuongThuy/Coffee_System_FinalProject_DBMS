@@ -26,9 +26,9 @@ toppingRouter.get(
  * @desc    Xem chi tiết 1 topping theo ID (Public)
  */
 toppingRouter.get(
-  '/:id',
-  validatePipe(ToppingParamSchema, 'params'),
-  controller.getById
+    '/:id',
+    validatePipe(ToppingParamSchema, 'params'),
+    controller.getById
 )
 
 /**
@@ -36,11 +36,11 @@ toppingRouter.get(
  * @desc    Tạo topping mới (Yêu cầu Đăng nhập & Quyền MANAGER)
  */
 toppingRouter.post(
-  '/',
-  authGuard,
-  roleGuard('MANAGER'),
-  validatePipe(CreateToppingSchema, 'body'),
-  controller.create
+    '/',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(CreateToppingSchema, 'body'),
+    controller.create
 )
 
 /**
@@ -48,12 +48,12 @@ toppingRouter.post(
  * @desc    Cập nhật topping (Yêu cầu Đăng nhập & Quyền MANAGER)
  */
 toppingRouter.put(
-  '/:id',
-  authGuard,
-  roleGuard('MANAGER'),
-  validatePipe(ToppingParamSchema, 'params'),
-  validatePipe(UpdateToppingSchema, 'body'),
-  controller.update
+    '/:id',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(ToppingParamSchema, 'params'),
+    validatePipe(UpdateToppingSchema, 'body'),
+    controller.update
 )
 
 /**
@@ -61,9 +61,9 @@ toppingRouter.put(
  * @desc    Xóa mềm topping (Yêu cầu Đăng nhập & Quyền MANAGER)
  */
 toppingRouter.delete(
-  '/:id',
-  authGuard,
-  roleGuard('MANAGER'),
-  validatePipe(ToppingParamSchema, 'params'),
-  controller.delete
+    '/:id',
+    authGuard,
+    roleGuard('MANAGER'),
+    validatePipe(ToppingParamSchema, 'params'),
+    controller.delete
 )

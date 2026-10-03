@@ -8,22 +8,22 @@ export class CustomerRepo {
 
         const { search, membershipTier, page = 1, limit = 20 } = filter
         const offset = (page - 1) * limit
-        const conditions: string[] = ['deletedAt IS NULL']
+        const conditions: string[] = ['c.deletedAt IS NULL']
 
         if (membershipTier) {
             request.input('membershipTier', sql.NVarChar(50), membershipTier)
-            conditions.push('membershipTier = @membershipTier')
+            conditions.push('c.membershipTier = @membershipTier')
         }
 
         if (search) {
             request.input('search', sql.NVarChar(150), `%${search}%`)
-            conditions.push('(fullName LIKE @search OR phoneNumber LIKE @search)')
+            conditions.push('(c.fullName LIKE @search OR c.phoneNumber LIKE @search)')
         }
 
         const whereClause = `WHERE ${conditions.join(' AND ')}`
 
         // Đếm tổng số bản ghi
-        const countQuery = `SELECT COUNT(1) AS total FROM Customer ${whereClause}`
+        const countQuery = `SELECT COUNT(1) AS total FROM Customer c ${whereClause}`
         const countResult = await request.query(countQuery)
         const totalItems = countResult.recordset[0]?.total || 0
 
@@ -33,16 +33,19 @@ export class CustomerRepo {
 
         const listQuery = `
       SELECT 
-        id, 
-        phoneNumber, 
-        fullName, 
-        rewardPoints, 
-        membershipTier, 
-        createdAt, 
-        updatedAt
-      FROM Customer
+        c.id, 
+        c.phoneNumber, 
+        c.fullName, 
+        c.rewardPoints, 
+        c.membershipTier, 
+        c.createdAt, 
+        c.updatedAt,
+        cls.totalPointsEarned,
+        cls.totalPointsRedeemed
+      FROM Customer c
+      LEFT JOIN v_CustomerLoyaltySummary cls ON c.id = cls.customerId
       ${whereClause}
-      ORDER BY createdAt DESC
+      ORDER BY c.createdAt DESC
       OFFSET @offset ROWS
       FETCH NEXT @limit ROWS ONLY
     `
@@ -66,15 +69,18 @@ export class CustomerRepo {
         request.input('id', sql.Int, id)
         const query = `
       SELECT 
-        id, 
-        phoneNumber, 
-        fullName, 
-        rewardPoints, 
-        membershipTier, 
-        createdAt, 
-        updatedAt
-      FROM Customer 
-      WHERE id = @id AND deletedAt IS NULL
+        c.id, 
+        c.phoneNumber, 
+        c.fullName, 
+        c.rewardPoints, 
+        c.membershipTier, 
+        c.createdAt, 
+        c.updatedAt,
+        cls.totalPointsEarned,
+        cls.totalPointsRedeemed
+      FROM Customer c
+      LEFT JOIN v_CustomerLoyaltySummary cls ON c.id = cls.customerId
+      WHERE c.id = @id AND c.deletedAt IS NULL
     `
         const result = await request.query(query)
         return result.recordset[0] || null
@@ -103,7 +109,7 @@ export class CustomerRepo {
         request.input('password', sql.VarChar(255), data.password || null)
 
         const query = `
-      INSERT INTO Customer (fullName, phoneNumber, password)
+      INSERT INTO Customer (fullName, phoneNumber, password, rewardPoints, membershipTier, createdAt)
       OUTPUT 
         INSERTED.id, 
         INSERTED.fullName, 
@@ -111,10 +117,19 @@ export class CustomerRepo {
         INSERTED.rewardPoints, 
         INSERTED.membershipTier, 
         INSERTED.createdAt
-      VALUES (@fullName, @phoneNumber, @password)
+      VALUES (@fullName, @phoneNumber, @password, 0, 'STANDARD', SYSDATETIME())
     `
-        const result = await request.query(query)
-        return result.recordset[0]
+        try {
+            const result = await request.query(query)
+            return result.recordset[0]
+        } catch (error: any) {
+            if (error.number === 2627 || error.number === 2601) {
+                const err = new Error('Số điện thoại khách hàng đã tồn tại trên hệ thống')
+                ;(err as any).status = 409
+                throw err
+            }
+            throw error
+        }
     }
 
     async updateCustomer(id: number, data: UpdateCustomerType) {
@@ -156,8 +171,17 @@ export class CustomerRepo {
         INSERTED.updatedAt
       WHERE id = @id AND deletedAt IS NULL
     `
-        const result = await request.query(query)
-        return result.recordset[0] || null
+        try {
+            const result = await request.query(query)
+            return result.recordset[0] || null
+        } catch (error: any) {
+            if (error.number === 2627 || error.number === 2601) {
+                const err = new Error('Số điện thoại này đã được sử dụng bởi khách hàng khác')
+                ;(err as any).status = 409
+                throw err
+            }
+            throw error
+        }
     }
 
     async softDeleteCustomer(id: number) {

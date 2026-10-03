@@ -1,0 +1,189 @@
+import { OrderRepo } from './order.repo'
+import {
+  ApplyLoyaltyPointsType,
+  CancelOrderType,
+  CompletePaymentType,
+  CreateOrderType,
+  FilterOrderQueryType,
+} from './order.schema'
+
+export class OrderService {
+  private orderRepo = new OrderRepo()
+
+  /**
+   * Sinh mã hóa đơn tự động chuẩn POS: ORD-YYYYMMDD-XXXX
+   */
+  private generateOrderCode(): string {
+    const now = new Date()
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '')
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000)
+    return `ORD-${dateStr}-${randomSuffix}`
+  }
+
+  /**
+   * Lấy danh sách đơn hàng có phân trang & lọc
+   */
+  async getOrders(filter: FilterOrderQueryType) {
+    return await this.orderRepo.getOrders(filter)
+  }
+
+  /**
+   * Lấy chi tiết đơn hàng theo ID
+   */
+  async getOrderById(id: number) {
+    const order = await this.orderRepo.getOrderById(id)
+    if (!order) {
+      throw new Error(`Đơn hàng #${id} không tồn tại hoặc đã bị xóa`)
+    }
+    return order
+  }
+
+  /**
+   * Lấy thông tin hóa đơn phục vụ in ấn từ View v_InvoiceDetails
+   */
+  async getInvoice(id: number) {
+    const rows = await this.orderRepo.getInvoiceDetails(id)
+    if (!rows || rows.length === 0) {
+      throw new Error(`Không tìm thấy hóa đơn cho đơn hàng #${id}`)
+    }
+
+    const first = rows[0]
+    return {
+      orderId: first.orderId,
+      orderCode: first.orderCode,
+      orderChannel: first.orderChannel,
+      orderStatus: first.orderStatus,
+      paymentMethod: first.paymentMethod,
+      subTotal: first.subTotal,
+      discountAmount: first.discountAmount,
+      totalAmount: first.totalAmount,
+      paidAt: first.paidAt,
+      orderCreatedAt: first.orderCreatedAt,
+      employeeName: first.employeeName,
+      customerName: first.customerName,
+      customerPhone: first.customerPhone,
+      items: rows.map((r: any) => ({
+        orderDetailId: r.orderDetailId,
+        itemSnapshotName: r.itemSnapshotName,
+        sizeSnapshot: r.sizeSnapshot,
+        quantity: r.quantity,
+        unitPrice: r.unitPrice,
+        totalToppingPriceSnapshot: r.totalToppingPriceSnapshot,
+        lineTotalPrice: r.lineTotalPrice,
+        itemStatus: r.itemStatus,
+        itemNote: r.itemNote,
+      })),
+    }
+  }
+
+  /**
+   * Tạo đơn hàng mới tại quầy POS
+   */
+  async createOrder(data: CreateOrderType) {
+    // 1. Tự động sinh orderCode nếu chưa có
+    if (!data.orderCode) {
+      data.orderCode = this.generateOrderCode()
+    }
+
+    // 2. Kiểm tra tính khả dụng của thẻ rung nếu có gán pagerId
+    if (data.pagerId) {
+      const isAvailable = await this.orderRepo.isPagerAvailable(data.pagerId)
+      if (!isAvailable) {
+        throw new Error(`Thẻ rung #${data.pagerId} hiện không khả dụng hoặc pin < 15%`)
+      }
+    }
+
+    // 3. Thực thi Stored Procedure tạo đơn
+    let newOrderId: number
+    if (data.pagerCode && data.pagerCode.trim().length > 0) {
+      newOrderId = await this.orderRepo.createOrderWithPager(data)
+    } else {
+      newOrderId = await this.orderRepo.createCounterOrder(data)
+    }
+
+    // 4. Lấy lại dữ liệu đơn hàng hoàn chỉnh vừa tạo
+    const createdOrder = await this.getOrderById(newOrderId)
+
+    return {
+      message: 'Tạo đơn hàng POS thành công',
+      orderId: newOrderId,
+      data: createdOrder,
+    }
+  }
+
+  /**
+   * Hoàn tất thanh toán đơn hàng & tự động tích điểm hội viên
+   */
+  async completePayment(orderId: number, body: CompletePaymentType) {
+    const order = await this.getOrderById(orderId)
+    if (order.status === 'CANCELLED') {
+      throw new Error('Không thể thanh toán đơn hàng đã bị hủy')
+    }
+    if (order.status === 'COMPLETED' || order.paidAt) {
+      throw new Error('Đơn hàng này đã được thanh toán trước đó')
+    }
+
+    await this.orderRepo.completeOrderPayment(orderId, body.paymentMethod)
+    const updatedOrder = await this.getOrderById(orderId)
+
+    return {
+      message: 'Thanh toán đơn hàng thành công và đã cập nhật điểm thưởng hội viên',
+      data: updatedOrder,
+    }
+  }
+
+  /**
+   * Hủy đơn hàng và tự động giải phóng thẻ rung
+   */
+  async cancelOrder(orderId: number, body: CancelOrderType) {
+    const order = await this.getOrderById(orderId)
+    if (order.status === 'COMPLETED' || order.paidAt) {
+      throw new Error('Không thể hủy đơn hàng đã hoàn tất hoặc đã thanh toán')
+    }
+    if (order.status === 'CANCELLED') {
+      throw new Error('Đơn hàng này đã bị hủy trước đó')
+    }
+
+    await this.orderRepo.cancelOrder(orderId, body.employeeId, body.cancelReason)
+    const updatedOrder = await this.getOrderById(orderId)
+
+    return {
+      message: 'Hủy đơn hàng và giải phóng thẻ rung thành công',
+      data: updatedOrder,
+    }
+  }
+
+  /**
+   * Áp dụng điểm thưởng hội viên để giảm giá đơn hàng
+   */
+  async applyLoyaltyPoints(orderId: number, body: ApplyLoyaltyPointsType) {
+    const order = await this.getOrderById(orderId)
+    if (order.status === 'COMPLETED' || order.status === 'CANCELLED') {
+      throw new Error('Chỉ có thể áp dụng điểm thưởng cho đơn hàng đang xử lý')
+    }
+
+    await this.orderRepo.applyLoyaltyPoints(
+      orderId,
+      body.customerId,
+      body.pointsToRedeem,
+      body.conversionRate
+    )
+
+    const updatedOrder = await this.getOrderById(orderId)
+
+    return {
+      message: 'Áp dụng điểm thưởng đổi chiết khấu thành công',
+      data: updatedOrder,
+    }
+  }
+
+  /**
+   * Xóa món khỏi đơn hàng chưa chế biến
+   */
+  async removeOrderItem(orderDetailId: number) {
+    await this.orderRepo.removeOrderItem(orderDetailId)
+    return {
+      message: 'Xóa món khỏi đơn hàng thành công',
+    }
+  }
+}
