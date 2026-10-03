@@ -1,7 +1,1 @@
-export default function Page() {
-    return (
-        <div className="p-8">
-            <h1 className="text-2xl font-bold text-gray-800">Danh sách món (Products)</h1>
-        </div>
-    );
-}
+export { default } from "../../../(dashboard)/dashboard/menu/products/page";
