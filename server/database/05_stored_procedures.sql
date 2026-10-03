@@ -1,5 +1,55 @@
 -- USE CoffeeShopDB;
 
+-- ==============================================================
+-- XÓA CÁC STORED PROCEDURE NẾU ĐÃ TỒN TẠI
+-- ==============================================================
+
+-- 1. Phân hệ Bán hàng & Thanh toán (POS)
+IF OBJECT_ID('sp_CreateCounterOrder', 'P') IS NOT NULL 
+    DROP PROCEDURE sp_CreateCounterOrder;
+GO
+
+IF OBJECT_ID('sp_CreateOrderWithPager', 'P') IS NOT NULL 
+    DROP PROCEDURE sp_CreateOrderWithPager;
+GO
+
+IF OBJECT_ID('sp_CompleteOrderPayment', 'P') IS NOT NULL 
+    DROP PROCEDURE sp_CompleteOrderPayment;
+GO
+
+IF OBJECT_ID('sp_CancelOrder', 'P') IS NOT NULL 
+    DROP PROCEDURE sp_CancelOrder;
+GO
+
+IF OBJECT_ID('sp_RemoveOrderItem', 'P') IS NOT NULL 
+    DROP PROCEDURE sp_RemoveOrderItem;
+GO
+
+-- 2. Phân hệ Khách hàng & Điểm thưởng (Loyalty)
+IF OBJECT_ID('sp_ApplyLoyaltyPoints', 'P') IS NOT NULL 
+    DROP PROCEDURE sp_ApplyLoyaltyPoints;
+GO
+
+IF OBJECT_ID('sp_UpsertCustomerMember', 'P') IS NOT NULL 
+    DROP PROCEDURE sp_UpsertCustomerMember;
+GO
+
+-- 3. Phân hệ Kho & Định lượng (Inventory & BOM)
+IF OBJECT_ID('sp_UpsertRecipeBOM', 'P') IS NOT NULL 
+    DROP PROCEDURE sp_UpsertRecipeBOM;
+GO
+
+IF OBJECT_ID('sp_CreateInventoryImport', 'P') IS NOT NULL 
+    DROP PROCEDURE sp_CreateInventoryImport;
+GO
+
+IF OBJECT_ID('sp_DieuChinhTonKho', 'P') IS NOT NULL 
+    DROP PROCEDURE sp_DieuChinhTonKho;
+GO
+
+PRINT N'Đã xóa thành công các Stored Procedure cũ (nếu có). Bạn có thể tiến hành tạo lại SP mới!';
+
+
 -- ============================================================================
 -- 0. USER-DEFINED TABLE TYPES
 -- ============================================================================
@@ -57,6 +107,8 @@ CREATE PROCEDURE sp_CreateCounterOrder
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
     BEGIN TRY
         BEGIN TRANSACTION;
 
@@ -104,6 +156,8 @@ CREATE PROCEDURE sp_CompleteOrderPayment
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
     BEGIN TRY
         BEGIN TRANSACTION;
 
@@ -205,6 +259,8 @@ CREATE PROCEDURE sp_CancelOrder
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
     BEGIN TRY
         BEGIN TRANSACTION;
 
@@ -315,6 +371,8 @@ CREATE PROCEDURE sp_ApplyLoyaltyPoints
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
     BEGIN TRY
         BEGIN TRANSACTION;
 
@@ -498,6 +556,8 @@ CREATE PROCEDURE sp_CreateOrderWithPager
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
     BEGIN TRY
         BEGIN TRANSACTION;
 
@@ -577,6 +637,8 @@ CREATE PROCEDURE sp_UpsertCustomerMember
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
     BEGIN TRY
         BEGIN TRANSACTION;
 
@@ -694,6 +756,8 @@ CREATE PROCEDURE sp_DieuChinhTonKho
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
     BEGIN TRY
         BEGIN TRANSACTION;
 
