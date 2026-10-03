@@ -53,6 +53,7 @@ CREATE TABLE Customer (
     phoneNumber VARCHAR(20) NOT NULL,
     fullName NVARCHAR(150) NOT NULL,
     password VARCHAR(255),
+    address NVARCHAR(255),
     rewardPoints INT NOT NULL,
     membershipTier NVARCHAR(50) NOT NULL,
     createdAt DATETIME2(7),

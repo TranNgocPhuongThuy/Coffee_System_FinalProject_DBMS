@@ -57,6 +57,14 @@ export class AuthController {
     }
   }
 
+  logout = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(200).json({ success: true, message: 'Đăng xuất thành công' })
+    } catch (error) {
+      next(error)
+    }
+  }
+
   getMe = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user!
@@ -66,4 +74,4 @@ export class AuthController {
       next(error)
     }
   }
-}
+}

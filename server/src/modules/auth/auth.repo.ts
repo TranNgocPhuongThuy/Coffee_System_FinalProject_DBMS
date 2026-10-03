@@ -95,7 +95,7 @@ export class AuthRepo {
       .query(`
         INSERT INTO Customer (fullName, phoneNumber, password, address, rewardPoints, membershipTier, createdAt, updatedAt)
         OUTPUT INSERTED.id, INSERTED.fullName, INSERTED.phoneNumber, INSERTED.membershipTier, INSERTED.rewardPoints
-        VALUES (@fullName, @phoneNumber, @password, @address, 0, 'BRONZE', SYSDATETIME(), SYSDATETIME())
+        VALUES (@fullName, @phoneNumber, @password, @address, 0, 'STANDARD', SYSDATETIME(), SYSDATETIME())
       `)
     return result.recordset[0]
   }

@@ -14,4 +14,5 @@ authRouter.post('/setup-password', validatePipe(SetupPasswordBodySchema, 'body')
 
 // Yêu cầu đăng nhập
 authRouter.get('/me', authGuard, controller.getMe)
-authRouter.post('/change-password', authGuard, validatePipe(ChangePasswordBodySchema, 'body'), controller.changePassword)
+authRouter.post('/logout', authGuard, controller.logout)
+authRouter.post('/change-password', authGuard, validatePipe(ChangePasswordBodySchema, 'body'), controller.changePassword)

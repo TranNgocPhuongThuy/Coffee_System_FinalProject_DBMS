@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { AuthProvider } from '@/context/AuthContext';
 
 export const metadata: Metadata = {
     title: 'Coffee Management System',
@@ -14,8 +15,10 @@ export default function RootLayout({
     return (
         <html lang="vi">
             <body className="antialiased text-gray-900 bg-white">
-                {children}
+                <AuthProvider>
+                    {children}
+                </AuthProvider>
             </body>
         </html>
     );
-}
+}

@@ -1,149 +1,120 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Link from "next/link";
-import { Key, Eye, EyeOff } from "lucide-react";
+import { useState } from 'react';
+import Link from 'next/link';
+import { Key, CheckCircle2 } from 'lucide-react';
+import { authService } from '@/api/auth.service';
+import { Button } from '@/components/common/Button';
+import { Input } from '@/components/common/Input';
 
 export default function SetupPasswordPage() {
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // UI tĩnh - logic kích hoạt mật khẩu sẽ được tích hợp sau
+    setError(null);
+
+    if (newPassword !== confirmPassword) {
+      setError('Mật khẩu mới và xác nhận mật khẩu không khớp');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await authService.setupPassword({
+        phoneNumber,
+        newPassword,
+        confirmPassword,
+      });
+      setIsSuccess(true);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Kích hoạt mật khẩu thất bại');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <main className="min-h-screen w-full bg-[#FAF6F0] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-      {/* Setup Password Card */}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-[#F0E6DD] p-6 sm:p-8">
-        {/* Header: Icon & Title */}
-        <div className="flex flex-col items-center text-center mb-7">
-          <div className="w-14 h-14 rounded-full bg-[#F5EBE6] flex items-center justify-center mb-4 text-[#6F4E37]">
-            <Key className="w-7 h-7" strokeWidth={2} />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            Kích hoạt mật khẩu
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Dành cho khách hàng đã tích điểm tại quầy
-          </p>
+    <>
+      <div className="flex flex-col items-center text-center mb-6">
+        <div className="w-14 h-14 rounded-full bg-[#F5EBE6] flex items-center justify-center mb-3 text-[#6F4E37]">
+          <Key className="w-7 h-7" strokeWidth={2} />
         </div>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Kích hoạt mật khẩu</h1>
+        <p className="text-sm text-gray-500 mt-1">Dành cho khách hàng đã từng tích điểm tại quầy</p>
+      </div>
 
-        {/* Form Inputs */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Input 1: Số điện thoại đã tích điểm */}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="phoneNumber"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Số điện thoại đã tích điểm
-            </label>
-            <input
-              id="phoneNumber"
+      {isSuccess ? (
+        <div className="text-center py-4 space-y-4 animate-in fade-in">
+          <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900">Kích hoạt thành công!</h3>
+          <p className="text-xs text-gray-500 max-w-xs mx-auto">
+            Mật khẩu cho tài khoản của bạn đã được thiết lập thành công. Bây giờ bạn có thể đăng nhập.
+          </p>
+          <div className="pt-2">
+            <Link href="/login">
+              <Button>Đăng nhập ngay</Button>
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <>
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-medium text-center animate-in fade-in">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Số điện thoại đã tích điểm"
               type="tel"
+              placeholder="Nhập số điện thoại..."
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="Nhập số điện thoại của bạn..."
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm transition-colors focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20"
               required
             />
-          </div>
 
-          {/* Input 2: Mật khẩu mới */}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Mật khẩu mới
-            </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu mới..."
-                className="w-full px-4 py-2.5 pr-11 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm transition-colors focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#6F4E37] transition-colors p-1 cursor-pointer"
-                aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-              >
-                {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
-                ) : (
-                  <Eye className="w-5 h-5" />
-                )}
-              </button>
+            <Input
+              label="Mật khẩu mới"
+              placeholder="Nhập mật khẩu mới..."
+              isPassword
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+            />
+
+            <Input
+              label="Xác nhận mật khẩu mới"
+              placeholder="Nhập lại mật khẩu..."
+              isPassword
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+
+            <div className="pt-2">
+              <Button type="submit" isLoading={loading}>
+                Xác nhận kích hoạt
+              </Button>
             </div>
-          </div>
+          </form>
 
-          {/* Input 3: Xác nhận mật khẩu mới */}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="confirmPassword"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Xác nhận mật khẩu mới
-            </label>
-            <div className="relative">
-              <input
-                id="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Nhập lại mật khẩu mới..."
-                className="w-full px-4 py-2.5 pr-11 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm transition-colors focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#6F4E37] transition-colors p-1 cursor-pointer"
-                aria-label={
-                  showConfirmPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"
-                }
-              >
-                {showConfirmPassword ? (
-                  <EyeOff className="w-5 h-5" />
-                ) : (
-                  <Eye className="w-5 h-5" />
-                )}
-              </button>
-            </div>
+          <div className="mt-6 pt-5 border-t border-gray-100 flex justify-center text-center text-xs">
+            <Link href="/login" className="text-[#6F4E37] font-medium hover:underline">
+              Quay lại đăng nhập
+            </Link>
           </div>
-
-          {/* Submit Button */}
-          <div className="pt-2">
-            <button
-              type="submit"
-              className="w-full py-3 px-4 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white font-semibold text-sm shadow-sm transition-all duration-200 cursor-pointer active:scale-[0.99]"
-            >
-              Xác nhận kích hoạt
-            </button>
-          </div>
-        </form>
-
-        {/* Footer Navigation Link */}
-        <div className="mt-7 pt-6 border-t border-gray-100 flex justify-center text-center text-sm">
-          <Link
-            href="/sign-in"
-            className="text-[#6F4E37] font-medium hover:underline transition-colors"
-          >
-            Quay lại trang đăng nhập
-          </Link>
-        </div>
-      </div>
-    </main>
+        </>
+      )}
+    </>
   );
 }
