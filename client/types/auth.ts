@@ -1,44 +1,55 @@
-import { MembershipTier, UserType } from './enums';
+// Path: types/auth.ts
+import { UserType } from './enums';
 
 export type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER' | 'CUSTOMER';
-export type { UserType, MembershipTier };
 
-
-
+// Đăng nhập chung chuẩn Backend (2 trường)
 export interface LoginPayload {
-    identifier: string;
-    password: string;
-    userType: UserType;
+  identifier: string; // Tên đăng nhập (nhân viên) hoặc SĐT (khách hàng)
+  password: string;
 }
 
+// Đăng ký khách hàng
 export interface RegisterPayload {
-    phoneNumber: string;
-    fullName: string;
-    password: string;
-    confirmPassword: string;
-    address?: string;
+  fullName: string;
+  phoneNumber: string;
+  password: string;
+  confirmPassword: string;
+  address?: string;
 }
 
 export interface SetupPasswordPayload {
-    phoneNumber: string;
-    newPassword: string;
-    confirmPassword: string;
+  phoneNumber: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface ChangePasswordPayload {
+  oldPassword: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 export interface UserProfile {
-    id: number;
-    fullName: string;
-    role: UserRole;
-    userType: UserType;
-    phoneNumber?: string;
-    username?: string;
-    rewardPoints?: number;
-    membershipTier?: MembershipTier;
-    createdAt?: string;
-    status?: string;
+  id: number;
+  fullName: string;
+  role: UserRole;
+  userType: UserType;
+  username?: string;
+  phoneNumber?: string;
+  rewardPoints?: number;
+  membershipTier?: 'STANDARD' | 'SILVER' | 'GOLD' | 'DIAMOND';
 }
 
 export interface AuthResponseData {
-    accessToken: string;
-    user: UserProfile;
+  accessToken: string;
+  user: UserProfile;
+}
+
+export interface CreateEmployeePayload {
+  fullName: string;
+  username: string;
+  password: string;
+  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER';
+  phoneNumber?: string;
 }

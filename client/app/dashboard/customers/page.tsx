@@ -15,7 +15,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
-import { loyaltyService, CustomerItem } from '@/api/customer-loyalty/loyalty.service';
+import { loyaltyService, CustomerItem } from '@/api/loyalty.service';
 import { CustomerFormModal } from '@/components/loyalty/CustomerFormModal';
 import { AssignRoleModal } from '@/components/loyalty/AssignRoleModal';
 import { ConfirmModal } from '@/components/common/ConfirmModal';

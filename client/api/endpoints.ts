@@ -1,16 +1,16 @@
 export const ENDPOINTS = {
-  // AUTH
+  // 1. AUTH
   AUTH: {
     LOGIN: '/auth/login',
     REGISTER: '/auth/register',
-    SETUP_PASSWORD: '/auth/setup-password',
     ME: '/auth/me',
     LOGOUT: '/auth/logout',
     CHANGE_PASSWORD: '/auth/change-password',
+    EMPLOYEES: '/auth/employees',
+    UPDATE_EMPLOYEE_ROLE: (id: string | number) => `/auth/employees/${id}/role`,
   },
 
-
-  // POS
+  // 2. POS
   POS: {
     ORDERS: {
       INDEX: '/pos/orders',
@@ -32,7 +32,7 @@ export const ENDPOINTS = {
     },
   },
 
-  // MENU
+  // 3. MENU
   MENU: {
     CATEGORIES: {
       INDEX: '/menu/categories',
@@ -48,7 +48,7 @@ export const ENDPOINTS = {
     },
   },
 
-  // INVENTORY
+  // 4. INVENTORY & BOM
   INVENTORY: {
     INGREDIENTS: {
       INDEX: '/inventory/ingredients',
@@ -56,8 +56,8 @@ export const ENDPOINTS = {
     },
     BOMS: {
       RECIPES: '/inventory/boms/recipes',
-      TOPPING: (toppingId: string | number) => `/inventory/boms/toppings/${toppingId}`,
       TOPPINGS: '/inventory/boms/toppings',
+      TOPPING_DETAIL: (toppingId: string | number) => `/inventory/boms/toppings/${toppingId}`,
       DELETE_RECIPE: (variantId: string | number, ingredientId: string | number) =>
         `/inventory/boms/recipes/${variantId}/${ingredientId}`,
     },
@@ -70,16 +70,14 @@ export const ENDPOINTS = {
     },
   },
 
-  // KDS
+  // 5. KDS
   KDS: {
     QUEUE: '/kds/queue',
-    UPDATE_ITEM_STATUS: (orderDetailId: string | number) =>
-      `/kds/items/${orderDetailId}/status`,
-    NOTIFY_ORDER_READY: (orderId: string | number) =>
-      `/kds/orders/${orderId}/notify-ready`,
+    UPDATE_ITEM_STATUS: (orderDetailId: string | number) => `/kds/items/${orderDetailId}/status`,
+    NOTIFY_ORDER_READY: (orderId: string | number) => `/kds/orders/${orderId}/notify-ready`,
   },
 
-  // CUSTOMER & LOYALTY
+  // 6. CUSTOMER & LOYALTY
   CUSTOMER_LOYALTY: {
     CUSTOMERS: {
       INDEX: '/loyalty/customers',
@@ -91,8 +89,7 @@ export const ENDPOINTS = {
     },
   },
 
-
-  // REPORTS
+  // 7. REPORTS
   REPORTS: {
     REVENUE: '/reports/revenue',
     TOP_PRODUCTS: '/reports/top-products',

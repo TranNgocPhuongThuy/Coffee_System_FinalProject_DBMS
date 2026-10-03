@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { Input } from '@/components/common/Input';
 import { Button } from '@/components/common/Button';
-import { CustomerItem } from '@/api/customer-loyalty/loyalty.service';
+import { CustomerItem } from '@/api/loyalty.service';
 
 interface CustomerFormModalProps {
   isOpen: boolean;

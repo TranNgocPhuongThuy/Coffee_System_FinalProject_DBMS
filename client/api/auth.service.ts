@@ -2,10 +2,11 @@ import apiClient from './client';
 import { ENDPOINTS } from './endpoints';
 import {
   AuthResponseData,
+  ChangePasswordPayload,
+  CreateEmployeePayload,
   LoginPayload,
   RegisterPayload,
-  SetupPasswordPayload,
-  UserProfile
+  UserProfile,
 } from '@/types/auth';
 
 export const authService = {
@@ -19,12 +20,7 @@ export const authService = {
     return res.data?.data || res.data;
   },
 
-  setupPassword: async (payload: SetupPasswordPayload): Promise<{ message: string }> => {
-    const res = await apiClient.post(ENDPOINTS.AUTH.SETUP_PASSWORD, payload);
-    return res.data;
-  },
-
-  changePassword: async (payload: { oldPassword: string; newPassword: string; confirmPassword: string }) => {
+  changePassword: async (payload: ChangePasswordPayload) => {
     const res = await apiClient.post(ENDPOINTS.AUTH.CHANGE_PASSWORD, payload);
     return res.data;
   },
@@ -38,7 +34,28 @@ export const authService = {
     const res = await apiClient.post(ENDPOINTS.AUTH.LOGOUT);
     return res.data;
   },
-};
 
+  // Quản lý tạo nhân viên mới
+  createEmployee: async (payload: CreateEmployeePayload) => {
+    const res = await apiClient.post(ENDPOINTS.AUTH.EMPLOYEES, payload);
+    return res.data;
+  },
+
+  // Quản lý cập nhật quyền nhân viên
+  updateEmployeeRole: async (id: number, role: string) => {
+    const res = await apiClient.patch(ENDPOINTS.AUTH.UPDATE_EMPLOYEE_ROLE(id), { role });
+    return res.data;
+  },
+
+  setupPassword: async (payload: { phoneNumber: string; newPassword: string; confirmPassword: string }) => {
+    const res = await apiClient.post(ENDPOINTS.AUTH.REGISTER, {
+      fullName: 'Khách hàng',
+      phoneNumber: payload.phoneNumber,
+      password: payload.newPassword,
+      confirmPassword: payload.confirmPassword,
+    });
+    return res.data?.data || res.data;
+  },
+};
 
 export default authService;

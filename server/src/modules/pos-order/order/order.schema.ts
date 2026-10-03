@@ -32,7 +32,7 @@ export const CreateOrderSchema = z.object({
   subTotal: z.number().nonnegative('Tạm tính phải >= 0'),
   discountAmount: z.number().nonnegative('Tiền giảm giá phải >= 0').default(0),
   totalAmount: z.number().nonnegative('Tổng tiền thanh toán phải >= 0'),
-  paymentMethod: z.enum(['CASH', 'BANKING', 'MOMO', 'VNPAY', 'CREDIT_CARD', 'POINT_EXCHANGE']).default('CASH'),
+  paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'CARD', 'MOMO', 'VNPAY', 'POINT_EXCHANGE']).default('CASH'),
   items: z.array(OrderItemSchema).min(1, 'Đơn hàng phải có ít nhất 1 món'),
 })
 

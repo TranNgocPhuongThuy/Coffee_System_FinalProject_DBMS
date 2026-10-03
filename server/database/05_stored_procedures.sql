@@ -9,6 +9,14 @@ IF OBJECT_ID('sp_CreateCounterOrder', 'P') IS NOT NULL
     DROP PROCEDURE sp_CreateCounterOrder;
 GO
 
+IF EXISTS (SELECT * FROM sys.types WHERE name = 'udt_OrderDetailList')
+    DROP TYPE udt_OrderDetailList;
+GO
+
+IF EXISTS (SELECT * FROM sys.types WHERE name = 'udt_OrderDetailToppingList')
+    DROP TYPE udt_OrderDetailToppingList;
+GO
+
 IF OBJECT_ID('sp_CreateOrderWithPager', 'P') IS NOT NULL 
     DROP PROCEDURE sp_CreateOrderWithPager;
 GO
@@ -90,7 +98,7 @@ GO
 -- ============================================================================
 
 -- 1.1. sp_CreateCounterOrder
-CREATE PROCEDURE sp_CreateCounterOrder
+CREATE OR ALTER PROCEDURE sp_CreateCounterOrder
     @OrderCode VARCHAR(64),
     @EmployeeId INT,
     @CustomerId INT = NULL,
@@ -100,6 +108,7 @@ CREATE PROCEDURE sp_CreateCounterOrder
     @TotalAmount DECIMAL(18, 2),
     @PaymentMethod NVARCHAR(50),
     @OrderDetails udt_OrderDetailList READONLY,
+    @OrderToppings udt_OrderDetailToppingList READONLY,  -- Bổ sung TVP topping
     @NewOrderId INT OUTPUT
 AS
 BEGIN
@@ -109,6 +118,7 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        -- 1. Tạo Header Order
         INSERT INTO [Order] (
             orderCode, customerId, pagerId, employeeId, orderChannel,
             subTotal, discountAmount, totalAmount, paymentMethod,
@@ -117,21 +127,46 @@ BEGIN
         VALUES (
             @OrderCode, @CustomerId, @PagerId, @EmployeeId, N'ORDER_AT_COUNTER',
             @SubTotal, @DiscountAmount, @TotalAmount, @PaymentMethod,
-            N'PENDING_PREP', GETDATE()
+            N'PENDING_PREP', SYSDATETIME()
         );
 
         SET @NewOrderId = SCOPE_IDENTITY();
 
-        INSERT INTO OrderDetail (
-            orderId, variantId, quantity, note, itemSnapshotName,
-            sizeSnapshot, unitPrice, totalToppingPriceSnapshot,
-            totalPrice, itemStatus, createdAt
+        -- 2. Bảng tạm để lưu OrderDetailId sinh ra kèm itemIndex
+        DECLARE @InsertedDetails TABLE (
+            orderDetailId INT,
+            itemIndex INT
+        );
+
+        -- 3. Insert chi tiết các ly nước và lấy ID sinh ra
+        MERGE INTO OrderDetail AS target
+        USING @OrderDetails AS src
+        ON 1 = 0 -- Luôn thực hiện INSERT
+        WHEN NOT MATCHED THEN
+            INSERT (
+                orderId, variantId, quantity, note, itemSnapshotName,
+                sizeSnapshot, unitPrice, totalToppingPriceSnapshot,
+                totalPrice, itemStatus, createdAt
+            )
+            VALUES (
+                @NewOrderId, src.variantId, src.quantity, src.note, src.itemSnapshotName,
+                src.sizeSnapshot, src.unitPrice, src.totalToppingPriceSnapshot,
+                src.totalPrice, N'PENDING', SYSDATETIME()
+            )
+        OUTPUT inserted.id, src.itemIndex INTO @InsertedDetails(orderDetailId, itemIndex);
+
+        -- 4. Insert toàn bộ Topping ghép qua itemIndex (chạy 1 lệnh duy nhất)
+        INSERT INTO OrderDetailTopping (
+            orderDetailId, toppingId, toppingSnapshotName, toppingPrice, quantity
         )
         SELECT 
-            @NewOrderId, variantId, quantity, note, itemSnapshotName,
-            sizeSnapshot, unitPrice, totalToppingPriceSnapshot,
-            totalPrice, N'PENDING', GETDATE()
-        FROM @OrderDetails;
+            idmap.orderDetailId,
+            topSrc.toppingId,
+            topSrc.toppingSnapshotName,
+            topSrc.toppingPrice,
+            topSrc.quantity
+        FROM @OrderToppings topSrc
+        INNER JOIN @InsertedDetails idmap ON topSrc.itemIndex = idmap.itemIndex;
 
         COMMIT TRANSACTION;
     END TRY
@@ -375,10 +410,7 @@ BEGIN
 
         DECLARE @DiscountAmount DECIMAL(18, 2) = @PointsToRedeem * @ConversionRate;
 
-        UPDATE Customer
-        SET rewardPoints = rewardPoints - @PointsToRedeem,
-            updatedAt = GETDATE()
-        WHERE id = @CustomerId;
+      
 
         UPDATE [Order]
         SET discountAmount = discountAmount + @DiscountAmount,
@@ -812,4 +844,25 @@ BEGIN
         THROW;
     END CATCH
 END;
+
+CREATE TYPE udt_OrderDetailToppingList AS TABLE (
+    itemIndex INT NOT NULL,       
+    toppingId INT NULL,
+    toppingSnapshotName NVARCHAR(150) NOT NULL,
+    toppingPrice DECIMAL(18, 2) NOT NULL,
+    quantity INT NOT NULL
+);
+
+
+CREATE TYPE udt_OrderDetailList AS TABLE (
+    itemIndex INT NOT NULL,               -- Định danh dòng: 0, 1, 2...
+    variantId INT NOT NULL,
+    quantity INT NOT NULL,
+    note NVARCHAR(255),
+    itemSnapshotName NVARCHAR(200) NOT NULL,
+    sizeSnapshot NVARCHAR(50) NOT NULL,
+    unitPrice DECIMAL(18, 2) NOT NULL,
+    totalToppingPriceSnapshot DECIMAL(18, 2) NOT NULL,
+    totalPrice DECIMAL(18, 2) NOT NULL
+);
 GO

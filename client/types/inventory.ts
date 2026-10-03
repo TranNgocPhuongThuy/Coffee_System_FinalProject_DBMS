@@ -1,44 +1,48 @@
-import { BaseEntity, SoftDeletableEntity } from './common';
-
-export interface Ingredient extends SoftDeletableEntity {
-    name: string;
-    unit: string;
-    stockQuantity: number;
-    minimumThreshold: number;
-    isLowStock?: boolean;
+export interface IngredientItem {
+  id: number;
+  name: string;
+  unit: string;
+  stockQuantity: number;
+  minimumThreshold: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface InventoryImportDetail {
-    id: number;
-    importId: number;
+export interface CreateIngredientPayload {
+  name: string;
+  unit: string;
+  stockQuantity?: number;
+  minimumThreshold?: number;
+}
+
+export interface UpdateIngredientPayload extends Partial<CreateIngredientPayload> {}
+
+export interface CreateAdjustmentPayload {
+  ingredientId: number;
+  employeeId: number;
+  newQuantity: number; // Backend đòi hỏi newQuantity, không phải actualQuantity
+  reason: string;
+}
+
+export interface CreateImportTicketPayload {
+  supplierName: string;
+  employeeId: number;
+  note?: string;
+  details: {
     ingredientId: number;
-    ingredientName?: string;
-    unit?: string;
     quantity: number;
     unitPrice: number;
-    totalLineAmount: number;
+  }[];
 }
 
-export interface InventoryImport {
-    id: number;
-    employeeId: number;
-    employeeName?: string;
-    supplierName: string;
-    totalAmount: number;
-    importDate: string;
-    note?: string | null;
-    details?: InventoryImportDetail[];
+export interface RecipeBOMPayload {
+  variantId: number;
+  ingredientId: number;
+  consumedQuantity: number;
 }
 
-export interface InventoryAdjustment {
-    id: number;
-    ingredientId: number;
-    ingredientName?: string;
-    employeeId: number;
-    employeeName?: string;
-    oldQuantity: number;
-    newQuantity: number;
-    difference: number;
-    reason: string;
-    adjustmentDate: string;
+export interface ToppingBOMPayload {
+  toppingId: number;
+  ingredientId: number;
+  consumedQuantity: number;
 }

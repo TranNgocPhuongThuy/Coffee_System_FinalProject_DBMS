@@ -1,3 +1,5 @@
+// Path: src/modules/pos-order/order/order.repo.ts
+
 import { getPool, sql } from '@/config/database'
 import {
   CreateOrderType,
@@ -8,9 +10,11 @@ import {
 export class OrderRepo {
   /**
    * Khởi tạo Table-Valued Parameter (TVP) udt_OrderDetailList theo đúng schema Database
+   * Bổ sung cột itemIndex (0, 1, 2...) để định danh dòng cho các Topping đi kèm
    */
   private buildOrderDetailTVP(items: OrderItemType[]): sql.Table {
     const tvp = new sql.Table('udt_OrderDetailList')
+    tvp.columns.add('itemIndex', sql.Int, { nullable: false })
     tvp.columns.add('variantId', sql.Int, { nullable: false })
     tvp.columns.add('quantity', sql.Int, { nullable: false })
     tvp.columns.add('note', sql.NVarChar(255), { nullable: true })
@@ -20,8 +24,9 @@ export class OrderRepo {
     tvp.columns.add('totalToppingPriceSnapshot', sql.Decimal(18, 2), { nullable: false })
     tvp.columns.add('totalPrice', sql.Decimal(18, 2), { nullable: false })
 
-    for (const item of items) {
+    items.forEach((item, index) => {
       tvp.rows.add(
+        index,
         item.variantId,
         item.quantity,
         item.note || null,
@@ -31,18 +36,48 @@ export class OrderRepo {
         item.totalToppingPriceSnapshot ?? 0,
         item.totalPrice
       )
-    }
+    })
+    return tvp
+  }
+
+  /**
+   * Khởi tạo Table-Valued Parameter (TVP) udt_OrderDetailToppingList
+   * Map với từng ly nước thông qua itemIndex
+   */
+  private buildOrderToppingTVP(items: OrderItemType[]): sql.Table {
+    const tvp = new sql.Table('udt_OrderDetailToppingList')
+    tvp.columns.add('itemIndex', sql.Int, { nullable: false })
+    tvp.columns.add('toppingId', sql.Int, { nullable: true })
+    tvp.columns.add('toppingSnapshotName', sql.NVarChar(150), { nullable: false })
+    tvp.columns.add('toppingPrice', sql.Decimal(18, 2), { nullable: false })
+    tvp.columns.add('quantity', sql.Int, { nullable: false })
+
+    items.forEach((item, index) => {
+      if (item.toppings && item.toppings.length > 0) {
+        for (const topping of item.toppings) {
+          tvp.rows.add(
+            index,
+            topping.toppingId || null,
+            topping.toppingSnapshotName,
+            topping.toppingPrice,
+            topping.quantity || 1
+          )
+        }
+      }
+    })
     return tvp
   }
 
   /**
    * Tạo đơn hàng tại quầy thông qua Stored Procedure sp_CreateCounterOrder
+   * Truyền đồng thời cả 2 TVP danh sách món và topping
    */
   async createCounterOrder(data: CreateOrderType): Promise<number> {
     const pool = await getPool()
     const request = pool.request()
 
-    const tvp = this.buildOrderDetailTVP(data.items)
+    const detailsTVP = this.buildOrderDetailTVP(data.items)
+    const toppingsTVP = this.buildOrderToppingTVP(data.items)
 
     request.input('OrderCode', sql.VarChar(64), data.orderCode)
     request.input('EmployeeId', sql.Int, data.employeeId)
@@ -52,16 +87,12 @@ export class OrderRepo {
     request.input('DiscountAmount', sql.Decimal(18, 2), data.discountAmount || 0)
     request.input('TotalAmount', sql.Decimal(18, 2), data.totalAmount)
     request.input('PaymentMethod', sql.NVarChar(50), data.paymentMethod)
-    request.input('OrderDetails', tvp)
+    request.input('OrderDetails', detailsTVP)
+    request.input('OrderToppings', toppingsTVP)
     request.output('NewOrderId', sql.Int)
 
     const result = await request.execute('sp_CreateCounterOrder')
-    const newOrderId: number = result.output.NewOrderId
-
-    // Lưu chi tiết Topping (nếu có)
-    await this.saveOrderToppings(newOrderId, data.items)
-
-    return newOrderId
+    return result.output.NewOrderId
   }
 
   /**
@@ -71,7 +102,8 @@ export class OrderRepo {
     const pool = await getPool()
     const request = pool.request()
 
-    const tvp = this.buildOrderDetailTVP(data.items)
+    const detailsTVP = this.buildOrderDetailTVP(data.items)
+    const toppingsTVP = this.buildOrderToppingTVP(data.items)
 
     request.input('OrderCode', sql.VarChar(64), data.orderCode)
     request.input('OrderChannel', sql.NVarChar(50), data.orderChannel)
@@ -81,54 +113,12 @@ export class OrderRepo {
     request.input('SubTotal', sql.Decimal(18, 2), data.subTotal)
     request.input('DiscountAmount', sql.Decimal(18, 2), data.discountAmount || 0)
     request.input('PaymentMethod', sql.NVarChar(50), data.paymentMethod)
-    request.input('OrderDetails', tvp)
+    request.input('OrderDetails', detailsTVP)
+    request.input('OrderToppings', toppingsTVP)
     request.output('NewOrderId', sql.Int)
 
     const result = await request.execute('sp_CreateOrderWithPager')
-    const newOrderId: number = result.output.NewOrderId
-
-    // Lưu chi tiết Topping (nếu có)
-    await this.saveOrderToppings(newOrderId, data.items)
-
-    return newOrderId
-  }
-
-  /**
-   * Lưu thông tin Topping đính kèm cho từng OrderDetail
-   */
-  private async saveOrderToppings(orderId: number, items: OrderItemType[]): Promise<void> {
-    const hasToppings = items.some((item) => item.toppings && item.toppings.length > 0)
-    if (!hasToppings) return
-
-    const pool = await getPool()
-
-    // Lấy danh sách orderDetailId vừa tạo của order này theo thứ tự
-    const detailsRes = await pool
-      .request()
-      .input('orderId', sql.Int, orderId)
-      .query(`SELECT id, variantId FROM OrderDetail WHERE orderId = @orderId ORDER BY id ASC`)
-
-    const details = detailsRes.recordset
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i]
-      const detailRecord = details[i]
-      if (detailRecord && item.toppings && item.toppings.length > 0) {
-        for (const topping of item.toppings) {
-          await pool
-            .request()
-            .input('orderDetailId', sql.Int, detailRecord.id)
-            .input('toppingId', sql.Int, topping.toppingId || null)
-            .input('toppingSnapshotName', sql.NVarChar(150), topping.toppingSnapshotName)
-            .input('toppingPrice', sql.Decimal(18, 2), topping.toppingPrice)
-            .input('quantity', sql.Int, topping.quantity || 1)
-            .query(`
-              INSERT INTO OrderDetailTopping (orderDetailId, toppingId, toppingSnapshotName, toppingPrice, quantity)
-              VALUES (@orderDetailId, @toppingId, @toppingSnapshotName, @toppingPrice, @quantity)
-            `)
-        }
-      }
-    }
+    return result.output.NewOrderId
   }
 
   /**

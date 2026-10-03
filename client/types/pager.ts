@@ -1,6 +1,12 @@
 import { SoftDeletableEntity } from './common';
 import { PagerStatus } from './enums';
 
+export interface CreatePagerPayload {
+  pagerCode: string;
+  status?: PagerStatus;
+  batteryLevel?: number;
+}
+
 export interface PagerDevice extends SoftDeletableEntity {
   pagerCode: string;
   status: PagerStatus;

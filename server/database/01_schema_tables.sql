@@ -62,10 +62,6 @@ CREATE TABLE Customer (
 );
 GO
 
--- Thêm trường Address cho Customer
-ALTER TABLE Customer
-ADD address NVARCHAR(255) NULL;
-GO
 
 CREATE TABLE PagerDevice (
     id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,

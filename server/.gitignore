@@ -8,6 +8,7 @@ pnpm-debug.log*
 # 2. File cấu hình môi trường & thông tin nhạy cảm (TUYỆT ĐỐI KHÔNG PUSH)
 .env
 .env.local
+.project.md
 .env.*.local
 *.pem
 *.key

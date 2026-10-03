@@ -1,5 +1,12 @@
 import { OrderChannel, OrderDetailItemStatus, OrderStatus } from './enums';
 
+export interface RevenueOverviewReport {
+  totalOrders: number;
+  totalSubTotal: number;
+  totalDiscount: number;
+  netRevenue: number;
+}
+
 export interface DailyRevenueReport {
   revenueDate: string;
   totalOrders: number;
