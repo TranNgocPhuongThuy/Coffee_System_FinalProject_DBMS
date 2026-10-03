@@ -44,7 +44,7 @@ export class BOMRepo {
     req.input('variantId', sql.Int, data.variantId)
     req.input('ingredientId', sql.Int, data.ingredientId)
     req.input('consumedQuantity', sql.Decimal(18, 4), data.consumedQuantity)
-    return await req.execute('sp_CauHinhDinhLuongBOM')
+    return await req.execute('sp_UpsertRecipeBOM')
   }
 
   async upsertToppingBOM(data: ToppingBOMType) {

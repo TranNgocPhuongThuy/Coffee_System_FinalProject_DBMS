@@ -48,6 +48,7 @@ GRANT EXECUTE ON sp_UpsertCustomerMember TO CASHIER;
 
 -- Quyền sử dụng Kiểu dữ liệu bảng (TVP) cho POS
 GRANT EXECUTE ON TYPE::udt_OrderDetailList TO CASHIER;
+GRANT EXECUTE ON TYPE::udt_OrderDetailToppingList TO CASHIER;
 
 -- Quyền trên Views & Functions phục vụ POS
 GRANT SELECT ON v_InvoiceDetails TO CASHIER;
@@ -76,6 +77,8 @@ GRANT SELECT, UPDATE (status) ON PagerDevice TO BARISTA;
 
 GRANT SELECT ON v_ProductRecipeDetails TO BARISTA;
 GRANT SELECT ON v_ActivePagerDashboard TO BARISTA;
+GRANT EXECUTE ON sp_KDS_NotifyOrderReady TO BARISTA;
+
 
 DENY INSERT, DELETE ON [Order] TO BARISTA;
 DENY INSERT, DELETE ON OrderDetail TO BARISTA;
@@ -139,8 +142,10 @@ GRANT EXECUTE ON sp_ApplyLoyaltyPoints TO MANAGER;
 GRANT EXECUTE ON sp_RemoveOrderItem TO MANAGER;
 GRANT EXECUTE ON sp_UpsertCustomerMember TO MANAGER;
 GRANT EXECUTE ON sp_DieuChinhTonKho TO MANAGER;
+GRANT EXECUTE ON sp_KDS_NotifyOrderReady TO MANAGER;
 
 -- Quyền sử dụng các Kiểu dữ liệu bảng (TVP)
 GRANT EXECUTE ON TYPE::udt_OrderDetailList TO MANAGER;
 GRANT EXECUTE ON TYPE::udt_InventoryImportDetailList TO MANAGER;
+GRANT EXECUTE ON TYPE::udt_OrderDetailToppingList TO MANAGER;
 GO

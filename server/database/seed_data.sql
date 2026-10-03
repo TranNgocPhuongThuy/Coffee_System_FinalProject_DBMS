@@ -41,13 +41,14 @@ GO
 -- ==============================================================
 -- 2. BẢNG KHÁCH HÀNG (Customer) - Các phân hạng
 -- ==============================================================
+
 SET IDENTITY_INSERT Customer ON;
-INSERT INTO Customer (id, phoneNumber, fullName, password, rewardPoints, membershipTier, createdAt, updatedAt)
+INSERT INTO Customer (id, phoneNumber, fullName, password, address, rewardPoints, membershipTier, createdAt, updatedAt)
 VALUES
-(1, '0988111222', N'Nguyễn Văn An', '$2b$10$abcdefghijklmnopqrstuv', 150, 'SILVER', GETDATE(), GETDATE()),
-(2, '0977222333', N'Lê Thị Mai', '$2b$10$abcdefghijklmnopqrstuv', 550, 'GOLD', GETDATE(), GETDATE()),
-(3, '0966333444', N'Trần Tuấn Kiệt', '$2b$10$abcdefghijklmnopqrstuv', 20, 'STANDARD', GETDATE(), GETDATE()),
-(4, '0911888999', N'Phạm Hoàng Nam', '$2b$10$abcdefghijklmnopqrstuv', 1250, 'DIAMOND', GETDATE(), GETDATE());
+(1, '0988111222', N'Nguyễn Văn An', '$2b$10$abcdefghijklmnopqrstuv', N'Số 1 Võ Văn Ngân, TP. Thủ Đức', 150, 'SILVER', GETDATE(), GETDATE()),
+(2, '0977222333', N'Lê Thị Mai', '$2b$10$abcdefghijklmnopqrstuv', N'123 Lê Văn Việt, TP. Thủ Đức', 550, 'GOLD', GETDATE(), GETDATE()),
+(3, '0966333444', N'Trần Tuấn Kiệt', '$2b$10$abcdefghijklmnopqrstuv', N'45 Kha Vạn Cân, TP. Thủ Đức', 20, 'STANDARD', GETDATE(), GETDATE()),
+(4, '0911888999', N'Phạm Hoàng Nam', '$2b$10$abcdefghijklmnopqrstuv', N'10 Đặng Văn Bi, TP. Thủ Đức', 1250, 'DIAMOND', GETDATE(), GETDATE());
 SET IDENTITY_INSERT Customer OFF;
 GO
 

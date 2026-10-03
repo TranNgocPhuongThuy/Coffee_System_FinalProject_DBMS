@@ -5,28 +5,49 @@
 -- ============================================================================
 
 -- 1.1. Tự động trừ tồn kho khi Barista hoàn thành món
-IF OBJECT_ID('trg_OrderDetail_DeductInventory', 'TR') IS NOT NULL DROP TRIGGER trg_OrderDetail_DeductInventory;
-GO
-CREATE TRIGGER trg_OrderDetail_DeductInventory
+CREATE OR ALTER TRIGGER trg_OrderDetail_DeductInventory
 ON OrderDetail AFTER UPDATE
 AS
 BEGIN
     SET NOCOUNT ON;
     
-    -- Chỉ kích hoạt khi itemStatus được update thành 'DONE'
+    -- Chỉ kích hoạt khi itemStatus được cập nhật sang 'DONE'
     IF UPDATE(itemStatus)
     BEGIN
-        UPDATE i
-        SET i.stockQuantity = i.stockQuantity - consumed.TotalConsumed
-        FROM Ingredient i
-        INNER JOIN (
-            SELECT rb.ingredientId, SUM(rb.consumedQuantity * ins.quantity) AS TotalConsumed
+        ;WITH DeductList AS (
+            -- 1. Tiêu hao từ biến thể món (RecipeBOM)
+            SELECT 
+                rb.ingredientId, 
+                SUM(rb.consumedQuantity * ins.quantity) AS TotalConsumed
             FROM inserted ins
             INNER JOIN deleted del ON ins.id = del.id
             INNER JOIN RecipeBOM rb ON ins.variantId = rb.variantId
             WHERE ins.itemStatus = N'DONE' AND del.itemStatus <> N'DONE'
             GROUP BY rb.ingredientId
-        ) consumed ON i.id = consumed.ingredientId;
+
+            UNION ALL
+
+            -- 2. Tiêu hao từ Topping đi kèm của ly đó (ToppingBOM)
+            SELECT 
+                tb.ingredientId,
+                SUM(tb.consumedQuantity * odt.quantity * ins.quantity) AS TotalConsumed
+            FROM inserted ins
+            INNER JOIN deleted del ON ins.id = del.id
+            INNER JOIN OrderDetailTopping odt ON ins.id = odt.orderDetailId
+            INNER JOIN ToppingBOM tb ON odt.toppingId = tb.toppingId
+            WHERE ins.itemStatus = N'DONE' AND del.itemStatus <> N'DONE'
+            GROUP BY tb.ingredientId
+        ),
+        AggregatedDeduct AS (
+            SELECT ingredientId, SUM(TotalConsumed) AS FinalConsumed
+            FROM DeductList
+            GROUP BY ingredientId
+        )
+        UPDATE i
+        SET i.stockQuantity = i.stockQuantity - ad.FinalConsumed,
+            i.updatedAt = SYSDATETIME()
+        FROM Ingredient i
+        INNER JOIN AggregatedDeduct ad ON i.id = ad.ingredientId;
     END
 END;
 GO
@@ -56,7 +77,7 @@ IF OBJECT_ID('trg_OrderDetail_CheckInventory', 'TR') IS NOT NULL
     DROP TRIGGER trg_OrderDetail_CheckInventory;
 GO
 
-CREATE TRIGGER trg_OrderDetail_CheckInventory
+CREATE OR ALTER TRIGGER trg_OrderDetail_CheckInventory
 ON OrderDetail 
 AFTER INSERT, UPDATE
 AS
@@ -69,45 +90,42 @@ BEGIN
         RETURN;
     END
 
-    -- Khai báo cờ để nhận diện có thiếu tồn kho hay không
-    DECLARE @IsOutOfStock BIT = 0;
+    -- Chỉ kiểm tra những món chưa hoàn thành và chưa bị hủy
+    ;WITH RequiredList AS (
+        -- Tiêu hao từ ly nước
+        SELECT 
+            rb.ingredientId,
+            SUM(rb.consumedQuantity * ins.quantity) AS requiredQty
+        FROM inserted ins
+        INNER JOIN RecipeBOM rb ON ins.variantId = rb.variantId
+        WHERE ins.itemStatus NOT IN (N'DONE', N'CANCELLED')
+        GROUP BY rb.ingredientId
 
-    ;WITH ConsumedOld AS (
+        UNION ALL
+
+        -- Tiêu hao từ Topping (nếu có cập nhật/thêm)
         SELECT 
-            rb.ingredientId,
-            SUM(rb.consumedQuantity * d.quantity) AS oldConsumed
-        FROM deleted d
-        INNER JOIN RecipeBOM rb ON d.variantId = rb.variantId
-        WHERE d.itemStatus NOT IN (N'DONE', N'CANCELLED')
-        GROUP BY rb.ingredientId
+            tb.ingredientId,
+            SUM(tb.consumedQuantity * odt.quantity * ins.quantity) AS requiredQty
+        FROM inserted ins
+        INNER JOIN OrderDetailTopping odt ON ins.id = odt.orderDetailId
+        INNER JOIN ToppingBOM tb ON odt.toppingId = tb.toppingId
+        WHERE ins.itemStatus NOT IN (N'DONE', N'CANCELLED')
+        GROUP BY tb.ingredientId
     ),
-    ConsumedNew AS (
-        SELECT 
-            rb.ingredientId,
-            SUM(rb.consumedQuantity * i.quantity) AS newConsumed
-        FROM inserted i
-        INNER JOIN RecipeBOM rb ON i.variantId = rb.variantId
-        WHERE i.itemStatus NOT IN (N'DONE', N'CANCELLED')
-        GROUP BY rb.ingredientId
-    ),
-    DeltaRequirement AS (
-        SELECT 
-            COALESCE(cn.ingredientId, co.ingredientId) AS ingredientId,
-            ISNULL(cn.newConsumed, 0) - ISNULL(co.oldConsumed, 0) AS additionalConsumed
-        FROM ConsumedNew cn
-        FULL OUTER JOIN ConsumedOld co ON cn.ingredientId = co.ingredientId
+    TotalRequirement AS (
+        SELECT ingredientId, SUM(requiredQty) AS totalRequired
+        FROM RequiredList
+        GROUP BY ingredientId
     )
+    SELECT TOP 1 1
+    FROM TotalRequirement tr
+    INNER JOIN Ingredient ig ON tr.ingredientId = ig.id
+    WHERE ig.stockQuantity < tr.totalRequired;
 
-    SELECT TOP 1 @IsOutOfStock = 1
-    FROM DeltaRequirement dr
-    INNER JOIN Ingredient ig ON dr.ingredientId = ig.id
-    WHERE dr.additionalConsumed > 0 
-      AND ig.stockQuantity < dr.additionalConsumed;
-
-    -- Kiểm tra cờ và báo lỗi
-    IF @IsOutOfStock = 1
+    IF @@ROWCOUNT > 0
     BEGIN
-        RAISERROR(N'Nguyên liệu trong kho không đủ để đáp ứng số lượng món yêu cầu!', 16, 1);
+        RAISERROR(N'Tồn kho nguyên liệu (bao gồm cả topping) không đủ để đáp ứng yêu cầu!', 16, 1);
         ROLLBACK TRANSACTION;
         RETURN;
     END

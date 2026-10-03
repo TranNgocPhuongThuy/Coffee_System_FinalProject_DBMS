@@ -11,12 +11,18 @@ export class ReportRepo {
     const conditions: string[] = ['1=1']
 
     if (filter.fromDate) {
-      request.input('fromDate', sql.DateTime2, filter.fromDate)
+      // Đặt về đầu ngày (00:00:00) theo giờ địa phương
+      const startOfDay = new Date(filter.fromDate)
+      startOfDay.setHours(0, 0, 0, 0)
+      request.input('fromDate', sql.DateTime2, startOfDay)
       conditions.push('revenueDate >= CAST(@fromDate AS DATE)')
     }
 
     if (filter.toDate) {
-      request.input('toDate', sql.DateTime2, filter.toDate)
+      // Đặt về cuối ngày (23:59:59.999) để không bỏ sót các hóa đơn trong ngày
+      const endOfDay = new Date(filter.toDate)
+      endOfDay.setHours(23, 59, 59, 999)
+      request.input('toDate', sql.DateTime2, endOfDay)
       conditions.push('revenueDate <= CAST(@toDate AS DATE)')
     }
 
@@ -38,7 +44,6 @@ export class ReportRepo {
     `
 
     const result = await request.query(query)
-
     return result.recordset[0]
   }
 

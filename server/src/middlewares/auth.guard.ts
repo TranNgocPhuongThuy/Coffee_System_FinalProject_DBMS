@@ -8,8 +8,6 @@ declare global {
     interface Request {
       user?: {
         id: number;
-        username?: string;
-        phoneNumber?: string;
         fullName: string;
         role:
           | "ADMIN"
@@ -19,6 +17,8 @@ declare global {
           | "STOREKEEPER"
           | "CUSTOMER";
         userType: "EMPLOYEE" | "CUSTOMER";
+        username?: string;
+        phoneNumber?: string;
       };
     }
   }
@@ -33,7 +33,7 @@ interface JwtPayload {
     | "BARISTA"
     | "STOREKEEPER"
     | "CUSTOMER";
-  userType?: "EMPLOYEE" | "CUSTOMER";
+  userType: "EMPLOYEE" | "CUSTOMER";
 }
 
 export const authGuard = async (
@@ -47,8 +47,7 @@ export const authGuard = async (
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       res.status(401).json({
         success: false,
-        message:
-          "Yêu cầu đăng nhập để truy cập tài nguyên này (Thiếu Bearer Token).",
+        message: "Yêu cầu đăng nhập để truy cập tài nguyên này (Thiếu Bearer Token).",
       });
       return;
     }
@@ -70,75 +69,80 @@ export const authGuard = async (
     }
 
     const pool = await getPool();
-    const dbReq = pool.request();
-    dbReq.input("id", sql.Int, decoded.id);
 
-    if (decoded.role === "CUSTOMER" || decoded.userType === "CUSTOMER") {
-      const custRes = await pool.request().input("id", sql.Int, decoded.id)
+    // 1. Nhánh Khách hàng: Chỉ query bảng Customer
+    if (decoded.userType === "CUSTOMER") {
+      const custRes = await pool
+        .request()
+        .input("id", sql.Int, decoded.id)
         .query(`
-      SELECT id, phoneNumber, fullName, membershipTier 
-      FROM Customer 
-      WHERE id = @id AND deletedAt IS NULL
-    `);
+          SELECT id, phoneNumber, fullName, membershipTier 
+          FROM Customer 
+          WHERE id = @id AND deletedAt IS NULL
+        `);
 
       if (custRes.recordset.length === 0) {
-        res
-          .status(401)
-          .json({
-            success: false,
-            message: "Tài khoản khách hàng không tồn tại hoặc đã bị khóa.",
-          });
+        res.status(401).json({
+          success: false,
+          message: "Tài khoản khách hàng không tồn tại hoặc đã bị khóa.",
+        });
         return;
       }
 
       const cust = custRes.recordset[0];
       req.user = {
         id: cust.id,
-        phoneNumber: cust.phoneNumber,
         fullName: cust.fullName,
+        phoneNumber: cust.phoneNumber,
         role: "CUSTOMER",
         userType: "CUSTOMER",
       };
       return next();
     }
 
-    // 2. Nếu là Nhân viên nội bộ (Employee)
-    const empRes = await pool.request().input("id", sql.Int, decoded.id).query(`
-    SELECT id, username, fullName, role, status 
-    FROM Employee 
-    WHERE id = @id AND deletedAt IS NULL
-  `);
+    // 2. Nhánh Nhân viên nội bộ: Chỉ query bảng Employee
+    if (decoded.userType === "EMPLOYEE") {
+      const empRes = await pool
+        .request()
+        .input("id", sql.Int, decoded.id)
+        .query(`
+          SELECT id, username, fullName, role, status, phoneNumber 
+          FROM Employee 
+          WHERE id = @id AND deletedAt IS NULL
+        `);
 
-    if (empRes.recordset.length === 0) {
-      res
-        .status(401)
-        .json({
+      if (empRes.recordset.length === 0) {
+        res.status(401).json({
           success: false,
           message: "Tài khoản nhân viên không tồn tại hoặc đã bị xóa.",
         });
-      return;
-    }
+        return;
+      }
 
-    const employee = empRes.recordset[0];
-    if (employee.status !== "ACTIVE") {
-      res
-        .status(403)
-        .json({
+      const emp = empRes.recordset[0];
+      if (emp.status !== "ACTIVE") {
+        res.status(403).json({
           success: false,
           message: "Tài khoản nhân viên đã bị khóa hoặc ngừng hoạt động.",
         });
-      return;
+        return;
+      }
+
+      req.user = {
+        id: emp.id,
+        fullName: emp.fullName,
+        username: emp.username,
+        phoneNumber: emp.phoneNumber,
+        role: emp.role,
+        userType: "EMPLOYEE",
+      };
+      return next();
     }
 
-    req.user = {
-      id: employee.id,
-      username: employee.username,
-      fullName: employee.fullName,
-      role: employee.role,
-      userType: "EMPLOYEE",
-    };
-
-    next();
+    res.status(401).json({
+      success: false,
+      message: "Đối tượng người dùng không hợp lệ trong hệ thống.",
+    });
   } catch (error) {
     next(error);
   }

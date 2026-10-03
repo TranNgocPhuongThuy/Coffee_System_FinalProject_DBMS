@@ -26,7 +26,7 @@ ALTER TABLE Employee ADD CONSTRAINT DF_Employee_status DEFAULT ('ACTIVE') FOR st
 ALTER TABLE Customer ADD CONSTRAINT DF_Customer_rewardPoints DEFAULT (0) FOR rewardPoints;
 ALTER TABLE Customer ADD CONSTRAINT DF_Customer_membershipTier DEFAULT ('STANDARD') FOR membershipTier;
 
-ALTER TABLE PagerDevice ADD CONSTRAINT DF_PagerDevice_status DEFAULT ('IDLE') FOR status;
+ALTER TABLE PagerDevice ADD CONSTRAINT DF_PagerDevice_status DEFAULT ('AVAILABLE') FOR status;
 ALTER TABLE PagerDevice ADD CONSTRAINT DF_PagerDevice_batteryLevel DEFAULT (100) FOR batteryLevel;
 
 ALTER TABLE Product ADD CONSTRAINT DF_Product_status DEFAULT ('ACTIVE') FOR status;
@@ -38,7 +38,7 @@ ALTER TABLE [Order] ADD CONSTRAINT DF_Order_subTotal DEFAULT (0.00) FOR subTotal
 ALTER TABLE [Order] ADD CONSTRAINT DF_Order_discountAmount DEFAULT (0.00) FOR discountAmount;
 ALTER TABLE [Order] ADD CONSTRAINT DF_Order_totalAmount DEFAULT (0.00) FOR totalAmount;
 ALTER TABLE [Order] ADD CONSTRAINT DF_Order_paymentMethod DEFAULT ('CASH') FOR paymentMethod;
-ALTER TABLE [Order] ADD CONSTRAINT DF_Order_status DEFAULT ('PENDING') FOR status;
+ALTER TABLE [Order] ADD CONSTRAINT DF_Order_status DEFAULT ('PENDING_PREP') FOR status;
 ALTER TABLE [Order] ADD CONSTRAINT DF_Order_createdAt DEFAULT (SYSDATETIME()) FOR createdAt;
 
 ALTER TABLE OrderDetail ADD CONSTRAINT DF_OrderDetail_quantity DEFAULT (1) FOR quantity;
@@ -66,7 +66,7 @@ ALTER TABLE Customer ADD CONSTRAINT CK_Customer_tier CHECK (membershipTier IN ('
 ALTER TABLE PagerDevice ADD CONSTRAINT CK_PagerDevice_status CHECK (status IN ('IDLE', 'IN_USE', 'CHARGING', 'MAINTENANCE', 'AVAILABLE'));
 ALTER TABLE [Order] ADD CONSTRAINT CK_Order_channel CHECK (orderChannel IN ('POS', 'APP', 'DELIVERY', 'ORDER_AT_COUNTER'));
 ALTER TABLE [Order] ADD CONSTRAINT CK_Order_payment CHECK (paymentMethod IN ('CASH', 'BANK_TRANSFER', 'CARD', 'MOMO', 'VNPAY', 'POINT_EXCHANGE'));
-ALTER TABLE [Order] ADD CONSTRAINT CK_Order_status CHECK (status IN ('PENDING', 'PAID', 'READY', 'COMPLETED', 'CANCELLED', 'PENDING_PREP', 'READY_FOR_PICKUP'));
+ALTER TABLE [Order] ADD CONSTRAINT CK_Order_status CHECK (status IN ('PENDING_PREP', 'PREPARING', 'READY_FOR_PICKUP', 'COMPLETED', 'CANCELLED'));
 ALTER TABLE OrderDetail ADD CONSTRAINT CK_OrderDetail_itemStatus CHECK (itemStatus IN ('PENDING', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED', 'DONE'));
 ALTER TABLE LoyaltyTransaction ADD CONSTRAINT CK_LoyaltyTransaction_type CHECK (transactionType IN ('EARN', 'REDEEM'));
 

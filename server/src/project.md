@@ -2,9 +2,9 @@
 
 **Root:** `C:\Programing\hqtcsdl\Coffee_System_FinalProject_DBMS\server\src`
 
-**Generated:** 2026-09-30 23:48:34.101098
+**Generated:** 2026-10-03 18:55:38.270256
 
-**Files:** 86 | **Total size:** 193,391 bytes
+**Files:** 86 | **Total size:** 202,670 bytes
 
 ---
 
@@ -15,7 +15,7 @@
 | Path | `app.ts` |
 | Size | 1,583 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-30 23:32:37.468629 |
+| Modified | 2026-10-01 00:07:18.602920 |
 
 ```typescript
 import express, { Express } from 'express'
@@ -166,7 +166,7 @@ export { sql }
 | Path | `config\env.config.ts` |
 | Size | 944 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-30 23:46:57.961719 |
+| Modified | 2026-10-01 00:07:18.605918 |
 
 ```typescript
 import dotenv from 'dotenv'
@@ -205,106 +205,141 @@ export const envConfig = parseResult.data
 | Property | Value |
 |----------|-------|
 | Path | `middlewares\auth.guard.ts` |
-| Size | 3,285 bytes |
+| Size | 3,688 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-29 23:27:37.656388 |
+| Modified | 2026-10-01 00:07:18.607921 |
 
 ```typescript
-import { Request, Response, NextFunction } from 'express'
-import jwt from 'jsonwebtoken'
-import { envConfig } from '@/config/env.config'
-import { getPool, sql } from '@/config/database'
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { envConfig } from "@/config/env.config";
+import { getPool, sql } from "@/config/database";
 
 declare global {
   namespace Express {
     interface Request {
       user?: {
-        id: number
-        username?: string
-        phoneNumber?: string
-        fullName: string
-        role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER' | 'CUSTOMER'
-        userType: 'EMPLOYEE' | 'CUSTOMER'
-      }
+        id: number;
+        username?: string;
+        phoneNumber?: string;
+        fullName: string;
+        role:
+          | "ADMIN"
+          | "MANAGER"
+          | "CASHIER"
+          | "BARISTA"
+          | "STOREKEEPER"
+          | "CUSTOMER";
+        userType: "EMPLOYEE" | "CUSTOMER";
+      };
     }
   }
 }
 
 interface JwtPayload {
-  id: number
-  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER' | 'CUSTOMER'
-  userType?: 'EMPLOYEE' | 'CUSTOMER'
+  id: number;
+  role:
+    | "ADMIN"
+    | "MANAGER"
+    | "CASHIER"
+    | "BARISTA"
+    | "STOREKEEPER"
+    | "CUSTOMER";
+  userType?: "EMPLOYEE" | "CUSTOMER";
 }
 
-export const authGuard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const authGuard = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
-    const authHeader = req.headers.authorization
+    const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       res.status(401).json({
         success: false,
-        message: 'Yêu cầu đăng nhập để truy cập tài nguyên này (Thiếu Bearer Token).',
-      })
-      return
+        message:
+          "Yêu cầu đăng nhập để truy cập tài nguyên này (Thiếu Bearer Token).",
+      });
+      return;
     }
 
-    const token = authHeader.split(' ')[1]
+    const token = authHeader.split(" ")[1];
 
-    let decoded: JwtPayload
+    let decoded: JwtPayload;
     try {
-      decoded = jwt.verify(token, envConfig.JWT_SECRET) as JwtPayload
+      decoded = jwt.verify(token, envConfig.JWT_SECRET) as JwtPayload;
     } catch (err: any) {
       res.status(401).json({
         success: false,
-        message: err.name === 'TokenExpiredError' ? 'Phiên đăng nhập đã hết hạn.' : 'Token xác thực không hợp lệ.',
-      })
-      return
+        message:
+          err.name === "TokenExpiredError"
+            ? "Phiên đăng nhập đã hết hạn."
+            : "Token xác thực không hợp lệ.",
+      });
+      return;
     }
 
-    const pool = await getPool()
-    const dbReq = pool.request()
-    dbReq.input('id', sql.Int, decoded.id)
+    const pool = await getPool();
+    const dbReq = pool.request();
+    dbReq.input("id", sql.Int, decoded.id);
 
-    // 1. Nếu là Khách hàng (CUSTOMER)
-    if (decoded.role === 'CUSTOMER' || decoded.userType === 'CUSTOMER') {
-      const custRes = await dbReq.query(`
-        SELECT id, phoneNumber, fullName, membershipTier 
-        FROM Customer 
-        WHERE id = @id AND deletedAt IS NULL
-      `)
+    if (decoded.role === "CUSTOMER" || decoded.userType === "CUSTOMER") {
+      const custRes = await pool.request().input("id", sql.Int, decoded.id)
+        .query(`
+      SELECT id, phoneNumber, fullName, membershipTier 
+      FROM Customer 
+      WHERE id = @id AND deletedAt IS NULL
+    `);
 
       if (custRes.recordset.length === 0) {
-        res.status(401).json({ success: false, message: 'Tài khoản khách hàng không tồn tại hoặc đã bị khóa.' })
-        return
+        res
+          .status(401)
+          .json({
+            success: false,
+            message: "Tài khoản khách hàng không tồn tại hoặc đã bị khóa.",
+          });
+        return;
       }
 
-      const cust = custRes.recordset[0]
+      const cust = custRes.recordset[0];
       req.user = {
         id: cust.id,
         phoneNumber: cust.phoneNumber,
         fullName: cust.fullName,
-        role: 'CUSTOMER',
-        userType: 'CUSTOMER',
-      }
-      return next()
+        role: "CUSTOMER",
+        userType: "CUSTOMER",
+      };
+      return next();
     }
 
     // 2. Nếu là Nhân viên nội bộ (Employee)
-    const empRes = await dbReq.query(`
-      SELECT id, username, fullName, role, status 
-      FROM Employee 
-      WHERE id = @id AND deletedAt IS NULL
-    `)
+    const empRes = await pool.request().input("id", sql.Int, decoded.id).query(`
+    SELECT id, username, fullName, role, status 
+    FROM Employee 
+    WHERE id = @id AND deletedAt IS NULL
+  `);
 
     if (empRes.recordset.length === 0) {
-      res.status(401).json({ success: false, message: 'Tài khoản nhân viên không tồn tại hoặc đã bị xóa.' })
-      return
+      res
+        .status(401)
+        .json({
+          success: false,
+          message: "Tài khoản nhân viên không tồn tại hoặc đã bị xóa.",
+        });
+      return;
     }
 
-    const employee = empRes.recordset[0]
-    if (employee.status !== 'ACTIVE') {
-      res.status(403).json({ success: false, message: 'Tài khoản nhân viên đã bị khóa hoặc ngừng hoạt động.' })
-      return
+    const employee = empRes.recordset[0];
+    if (employee.status !== "ACTIVE") {
+      res
+        .status(403)
+        .json({
+          success: false,
+          message: "Tài khoản nhân viên đã bị khóa hoặc ngừng hoạt động.",
+        });
+      return;
     }
 
     req.user = {
@@ -312,14 +347,15 @@ export const authGuard = async (req: Request, res: Response, next: NextFunction)
       username: employee.username,
       fullName: employee.fullName,
       role: employee.role,
-      userType: 'EMPLOYEE',
-    }
+      userType: "EMPLOYEE",
+    };
 
-    next()
+    next();
   } catch (error) {
-    next(error)
+    next(error);
   }
-}
+};
+
 ```
 
 # middlewares\error.filter.ts
@@ -449,17 +485,53 @@ export const validatePipe = (schema: ZodSchema, part: RequestPart = 'body') => {
 | Property | Value |
 |----------|-------|
 | Path | `modules\auth\auth.controller.ts` |
-| Size | 1,919 bytes |
+| Size | 3,343 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-30 23:44:43.410351 |
+| Modified | 2026-10-03 18:43:15.413676 |
 
 ```typescript
 import { Request, Response, NextFunction } from 'express'
 import { AuthService } from './auth.service'
-import { ChangePasswordBodySchema, LoginBodySchema, SetupPasswordBodySchema } from './auth.schema'
+import { ChangePasswordBodySchema, LoginBodySchema, RegisterCustomerBodySchema, RegisterEmployeeBodySchema, SetupPasswordBodySchema } from './auth.schema'
+
 
 export class AuthController {
   private authService = new AuthService()
+
+  register = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const body = RegisterCustomerBodySchema.parse(req.body)
+      const result = await this.authService.registerCustomer(body)
+      res.status(201).json({
+        success: true,
+        message: 'Đăng ký tài khoản thành công',
+        data: result,
+      })
+    } catch (error: any) {
+      res.status(error.statusCode || 400).json({
+        success: false,
+        message: error.message || 'Đăng ký thất bại',
+      })
+    }
+  }
+
+  registerEmployee = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const body = RegisterEmployeeBodySchema.parse(req.body)
+      const result = await this.authService.registerEmployee(body)
+      res.status(201).json({
+        success: true,
+        message: 'Tạo tài khoản nhân viên thành công',
+        data: result,
+      })
+    } catch (error: any) {
+      res.status(error.statusCode || 400).json({
+        success: false,
+        message: error.message || 'Tạo tài khoản nhân viên thất bại',
+      })
+    }
+  }
+
 
   login = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -496,6 +568,14 @@ export class AuthController {
     }
   }
 
+  logout = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(200).json({ success: true, message: 'Đăng xuất thành công' })
+    } catch (error) {
+      next(error)
+    }
+  }
+
   getMe = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user!
@@ -506,6 +586,7 @@ export class AuthController {
     }
   }
 }
+
 ```
 
 # modules\auth\auth.repo.ts
@@ -513,9 +594,9 @@ export class AuthController {
 | Property | Value |
 |----------|-------|
 | Path | `modules\auth\auth.repo.ts` |
-| Size | 2,494 bytes |
+| Size | 5,148 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-30 23:44:01.072358 |
+| Modified | 2026-10-03 18:43:15.414671 |
 
 ```typescript
 import { getPool, sql } from '@/config/database'
@@ -598,7 +679,73 @@ export class AuthRepo {
         WHERE id = @id AND deletedAt IS NULL
       `)
   }
+
+  async createCustomer(data: {
+    fullName: string
+    phoneNumber: string
+    passwordHash: string
+    address?: string
+  }) {
+    const pool = await getPool()
+    const result = await pool
+      .request()
+      .input('fullName', sql.NVarChar(100), data.fullName)
+      .input('phoneNumber', sql.VarChar(20), data.phoneNumber)
+      .input('password', sql.VarChar(255), data.passwordHash)
+      .input('address', sql.NVarChar(255), data.address || null)
+      .query(`
+        INSERT INTO Customer (fullName, phoneNumber, password, address, rewardPoints, membershipTier, createdAt, updatedAt)
+        OUTPUT INSERTED.id, INSERTED.fullName, INSERTED.phoneNumber, INSERTED.membershipTier, INSERTED.rewardPoints
+        VALUES (@fullName, @phoneNumber, @password, @address, 0, 'STANDARD', SYSDATETIME(), SYSDATETIME())
+      `)
+    return result.recordset[0]
+  }
+
+  async activateCustomerWithPassword(id: number, data: { fullName: string; passwordHash: string; address?: string }) {
+    const pool = await getPool()
+    const result = await pool
+      .request()
+      .input('id', sql.Int, id)
+      .input('fullName', sql.NVarChar(100), data.fullName)
+      .input('password', sql.VarChar(255), data.passwordHash)
+      .input('address', sql.NVarChar(255), data.address || null)
+      .query(`
+        UPDATE Customer 
+        SET fullName = @fullName,
+            password = @password,
+            address = COALESCE(@address, address),
+            updatedAt = SYSDATETIME()
+        OUTPUT INSERTED.id, INSERTED.fullName, INSERTED.phoneNumber, INSERTED.membershipTier, INSERTED.rewardPoints
+        WHERE id = @id AND deletedAt IS NULL
+      `)
+    return result.recordset[0]
+  }
+
+  async createEmployee(data: {
+
+    fullName: string
+    username: string
+    passwordHash: string
+    role: string
+    phoneNumber?: string
+  }) {
+    const pool = await getPool()
+    const result = await pool
+      .request()
+      .input('fullName', sql.NVarChar(100), data.fullName)
+      .input('username', sql.VarChar(100), data.username)
+      .input('password', sql.VarChar(255), data.passwordHash)
+      .input('role', sql.VarChar(50), data.role)
+      .input('phoneNumber', sql.VarChar(20), data.phoneNumber || null)
+      .query(`
+        INSERT INTO Employee (fullName, username, password, role, phoneNumber, status, createdAt, updatedAt)
+        OUTPUT INSERTED.id, INSERTED.fullName, INSERTED.username, INSERTED.role, INSERTED.status
+        VALUES (@fullName, @username, @password, @role, @phoneNumber, 'ACTIVE', SYSDATETIME(), SYSDATETIME())
+      `)
+    return result.recordset[0]
+  }
 }
+
 ```
 
 # modules\auth\auth.routes.ts
@@ -606,26 +753,31 @@ export class AuthRepo {
 | Property | Value |
 |----------|-------|
 | Path | `modules\auth\auth.routes.ts` |
-| Size | 732 bytes |
+| Size | 1,068 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-30 23:44:25.597862 |
+| Modified | 2026-10-03 18:43:15.415669 |
 
 ```typescript
 import { Router } from 'express'
 import { AuthController } from './auth.controller'
 import { authGuard, validatePipe } from '@/middlewares'
-import { ChangePasswordBodySchema, LoginBodySchema, SetupPasswordBodySchema } from './auth.schema'
+import { ChangePasswordBodySchema, LoginBodySchema, RegisterCustomerBodySchema, RegisterEmployeeBodySchema, SetupPasswordBodySchema } from './auth.schema'
 
 export const authRouter = Router()
 const controller = new AuthController()
 
 // Public
 authRouter.post('/login', validatePipe(LoginBodySchema, 'body'), controller.login)
+authRouter.post('/register', validatePipe(RegisterCustomerBodySchema, 'body'), controller.register)
+authRouter.post('/register-employee', validatePipe(RegisterEmployeeBodySchema, 'body'), controller.registerEmployee)
 authRouter.post('/setup-password', validatePipe(SetupPasswordBodySchema, 'body'), controller.setupPassword)
+
 
 // Yêu cầu đăng nhập
 authRouter.get('/me', authGuard, controller.getMe)
+authRouter.post('/logout', authGuard, controller.logout)
 authRouter.post('/change-password', authGuard, validatePipe(ChangePasswordBodySchema, 'body'), controller.changePassword)
+
 ```
 
 # modules\auth\auth.schema.ts
@@ -633,9 +785,9 @@ authRouter.post('/change-password', authGuard, validatePipe(ChangePasswordBodySc
 | Property | Value |
 |----------|-------|
 | Path | `modules\auth\auth.schema.ts` |
-| Size | 1,857 bytes |
+| Size | 3,325 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-30 23:43:53.320821 |
+| Modified | 2026-10-03 18:43:15.417057 |
 
 ```typescript
 import { z } from 'zod'
@@ -684,9 +836,43 @@ export const ChangePasswordBodySchema = z
     }
   })
 
+export const RegisterCustomerBodySchema = z
+  .object({
+    phoneNumber: z
+      .string()
+      .regex(/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/, 'Số điện thoại không hợp lệ'),
+    fullName: z.string().trim().min(2, 'Họ và tên tối thiểu 2 ký tự').max(100),
+    password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
+    confirmPassword: z.string().min(6, 'Xác nhận mật khẩu tối thiểu 6 ký tự'),
+    address: z.string().trim().max(255).optional(), // Phục vụ giao hàng online
+  })
+  .strict()
+  .superRefine(({ password, confirmPassword }, ctx) => {
+    if (password !== confirmPassword) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Mật khẩu và xác nhận mật khẩu không khớp nhau',
+        path: ['confirmPassword'],
+      })
+    }
+  })
+
+export const RegisterEmployeeBodySchema = z
+  .object({
+    fullName: z.string().trim().min(2, 'Họ và tên tối thiểu 2 ký tự').max(100),
+    username: z.string().trim().min(3, 'Tên đăng nhập tối thiểu 3 ký tự').max(50),
+    password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
+    role: z.enum(['ADMIN', 'MANAGER', 'CASHIER', 'BARISTA', 'STOREKEEPER']),
+    phoneNumber: z.string().optional(),
+  })
+  .strict()
+
+export type RegisterCustomerBodyType = z.infer<typeof RegisterCustomerBodySchema>
+export type RegisterEmployeeBodyType = z.infer<typeof RegisterEmployeeBodySchema>
 export type LoginBodyType = z.infer<typeof LoginBodySchema>
 export type SetupPasswordBodyType = z.infer<typeof SetupPasswordBodySchema>
 export type ChangePasswordBodyType = z.infer<typeof ChangePasswordBodySchema>
+
 ```
 
 # modules\auth\auth.service.ts
@@ -694,19 +880,119 @@ export type ChangePasswordBodyType = z.infer<typeof ChangePasswordBodySchema>
 | Property | Value |
 |----------|-------|
 | Path | `modules\auth\auth.service.ts` |
-| Size | 5,529 bytes |
+| Size | 8,695 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-30 23:44:09.321419 |
+| Modified | 2026-10-03 18:43:15.417581 |
 
 ```typescript
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { envConfig } from '@/config/env.config'
 import { AuthRepo } from './auth.repo'
-import { ChangePasswordBodyType, LoginBodyType, SetupPasswordBodyType } from './auth.schema'
+import { ChangePasswordBodyType, LoginBodyType, RegisterCustomerBodyType, RegisterEmployeeBodyType, SetupPasswordBodyType } from './auth.schema'
+
 
 export class AuthService {
   private authRepo = new AuthRepo()
+
+  async registerEmployee(data: RegisterEmployeeBodyType) {
+    const existingEmp = await this.authRepo.findEmployeeByUsername(data.username)
+    if (existingEmp) {
+      const err: any = new Error('Tên đăng nhập này đã được sử dụng')
+      err.statusCode = 409
+      throw err
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password, 10)
+    const employee = await this.authRepo.createEmployee({
+      fullName: data.fullName,
+      username: data.username,
+      passwordHash: hashedPassword,
+      role: data.role,
+      phoneNumber: data.phoneNumber,
+    })
+
+    const accessToken = jwt.sign(
+      {
+        id: employee.id,
+        username: employee.username,
+        fullName: employee.fullName,
+        role: employee.role,
+        userType: 'EMPLOYEE',
+      },
+      envConfig.JWT_SECRET,
+      { expiresIn: envConfig.JWT_EXPIRES_IN }
+    )
+
+    return {
+      accessToken,
+      user: {
+        id: employee.id,
+        fullName: employee.fullName,
+        username: employee.username,
+        role: employee.role,
+        userType: 'EMPLOYEE',
+      },
+    }
+  }
+
+  async registerCustomer(data: RegisterCustomerBodyType) {
+
+    const existingCustomer = await this.authRepo.findCustomerByPhone(data.phoneNumber)
+
+    // Trường hợp 1: SĐT đã có tài khoản và đã có mật khẩu
+    if (existingCustomer && existingCustomer.password) {
+      const err: any = new Error('Số điện thoại này đã được đăng ký tài khoản. Vui lòng đăng nhập.')
+      err.statusCode = 409
+      throw err
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password, 10)
+    let customer: any
+
+    // Trường hợp 2: Khách đã từng mua tích điểm tại quầy (chưa có pass), giờ đăng ký online
+    if (existingCustomer && !existingCustomer.password) {
+      customer = await this.authRepo.activateCustomerWithPassword(existingCustomer.id, {
+        fullName: data.fullName,
+        passwordHash: hashedPassword,
+        address: data.address,
+      })
+    } else {
+      // Trường hợp 3: Khách hàng mới hoàn toàn
+      customer = await this.authRepo.createCustomer({
+        fullName: data.fullName,
+        phoneNumber: data.phoneNumber,
+        passwordHash: hashedPassword,
+        address: data.address,
+      })
+    }
+
+    // Tự động cấp token đăng nhập ngay sau khi tạo tài khoản thành công
+    const accessToken = jwt.sign(
+      {
+        id: customer.id,
+        phoneNumber: customer.phoneNumber,
+        fullName: customer.fullName,
+        role: 'CUSTOMER',
+        userType: 'CUSTOMER',
+      },
+      envConfig.JWT_SECRET,
+      { expiresIn: envConfig.JWT_EXPIRES_IN }
+    )
+
+    return {
+      accessToken,
+      user: {
+        id: customer.id,
+        fullName: customer.fullName,
+        phoneNumber: customer.phoneNumber,
+        membershipTier: customer.membershipTier,
+        rewardPoints: customer.rewardPoints,
+        role: 'CUSTOMER',
+        userType: 'CUSTOMER',
+      },
+    }
+  }
 
   async login(data: LoginBodyType) {
     const { identifier, password, userType } = data
@@ -1188,7 +1474,7 @@ customerRouter.delete('/:id', controller.delete)
 | Path | `modules\customer-loyalty\customer\customer.schema.ts` |
 | Size | 1,170 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-30 23:37:01.104899 |
+| Modified | 2026-10-01 00:07:18.618048 |
 
 ```typescript
 import { z } from 'zod'
@@ -3000,7 +3286,7 @@ export class KDSController {
 | Path | `modules\kds\kds.repo.ts` |
 | Size | 5,023 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-30 23:33:40.553730 |
+| Modified | 2026-10-01 00:07:18.620103 |
 
 ```typescript
 import { getPool, sql } from "@/config/database";
@@ -4785,13 +5071,13 @@ export class ToppingService {
 | Property | Value |
 |----------|-------|
 | Path | `modules\pos-order\order\order.controller.ts` |
-| Size | 3,830 bytes |
+| Size | 4,028 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-30 23:36:08.337304 |
+| Modified | 2026-10-01 00:07:18.621152 |
 
 ```typescript
-import { NextFunction, Request, Response } from 'express'
-import { OrderService } from './order.service'
+import { NextFunction, Request, Response } from "express";
+import { OrderService } from "./order.service";
 import {
   ApplyLoyaltyPointsSchema,
   CancelOrderSchema,
@@ -4800,118 +5086,125 @@ import {
   FilterOrderQuerySchema,
   OrderDetailParamSchema,
   OrderParamSchema,
-} from './order.schema'
+} from "./order.schema";
 
 export class OrderController {
-  private orderService = new OrderService()
+  private orderService = new OrderService();
 
   /**
    * Lấy danh sách đơn hàng có phân trang & bộ lọc
    */
   list = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const query = FilterOrderQuerySchema.parse(req.query)
-      const result = await this.orderService.getOrders(query)
-      res.status(200).json({ success: true, ...result })
+      const query = FilterOrderQuerySchema.parse(req.query);
+      const result = await this.orderService.getOrders(query);
+      res.status(200).json({ success: true, ...result });
     } catch (error) {
-      next(error)
+      next(error);
     }
-  }
+  };
 
   /**
    * Lấy thông tin chi tiết đơn hàng
    */
   detail = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = OrderParamSchema.parse(req.params)
-      const data = await this.orderService.getOrderById(id)
-      res.status(200).json({ success: true, data })
+      const { id } = OrderParamSchema.parse(req.params);
+      const data = await this.orderService.getOrderById(id);
+      res.status(200).json({ success: true, data });
     } catch (error) {
-      next(error)
+      next(error);
     }
-  }
+  };
 
   /**
    * Xuất hóa đơn chi tiết phục vụ in ấn từ View v_InvoiceDetails
    */
   invoice = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = OrderParamSchema.parse(req.params)
-      const data = await this.orderService.getInvoice(id)
-      res.status(200).json({ success: true, data })
+      const { id } = OrderParamSchema.parse(req.params);
+      const data = await this.orderService.getInvoice(id);
+      res.status(200).json({ success: true, data });
     } catch (error) {
-      next(error)
+      next(error);
     }
-  }
+  };
 
   /**
    * Tạo đơn hàng mới tại quầy POS
    */
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const body = CreateOrderSchema.parse(req.body)
-      const result = await this.orderService.createOrder(body)
-      res.status(201).json({ success: true, ...result })
+      const body = CreateOrderSchema.parse(req.body);
+      const employeeId = req.user?.id || body.employeeId;
+      const result = await this.orderService.createOrder({
+        ...body,
+        employeeId,
+      });
+      res.status(201).json({ success: true, ...result });
     } catch (error) {
-      next(error)
+      next(error);
     }
-  }
+  };
 
   /**
    * Hoàn tất thanh toán đơn hàng & tích điểm
    */
   completePayment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = OrderParamSchema.parse(req.params)
-      const body = CompletePaymentSchema.parse(req.body)
-      const result = await this.orderService.completePayment(id, body)
-      res.status(200).json({ success: true, ...result })
+      const { id } = OrderParamSchema.parse(req.params);
+      const body = CompletePaymentSchema.parse(req.body);
+      const result = await this.orderService.completePayment(id, body);
+      res.status(200).json({ success: true, ...result });
     } catch (error) {
-      next(error)
+      next(error);
     }
-  }
+  };
 
   /**
    * Hủy đơn hàng & giải phóng thẻ rung
    */
   cancel = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = OrderParamSchema.parse(req.params)
-    const body = CancelOrderSchema.parse(req.body)
-    const employeeId = req.user?.id || body.employeeId
-    const result = await this.orderService.cancelOrder(id, { ...body, employeeId })
-    res.status(200).json({ success: true, ...result })
-  } catch (error) {
-    next(error)
-  }
-}
+    try {
+      const { id } = OrderParamSchema.parse(req.params);
+      const body = CancelOrderSchema.parse(req.body);
+      const employeeId = req.user?.id || body.employeeId;
+      const result = await this.orderService.cancelOrder(id, {
+        ...body,
+        employeeId,
+      });
+      res.status(200).json({ success: true, ...result });
+    } catch (error) {
+      next(error);
+    }
+  };
 
   /**
    * Đổi điểm thưởng hội viên lấy chiết khấu giảm giá đơn hàng
    */
   applyPoints = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = OrderParamSchema.parse(req.params)
-      const body = ApplyLoyaltyPointsSchema.parse(req.body)
-      const result = await this.orderService.applyLoyaltyPoints(id, body)
-      res.status(200).json({ success: true, ...result })
+      const { id } = OrderParamSchema.parse(req.params);
+      const body = ApplyLoyaltyPointsSchema.parse(req.body);
+      const result = await this.orderService.applyLoyaltyPoints(id, body);
+      res.status(200).json({ success: true, ...result });
     } catch (error) {
-      next(error)
+      next(error);
     }
-  }
+  };
 
   /**
    * Xóa một món khỏi đơn hàng chưa chế biến
    */
   removeItem = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { detailId } = OrderDetailParamSchema.parse(req.params)
-      const result = await this.orderService.removeOrderItem(detailId)
-      res.status(200).json({ success: true, ...result })
+      const { detailId } = OrderDetailParamSchema.parse(req.params);
+      const result = await this.orderService.removeOrderItem(detailId);
+      res.status(200).json({ success: true, ...result });
     } catch (error) {
-      next(error)
+      next(error);
     }
-  }
+  };
 }
 
 ```
@@ -5372,7 +5665,7 @@ export class OrderRepo {
 | Path | `modules\pos-order\order\order.routes.ts` |
 | Size | 1,009 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-30 23:36:30.960238 |
+| Modified | 2026-10-01 00:07:18.623155 |
 
 ```typescript
 import { Router } from 'express'
@@ -6204,57 +6497,36 @@ export class PagerRepo {
 | Property | Value |
 |----------|-------|
 | Path | `modules\pos-order\pager\pager.routes.ts` |
-| Size | 1,692 bytes |
+| Size | 1,322 bytes |
 | Extension | `.ts` |
-| Modified | 2026-09-30 19:35:12.811338 |
+| Modified | 2026-10-01 00:07:18.624157 |
 
 ```typescript
 import { Router } from 'express'
 import { PagerController } from './pager.controller'
+import { authGuard, roleGuard } from '@/middlewares'
 
 export const pagerRouter = Router()
 const controller = new PagerController()
 
-// 1. Lấy danh sách thẻ rung (Phân trang, lọc theo trạng thái, mức pin, tìm kiếm mã)
-// GET /api/v1/pos/pagers
-pagerRouter.get('/', controller.list)
+// Bắt buộc đăng nhập cho toàn bộ phân hệ Pager
+pagerRouter.use(authGuard)
 
-// 2. Danh sách thẻ rung sẵn sàng cấp cho khách (AVAILABLE & Pin >= 15%)
-// GET /api/v1/pos/pagers/available
-pagerRouter.get('/available', controller.available)
+// Cashier và Manager được xem danh sách và dashboard
+pagerRouter.get('/', roleGuard('CASHIER', 'MANAGER'), controller.list)
+pagerRouter.get('/available', roleGuard('CASHIER', 'MANAGER'), controller.available)
+pagerRouter.get('/dashboard', roleGuard('CASHIER', 'MANAGER', 'BARISTA'), controller.dashboard)
+pagerRouter.get('/:id', roleGuard('CASHIER', 'MANAGER'), controller.detail)
 
-// 3. Dashboard điều phối theo dõi thời gian chờ của khách theo View v_ActivePagerDashboard
-// GET /api/v1/pos/pagers/dashboard
-pagerRouter.get('/dashboard', controller.dashboard)
+// Thu hồi thẻ rung: Thu ngân hoặc Pha chế
+pagerRouter.post('/:id/release', roleGuard('CASHIER', 'BARISTA', 'MANAGER'), controller.release)
+pagerRouter.patch('/:id/battery', roleGuard('CASHIER', 'BARISTA', 'MANAGER'), controller.updateBattery)
+pagerRouter.patch('/:id/status', roleGuard('CASHIER', 'MANAGER'), controller.updateStatus)
 
-// 4. Lấy thông tin chi tiết 1 thẻ rung
-// GET /api/v1/pos/pagers/:id
-pagerRouter.get('/:id', controller.detail)
-
-// 5. Thêm mới thiết bị thẻ rung
-// POST /api/v1/pos/pagers
-pagerRouter.post('/', controller.create)
-
-// 6. Cập nhật thông tin thẻ rung
-// PUT /api/v1/pos/pagers/:id
-pagerRouter.put('/:id', controller.update)
-
-// 7. Cập nhật trạng thái thẻ rung (AVAILABLE, IN_USE, CHARGING, MAINTENANCE)
-// PATCH /api/v1/pos/pagers/:id/status
-pagerRouter.patch('/:id/status', controller.updateStatus)
-
-// 8. Cập nhật mức pin thiết bị thẻ rung
-// PATCH /api/v1/pos/pagers/:id/battery
-pagerRouter.patch('/:id/battery', controller.updateBattery)
-
-// 9. Thu hồi thẻ rung khi khách trả thẻ
-// POST /api/v1/pos/pagers/:id/release
-pagerRouter.post('/:id/release', controller.release)
-
-// 10. Xóa mềm thiết bị thẻ rung
-// DELETE /api/v1/pos/pagers/:id
-pagerRouter.delete('/:id', controller.delete)
-
+// Cấu hình thêm mới / xóa thẻ rung: Chỉ MANAGER
+pagerRouter.post('/', roleGuard('MANAGER'), controller.create)
+pagerRouter.put('/:id', roleGuard('MANAGER'), controller.update)
+pagerRouter.delete('/:id', roleGuard('MANAGER'), controller.delete)
 ```
 
 # modules\pos-order\pager\pager.schema.ts

@@ -136,26 +136,26 @@ export class LoyaltyRepo {
             const lockReq = new sql.Request(transaction)
             lockReq.input('customerId', sql.Int, data.customerId)
 
-            // Kiểm tra và khóa dòng dữ liệu của Customer
+            // 1. Khóa và lấy thông tin điểm hiện tại của Customer
             const customerRes = await lockReq.query(`
-        SELECT rewardPoints, membershipTier 
-        FROM Customer WITH (UPDLOCK, ROWLOCK)
-        WHERE id = @customerId AND deletedAt IS NULL
-      `)
+                SELECT rewardPoints, membershipTier 
+                FROM Customer WITH (UPDLOCK, ROWLOCK)
+                WHERE id = @customerId AND deletedAt IS NULL
+            `)
 
             if (customerRes.recordset.length === 0) {
                 throw new Error('Khách hàng không tồn tại hoặc đã bị xóa')
             }
 
-            // Nếu truyền orderId, validate đơn hàng & kiểm tra thuộc về customerId
+            // 2. Validate Order nếu có truyền orderId
             if (data.orderId) {
                 const orderReq = new sql.Request(transaction)
                 orderReq.input('orderId', sql.Int, data.orderId)
                 const orderRes = await orderReq.query(`
-          SELECT id, customerId 
-          FROM [Order] 
-          WHERE id = @orderId AND deletedAt IS NULL
-        `)
+                    SELECT id, customerId 
+                    FROM [Order] 
+                    WHERE id = @orderId AND deletedAt IS NULL
+                `)
 
                 if (orderRes.recordset.length === 0) {
                     throw new Error('Đơn hàng không tồn tại')
@@ -166,14 +166,13 @@ export class LoyaltyRepo {
                     throw new Error('Đơn hàng không thuộc về khách hàng này')
                 }
 
-                // Chống EARN trùng order nếu mỗi order chỉ được cộng điểm một lần
                 if (data.transactionType === 'EARN') {
                     const dupReq = new sql.Request(transaction)
                     dupReq.input('orderId', sql.Int, data.orderId)
                     const dupRes = await dupReq.query(`
-            SELECT TOP 1 id FROM LoyaltyTransaction 
-            WHERE orderId = @orderId AND transactionType = 'EARN'
-          `)
+                        SELECT TOP 1 id FROM LoyaltyTransaction 
+                        WHERE orderId = @orderId AND transactionType = 'EARN'
+                    `)
 
                     if (dupRes.recordset.length > 0) {
                         throw new Error('Đơn hàng này đã được cộng điểm thưởng trước đó')
@@ -182,73 +181,73 @@ export class LoyaltyRepo {
             }
 
             const currentPoints: number = customerRes.recordset[0].rewardPoints
-            let newBalance = currentPoints
 
-            if (data.transactionType === 'EARN') {
-                newBalance += data.points
-            } else if (data.transactionType === 'REDEEM') {
+            // Xác định số điểm chèn vào sổ cái: EARN là số dương, REDEEM là số âm
+            let pointsToRecord = data.points
+            if (data.transactionType === 'REDEEM') {
                 if (currentPoints < data.points) {
                     throw new Error(`Điểm thưởng không đủ (Hiện có: ${currentPoints}, cần đổi: ${data.points})`)
                 }
-                newBalance -= data.points
+                pointsToRecord = -Math.abs(data.points)
+            } else {
+                pointsToRecord = Math.abs(data.points)
             }
 
-            // Tính tổng điểm tích lũy lifetime (Lifetime Earned Points) để xét hạng membershipTier
+            const newBalance = currentPoints + pointsToRecord
+
+            // 3. Tính điểm Lifetime Earned để xét thăng hạng
             const lifetimeReq = new sql.Request(transaction)
             lifetimeReq.input('customerId', sql.Int, data.customerId)
             const lifetimeRes = await lifetimeReq.query(`
-        SELECT ISNULL(SUM(points), 0) AS totalEarned
-        FROM LoyaltyTransaction
-        WHERE customerId = @customerId AND transactionType = 'EARN'
-      `)
+                SELECT ISNULL(SUM(points), 0) AS totalEarned
+                FROM LoyaltyTransaction
+                WHERE customerId = @customerId AND transactionType = 'EARN'
+            `)
 
             let lifetimePoints = Number(lifetimeRes.recordset[0]?.totalEarned || 0)
             if (data.transactionType === 'EARN') {
                 lifetimePoints += data.points
             }
 
-            // Xác định hạng thành viên theo Lifetime Points để không bị tụt hạng khi đổi điểm (REDEEM)
             let newTier = 'STANDARD'
             if (lifetimePoints >= 1000) newTier = 'DIAMOND'
             else if (lifetimePoints >= 500) newTier = 'GOLD'
             else if (lifetimePoints >= 200) newTier = 'SILVER'
 
-            // Cập nhật Customer
-            const updateReq = new sql.Request(transaction)
-            updateReq.input('customerId', sql.Int, data.customerId)
-            updateReq.input('newBalance', sql.Int, newBalance)
-            updateReq.input('newTier', sql.NVarChar(50), newTier)
+            // Cập nhật hạng thành viên (chỉ cập nhật membershipTier, không can thiệp rewardPoints vì trigger DB sẽ làm)
+            const updateTierReq = new sql.Request(transaction)
+            updateTierReq.input('customerId', sql.Int, data.customerId)
+            updateTierReq.input('newTier', sql.NVarChar(50), newTier)
+            await updateTierReq.query(`
+                UPDATE Customer 
+                SET membershipTier = @newTier, 
+                    updatedAt = SYSDATETIME()
+                WHERE id = @customerId
+            `)
 
-            await updateReq.query(`
-        UPDATE Customer 
-        SET rewardPoints = @newBalance, 
-            membershipTier = @newTier, 
-            updatedAt = SYSDATETIME()
-        WHERE id = @customerId
-      `)
-
-            // Ghi log vào bảng LoyaltyTransaction
+            // 4. Ghi log vào LoyaltyTransaction.
+            // Trigger trg_LoyaltyTransaction_SyncPoints trong DB sẽ tự động tính lại Customer.rewardPoints chuẩn xác!
             const logReq = new sql.Request(transaction)
             logReq.input('customerId', sql.Int, data.customerId)
             logReq.input('orderId', sql.Int, data.orderId || null)
             logReq.input('transactionType', sql.NVarChar(50), data.transactionType)
-            logReq.input('points', sql.Int, data.points)
+            logReq.input('points', sql.Int, pointsToRecord)
             logReq.input('balanceAfter', sql.Int, newBalance)
             logReq.input('description', sql.NVarChar(500), data.description || null)
 
             const logRes = await logReq.query(`
-        INSERT INTO LoyaltyTransaction (customerId, orderId, transactionType, points, balanceAfter, description)
-        OUTPUT 
-          INSERTED.id, 
-          INSERTED.customerId, 
-          INSERTED.orderId, 
-          INSERTED.transactionType, 
-          INSERTED.points, 
-          INSERTED.balanceAfter, 
-          INSERTED.description, 
-          INSERTED.createdAt
-        VALUES (@customerId, @orderId, @transactionType, @points, @balanceAfter, @description)
-      `)
+                INSERT INTO LoyaltyTransaction (customerId, orderId, transactionType, points, balanceAfter, description, createdAt)
+                OUTPUT 
+                  INSERTED.id, 
+                  INSERTED.customerId, 
+                  INSERTED.orderId, 
+                  INSERTED.transactionType, 
+                  INSERTED.points, 
+                  INSERTED.balanceAfter, 
+                  INSERTED.description, 
+                  INSERTED.createdAt
+                VALUES (@customerId, @orderId, @transactionType, @points, @balanceAfter, @description, SYSDATETIME())
+            `)
 
             await transaction.commit()
             return {

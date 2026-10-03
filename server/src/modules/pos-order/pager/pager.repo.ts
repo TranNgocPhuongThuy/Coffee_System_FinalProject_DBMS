@@ -167,9 +167,12 @@ export class PagerRepo {
     const pool = await getPool()
     const request = pool.request()
 
+    const status = data.status || 'AVAILABLE'
+    const battery = Math.min(100, Math.max(0, Math.floor(Number(data.batteryLevel) || 100)))
+
     request.input('pagerCode', sql.VarChar(50), data.pagerCode)
-    request.input('status', sql.NVarChar(50), data.status)
-    request.input('batteryLevel', sql.Int, data.batteryLevel)
+    request.input('status', sql.NVarChar(50), status)
+    request.input('batteryLevel', sql.Int, battery)
 
     const query = `
       INSERT INTO PagerDevice (pagerCode, status, batteryLevel, createdAt)

@@ -1,32 +1,57 @@
 import { Request, Response, NextFunction } from 'express'
 import { AuthService } from './auth.service'
-import { ChangePasswordBodySchema, LoginBodySchema, RegisterCustomerBodySchema, RegisterEmployeeBodySchema, SetupPasswordBodySchema } from './auth.schema'
-
+import {
+  ChangePasswordBodySchema,
+  CreateEmployeeBodySchema,
+  LoginBodySchema,
+  RegisterBodySchema,
+  UpdateEmployeeRoleBodySchema,
+} from './auth.schema'
 
 export class AuthController {
   private authService = new AuthService()
 
   register = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const body = RegisterCustomerBodySchema.parse(req.body)
-      const result = await this.authService.registerCustomer(body)
+      const body = RegisterBodySchema.parse(req.body);
+      const result = await this.authService.register(body);
       res.status(201).json({
         success: true,
-        message: 'Đăng ký tài khoản thành công',
-        data: result,
-      })
+        message: result.message,
+        data: {
+          accessToken: result.accessToken,
+          user: result.user,
+        },
+      });
     } catch (error: any) {
       res.status(error.statusCode || 400).json({
         success: false,
         message: error.message || 'Đăng ký thất bại',
+      });
+    }
+  };
+
+  login = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const body = LoginBodySchema.parse(req.body)
+      const result = await this.authService.login(body)
+      res.status(200).json({
+        success: true,
+        message: 'Đăng nhập thành công',
+        data: result,
+      })
+    } catch (error: any) {
+      res.status(error.statusCode || 401).json({
+        success: false,
+        message: error.message || 'Xác thực thất bại',
       })
     }
   }
 
-  registerEmployee = async (req: Request, res: Response, next: NextFunction) => {
+  createEmployee = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const body = RegisterEmployeeBodySchema.parse(req.body)
-      const result = await this.authService.registerEmployee(body)
+      const body = CreateEmployeeBodySchema.parse(req.body)
+      const result = await this.authService.createEmployee(body)
       res.status(201).json({
         success: true,
         message: 'Tạo tài khoản nhân viên thành công',
@@ -40,28 +65,21 @@ export class AuthController {
     }
   }
 
-
-  login = async (req: Request, res: Response, next: NextFunction) => {
+  setEmployeeRole = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const body = LoginBodySchema.parse(req.body)
-      const result = await this.authService.login(body)
-      res.status(200).json({ success: true, message: 'Đăng nhập thành công', data: result })
-    } catch (error: any) {
-      res.status(error.statusCode || 401).json({
-        success: false,
-        code: error.code,
-        message: error.message || 'Xác thực thất bại',
+      const id = Number(req.params.id)
+      const body = UpdateEmployeeRoleBodySchema.parse(req.body)
+      const result = await this.authService.setEmployeeRole(id, body)
+      res.status(200).json({
+        success: true,
+        message: 'Cập nhật quyền nhân viên thành công',
+        data: result,
       })
-    }
-  }
-
-  setupPassword = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const body = SetupPasswordBodySchema.parse(req.body)
-      const result = await this.authService.setupPassword(body)
-      res.status(200).json({ success: true, ...result })
     } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message })
+      res.status(error.statusCode || 400).json({
+        success: false,
+        message: error.message || 'Cập nhật quyền thất bại',
+      })
     }
   }
 
@@ -72,15 +90,7 @@ export class AuthController {
       const result = await this.authService.changePassword(user.id, user.userType, body)
       res.status(200).json({ success: true, ...result })
     } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message })
-    }
-  }
-
-  logout = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      res.status(200).json({ success: true, message: 'Đăng xuất thành công' })
-    } catch (error) {
-      next(error)
+      res.status(error.statusCode || 400).json({ success: false, message: error.message })
     }
   }
 
@@ -93,4 +103,8 @@ export class AuthController {
       next(error)
     }
   }
-}
+
+  logout = async (_req: Request, res: Response) => {
+    res.status(200).json({ success: true, message: 'Đăng xuất thành công' })
+  }
+}

@@ -110,48 +110,29 @@ export class KDSRepo {
   }
 
   // 3. Rung chuông thẻ rung & Chuyển trạng thái Order sang READY_FOR_PICKUP (UC18, UC19)
+ // modules/kds/kds.repo.ts
+
   async triggerReadyAlarm(orderId: number) {
     const pool = await getPool();
     const req = pool.request();
-    req.input("orderId", sql.Int, orderId);
 
-    // Kiểm tra xem tất cả các ly trong đơn đã xong (DONE) chưa
-    const checkResult = await req.query(`
-      SELECT 
-        COUNT(CASE WHEN itemStatus <> 'DONE' AND itemStatus <> 'CANCELLED' THEN 1 END) AS pendingCount,
-        MAX(pagerId) AS pagerId
-      FROM OrderDetail od
-      JOIN [Order] o ON od.orderId = o.id
-      WHERE o.id = @orderId
-      GROUP BY o.id
-    `);
+    req.input("OrderId", sql.Int, orderId);
+    req.output("PagerId", sql.Int);
+    req.output("PendingCount", sql.Int);
 
-    if (checkResult.recordset.length === 0) {
-      throw new Error(`Đơn hàng #${orderId} không tồn tại`);
-    }
+    // Gọi Stored Procedure đóng gói trọn vẹn nghiệp vụ
+    const result = await req.execute("sp_KDS_NotifyOrderReady");
 
-    const { pendingCount, pagerId } = checkResult.recordset[0];
-    if (pendingCount > 0) {
-      throw new Error(
-        `Đơn hàng vẫn còn ${pendingCount} món chưa pha chế xong, chưa thể rung chuông báo khách!`,
-      );
-    }
-
-    // Cập nhật Order sang READY_FOR_PICKUP
-    await req.query(`
-      UPDATE [Order]
-      SET status = 'READY_FOR_PICKUP',
-          updatedAt = SYSDATETIME()
-      WHERE id = @orderId
-    `);
+    const pagerId = result.output.PagerId;
+    const pendingCount = result.output.PendingCount;
 
     return {
       orderId,
       status: "READY_FOR_PICKUP",
       pagerId,
+      itemsCompleted: pendingCount,
       alarmTriggered: true,
-      message:
-        "Đã kích hoạt thẻ rung và thông báo đơn sẵn sàng để nhận đồ uống",
+      message: "Đã kích hoạt thẻ rung và cập nhật đơn hàng sẵn sàng nhận đồ uống.",
     };
   }
 }

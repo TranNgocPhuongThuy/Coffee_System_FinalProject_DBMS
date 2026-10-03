@@ -2,6 +2,21 @@ import { getPool, sql } from '@/config/database'
 import { QueryImportTicketType } from './import.schema'
 
 export class ImportRepo {
+
+   private buildImportDetailTVP(details: any[]): sql.Table {
+    const tvp = new sql.Table('udt_InventoryImportDetailList')
+    tvp.columns.add('ingredientId', sql.Int, { nullable: false })
+    tvp.columns.add('quantity', sql.Decimal(18, 3), { nullable: false })
+    tvp.columns.add('unitPrice', sql.Decimal(18, 2), { nullable: false })
+    tvp.columns.add('totalLineAmount', sql.Decimal(18, 2), { nullable: false })
+
+    for (const item of details) {
+      const lineTotal = item.quantity * item.unitPrice
+      tvp.rows.add(item.ingredientId, item.quantity, item.unitPrice, lineTotal)
+    }
+    return tvp
+  }
+
   async findAll(query: QueryImportTicketType) {
     const pool = await getPool()
     const req = pool.request()
@@ -42,45 +57,24 @@ export class ImportRepo {
     return result.recordset
   }
 
+
+
   async createImportTicketWithProcedure(data: any) {
     const pool = await getPool()
-    const transaction = new sql.Transaction(pool)
-    await transaction.begin()
-    try {
-      const headerReq = new sql.Request(transaction)
-      headerReq.input('employeeId', sql.Int, data.employeeId)
-      headerReq.input('supplierName', sql.NVarChar(255), data.supplierName)
-      headerReq.input('totalAmount', sql.Decimal(18, 2), data.totalAmount)
-      headerReq.input('note', sql.NVarChar(sql.MAX), data.note || null)
+    const req = pool.request()
 
-      const headerRes = await headerReq.query(`
-        INSERT INTO InventoryImport (employeeId, supplierName, totalAmount, importDate, note)
-        OUTPUT INSERTED.id
-        VALUES (@employeeId, @supplierName, @totalAmount, SYSDATETIME(), @note)
-      `)
-      const importId = headerRes.recordset[0].id
+    const tvp = this.buildImportDetailTVP(data.details)
 
-      for (const item of data.details) {
-        const detailReq = new sql.Request(transaction)
-        const lineTotal = item.quantity * item.unitPrice
-        detailReq.input('importId', sql.Int, importId)
-        detailReq.input('ingredientId', sql.Int, item.ingredientId)
-        detailReq.input('quantity', sql.Decimal(18, 3), item.quantity)
-        detailReq.input('unitPrice', sql.Decimal(18, 2), item.unitPrice)
-        detailReq.input('totalLineAmount', sql.Decimal(18, 2), lineTotal)
+    req.input('SupplierName', sql.NVarChar(255), data.supplierName)
+    req.input('EmployeeId', sql.Int, data.employeeId)
+    req.input('Note', sql.NVarChar(sql.MAX), data.note || null)
+    req.input('ImportDetails', tvp)
+    req.output('NewImportId', sql.Int)
 
-        // Trigger trg_Ingredient_CongKho_KhiNhapHang sẽ tự động cộng dồn kho sau câu lệnh INSERT này
-        await detailReq.query(`
-          INSERT INTO InventoryImportDetail (importId, ingredientId, quantity, unitPrice, totalLineAmount)
-          VALUES (@importId, @ingredientId, @quantity, @unitPrice, @totalLineAmount)
-        `)
-      }
+    // Gọi trực tiếp Stored Procedure đúng chuẩn
+    const result = await req.execute('sp_CreateInventoryImport')
+    const importId = result.output.NewImportId
 
-      await transaction.commit()
-      return { importId, ...data }
-    } catch (err) {
-      await transaction.rollback()
-      throw err
-    }
+    return { importId, ...data }
   }
 }

@@ -760,4 +760,56 @@ BEGIN
         THROW;
     END CATCH
 END;
+
+CREATE OR ALTER PROCEDURE sp_KDS_NotifyOrderReady
+    @OrderId INT,
+    @PagerId INT OUTPUT,
+    @PendingCount INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- 1. Kiểm tra đơn hàng tồn tại
+        SELECT 
+            @PagerId = pagerId
+        FROM [Order] WITH (UPDLOCK, ROWLOCK)
+        WHERE id = @OrderId AND deletedAt IS NULL;
+
+        IF @PagerId IS NULL AND NOT EXISTS (SELECT 1 FROM [Order] WHERE id = @OrderId AND deletedAt IS NULL)
+        BEGIN
+            RAISERROR(N'Đơn hàng không tồn tại hoặc đã bị xóa!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        -- 2. Đếm số món chưa hoàn thành
+        SELECT @PendingCount = COUNT(1)
+        FROM OrderDetail
+        WHERE orderId = @OrderId 
+          AND itemStatus NOT IN (N'DONE', N'CANCELLED');
+
+        -- 3. Cập nhật các món còn lại sang 'DONE' (Kích hoạt trg_OrderDetail_DeductInventory tự trừ kho)
+        UPDATE OrderDetail
+        SET itemStatus = N'DONE',
+            updatedAt = SYSDATETIME()
+        WHERE orderId = @OrderId 
+          AND itemStatus NOT IN (N'DONE', N'CANCELLED');
+
+        -- 4. Chuyển trạng thái Order sang READY_FOR_PICKUP
+        UPDATE [Order]
+        SET status = N'READY_FOR_PICKUP',
+            updatedAt = SYSDATETIME()
+        WHERE id = @OrderId;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
 GO
