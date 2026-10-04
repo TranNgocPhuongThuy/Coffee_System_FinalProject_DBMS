@@ -13,8 +13,9 @@
     "baseUrl": "./",
     "paths": {
       "@/*": ["src/*"]
-    }
+    },
+    "resolveJsonModule": true,
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "swagger-gen.js"],
   "exclude": ["node_modules", "dist"]
 }
