@@ -42,7 +42,6 @@ export default function RegisterPage() {
       await login({
         identifier: phoneNumber,
         password,
-        userType: 'CUSTOMER',
       });
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Đăng ký thất bại');

@@ -10,6 +10,8 @@ export interface Customer extends SoftDeletableEntity {
 
 export interface LoyaltyTransaction extends BaseEntity {
     customerId: number;
+    customerName?: string | null;
+    customerPhone?: string | null;
     orderId?: number | null;
     orderCode?: string | null;
     transactionType: LoyaltyTransactionType;
