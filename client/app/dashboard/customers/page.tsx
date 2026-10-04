@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Plus,
   Search,
@@ -13,14 +15,22 @@ import {
   Medal,
   Clock,
   Sparkles,
+  History,
+  Eye,
+  PlusCircle,
+  Users,
+  Award,
 } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
 import { loyaltyService, CustomerItem } from '@/api/loyalty.service';
 import { CustomerFormModal } from '@/components/loyalty/CustomerFormModal';
 import { AssignRoleModal } from '@/components/loyalty/AssignRoleModal';
+import { AdjustPointsModal } from '@/components/loyalty/AdjustPointsModal';
+import { CustomerProfileDrawer } from '@/components/loyalty/CustomerProfileDrawer';
 import { ConfirmModal } from '@/components/common/ConfirmModal';
 
 export default function CustomersPage() {
+  const router = useRouter();
   const { user } = useAuthContext();
   const isManager = user?.role === 'MANAGER' || user?.role === 'ADMIN';
 
@@ -29,12 +39,23 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTier, setSelectedTier] = useState('all');
 
-  // Modal states
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  // Modal & Drawer states
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerItem | null>(null);
 
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignCustomer, setAssignCustomer] = useState<CustomerItem | null>(null);
+
+  const [isAdjustPointsOpen, setIsAdjustPointsOpen] = useState(false);
+  const [adjustTargetCustomer, setAdjustTargetCustomer] = useState<CustomerItem | null>(null);
+
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [drawerCustomer, setDrawerCustomer] = useState<CustomerItem | null>(null);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteCustomerTarget, setDeleteCustomerTarget] = useState<CustomerItem | null>(null);
@@ -52,14 +73,22 @@ export default function CustomersPage() {
       const res = await loyaltyService.getCustomers({
         search: searchQuery || undefined,
         membershipTier: selectedTier !== 'all' ? selectedTier : undefined,
+        page,
+        limit: 15,
       });
       setCustomers(res.items || res.data || []);
+      if (res.meta) {
+        setTotalPages(res.meta.totalPages || 1);
+        setTotalItems(res.meta.totalItems || 0);
+      } else {
+        setTotalItems(res.items?.length || 0);
+      }
     } catch {
       setCustomers([]);
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, selectedTier]);
+  }, [searchQuery, selectedTier, page]);
 
   useEffect(() => {
     fetchCustomers();
@@ -109,7 +138,7 @@ export default function CustomersPage() {
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-200">
             <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-            Hạng Kim Cương
+            Kim Cương
           </span>
         );
       case 'GOLD':
@@ -130,11 +159,14 @@ export default function CustomersPage() {
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-800 border border-orange-200">
             <Medal className="w-3.5 h-3.5 text-orange-600" />
-            Hạng Chuẩn (Standard)
+            Standard
           </span>
         );
     }
   };
+
+  // Calculate summary stats
+  const totalPoints = customers.reduce((acc, c) => acc + (c.rewardPoints || 0), 0);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
@@ -148,23 +180,96 @@ export default function CustomersPage() {
       {/* Header Title & Actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Quản lý Khách hàng</h1>
-          <p className="text-sm text-gray-500 mt-1">Danh sách hội viên, tích điểm và phân quyền</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Quản lý Khách hàng & Tích điểm</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Danh sách hội viên, lịch sử điểm thưởng và phân quyền hệ thống
+          </p>
         </div>
 
-        {isManager && (
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedCustomer(null);
-              setIsAddEditModalOpen(true);
-            }}
-            className="flex items-center gap-2 bg-[#6F4E37] hover:bg-[#5A3F2C] text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-all cursor-pointer active:scale-[0.99]"
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            href="/dashboard/customers/transactions"
+            className="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-all"
           >
-            <Plus className="w-4 h-4" />
-            <span>Thêm khách hàng</span>
-          </button>
-        )}
+            <History className="w-4 h-4 text-gray-500" />
+            <span>Sổ cái biến động điểm</span>
+          </Link>
+
+          {isManager && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdjustTargetCustomer(null);
+                  setIsAdjustPointsOpen(true);
+                }}
+                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-all cursor-pointer active:scale-[0.99]"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Điều chỉnh điểm</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCustomer(null);
+                  setIsAddEditModalOpen(true);
+                }}
+                className="flex items-center gap-2 bg-[#6F4E37] hover:bg-[#5A3F2C] text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-all cursor-pointer active:scale-[0.99]"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Thêm khách hàng</span>
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Overview Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-[#F5EBE6] text-[#6F4E37] flex items-center justify-center shrink-0 font-bold">
+            <Users className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Tổng số khách hàng</p>
+            <p className="text-xl font-bold text-gray-900 mt-0.5">{totalItems.toLocaleString('vi-VN')}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 font-bold">
+            <Award className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Tổng điểm lưu hành</p>
+            <p className="text-xl font-bold text-amber-800 mt-0.5">{totalPoints.toLocaleString('vi-VN')} pts</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 font-bold">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Thành viên Kim Cương</p>
+            <p className="text-xl font-bold text-purple-900 mt-0.5">
+              {customers.filter((c) => c.membershipTier === 'DIAMOND').length}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 font-bold">
+            <Crown className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Thành viên Hạng Vàng</p>
+            <p className="text-xl font-bold text-amber-900 mt-0.5">
+              {customers.filter((c) => c.membershipTier === 'GOLD').length}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Search & Filter Bar */}
@@ -174,7 +279,10 @@ export default function CustomersPage() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
             placeholder="Tìm theo tên, số điện thoại..."
             className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20 transition-all"
           />
@@ -184,7 +292,10 @@ export default function CustomersPage() {
           <Filter className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <select
             value={selectedTier}
-            onChange={(e) => setSelectedTier(e.target.value)}
+            onChange={(e) => {
+              setSelectedTier(e.target.value);
+              setPage(1);
+            }}
             className="pl-10 pr-8 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20 cursor-pointer appearance-none"
           >
             <option value="all">Tất cả hạng thẻ</option>
@@ -204,16 +315,16 @@ export default function CustomersPage() {
               <tr className="bg-[#FAF6F0] border-b border-gray-100 text-xs font-bold text-gray-600 uppercase tracking-wider">
                 <th className="py-3.5 px-5">Khách hàng</th>
                 <th className="py-3.5 px-5">Số điện thoại</th>
-                <th className="py-3.5 px-5">Điểm tích lũy</th>
+                <th className="py-3.5 px-5">Điểm hiện tại</th>
                 <th className="py-3.5 px-5">Hạng thẻ</th>
                 <th className="py-3.5 px-5">Ngày tham gia</th>
-                {isManager && <th className="py-3.5 px-5 text-right">Thao tác Quản lý</th>}
+                <th className="py-3.5 px-5 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan={isManager ? 6 : 5} className="py-12 text-center text-gray-400 text-sm">
+                  <td colSpan={6} className="py-12 text-center text-gray-400 text-sm">
                     Đang tải danh sách khách hàng...
                   </td>
                 </tr>
@@ -224,8 +335,14 @@ export default function CustomersPage() {
                     <tr key={cust.id} className="hover:bg-gray-50/60 transition-colors group">
                       {/* Name & Avatar */}
                       <td className="py-3.5 px-5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-[#F5EBE6] text-[#6F4E37] font-bold text-xs flex items-center justify-center shrink-0">
+                        <div
+                          onClick={() => {
+                            setDrawerCustomer(cust);
+                            setIsDrawerOpen(true);
+                          }}
+                          className="flex items-center gap-3 cursor-pointer"
+                        >
+                          <div className="w-9 h-9 rounded-full bg-[#F5EBE6] text-[#6F4E37] font-bold text-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                             {initial}
                           </div>
                           <div>
@@ -265,57 +382,95 @@ export default function CustomersPage() {
                         </div>
                       </td>
 
-                      {/* Manager Actions */}
-                      {isManager && (
-                        <td className="py-3.5 px-5 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* Edit Button */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedCustomer(cust);
-                                setIsAddEditModalOpen(true);
-                              }}
-                              className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
-                              title="Sửa thông tin khách hàng"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
+                      {/* Actions */}
+                      <td className="py-3.5 px-5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* View Detail Page */}
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/dashboard/customers/${cust.id}`)}
+                            className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                            title="Xem trang chi tiết"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
 
-                            {/* Set Role Button (Manager only, restricted from setting Manager) */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAssignCustomer(cust);
-                                setIsAssignModalOpen(true);
-                              }}
-                              className="p-2 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
-                              title="Cấp quyền Nhân viên (Thu ngân, Pha chế, Thủ kho)"
-                            >
-                              <UserCheck className="w-4 h-4" />
-                            </button>
+                          {/* Quick Drawer */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDrawerCustomer(cust);
+                              setIsDrawerOpen(true);
+                            }}
+                            className="p-2 rounded-lg text-[#6F4E37] hover:bg-[#F5EBE6] transition-colors cursor-pointer"
+                            title="Xem nhanh hồ sơ"
+                          >
+                            <UserCheck className="w-4 h-4" />
+                          </button>
 
-                            {/* Delete Button */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDeleteCustomerTarget(cust);
-                                setIsDeleteModalOpen(true);
-                              }}
-                              className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                              title="Xóa khách hàng"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      )}
+                          {isManager && (
+                            <>
+                              {/* Adjust Points Modal */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdjustTargetCustomer(cust);
+                                  setIsAdjustPointsOpen(true);
+                                }}
+                                className="p-2 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
+                                title="Cộng / Trừ điểm"
+                              >
+                                <PlusCircle className="w-4 h-4" />
+                              </button>
+
+                              {/* Edit Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCustomer(cust);
+                                  setIsAddEditModalOpen(true);
+                                }}
+                                className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                                title="Sửa thông tin"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+
+                              {/* Assign Employee Role */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAssignCustomer(cust);
+                                  setIsAssignModalOpen(true);
+                                }}
+                                className="p-2 rounded-lg text-[#6F4E37] hover:bg-orange-50 transition-colors cursor-pointer"
+                                title="Chuyển thành nhân viên"
+                              >
+                                <UserCheck className="w-4 h-4 text-orange-600" />
+                              </button>
+
+                              {/* Delete Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDeleteCustomerTarget(cust);
+                                  setIsDeleteModalOpen(true);
+                                }}
+                                className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                title="Xóa khách hàng"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={isManager ? 6 : 5} className="py-12 text-center text-gray-400 text-sm">
+                  <td colSpan={6} className="py-12 text-center text-gray-400 text-sm">
                     Không tìm thấy khách hàng phù hợp.
                   </td>
                 </tr>
@@ -324,13 +479,73 @@ export default function CustomersPage() {
           </table>
         </div>
 
-        {/* Footer info */}
+        {/* Footer info & Pagination */}
         <div className="p-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 bg-white">
           <p>
-            Hiển thị <span className="font-semibold text-gray-700">{customers.length}</span> khách hàng
+            Hiển thị <span className="font-semibold text-gray-700">{customers.length}</span> / {totalItems} khách hàng
           </p>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 font-semibold cursor-pointer"
+              >
+                Trước
+              </button>
+              <span className="font-semibold text-gray-700">
+                {page} / {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 font-semibold cursor-pointer"
+              >
+                Sau
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Customer Quick Profile Drawer */}
+      <CustomerProfileDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setDrawerCustomer(null);
+        }}
+        customer={drawerCustomer}
+        isManager={isManager}
+        onEdit={(cust) => {
+          setIsDrawerOpen(false);
+          setSelectedCustomer(cust);
+          setIsAddEditModalOpen(true);
+        }}
+        onAdjustPoints={(cust) => {
+          setIsDrawerOpen(false);
+          setAdjustTargetCustomer(cust);
+          setIsAdjustPointsOpen(true);
+        }}
+      />
+
+      {/* Adjust Points Modal */}
+      <AdjustPointsModal
+        isOpen={isAdjustPointsOpen}
+        onClose={() => {
+          setIsAdjustPointsOpen(false);
+          setAdjustTargetCustomer(null);
+        }}
+        onSuccess={() => {
+          showToast('Điều chỉnh điểm thưởng thành công!');
+          fetchCustomers();
+        }}
+        customer={adjustTargetCustomer}
+        customersList={customers}
+      />
 
       {/* Add / Edit Customer Modal */}
       <CustomerFormModal

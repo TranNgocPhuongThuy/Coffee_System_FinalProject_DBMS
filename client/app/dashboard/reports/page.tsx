@@ -1,323 +1,343 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from 'react';
 import {
-  TrendingUp,
-  Receipt,
-  Coffee,
-  AlertTriangle,
-  Download,
-  Sparkles,
-  ChevronDown,
-  Loader2,
   RefreshCw,
-} from "lucide-react";
-import reportService from "@/api/report.service";
-
-interface TopProductItem {
-  productName?: string;
-  name?: string;
-  categoryName?: string;
-  totalQuantity?: number;
-  totalRevenue?: number;
-}
-
-interface RevenueItem {
-  date?: string;
-  day?: string;
-  revenue?: number;
-  orders?: number;
-}
+  Download,
+  AlertTriangle,
+  Calendar,
+  Layers,
+  ChevronDown,
+} from 'lucide-react';
+import reportService from '@/api/report.service';
+import { RevenueOverviewReport, TopProductReport, LowStockIngredientReport } from '@/types/report';
+import { RevenueSummaryCards } from '@/components/reports/RevenueSummaryCards';
+import { RevenueBarChart } from '@/components/reports/RevenueBarChart';
+import { ExportReportModal } from '@/components/reports/ExportReportModal';
 
 export default function ReportsPage() {
-  const [timeFilter, setTimeFilter] = useState("Tuần này");
-  const [loading, setLoading] = useState(true);
-  const [topProducts, setTopProducts] = useState<TopProductItem[]>([]);
-  const [revenueData, setRevenueData] = useState<RevenueItem[]>([]);
-  const [lowStockCount, setLowStockCount] = useState(0);
+  const [timeFilter, setTimeFilter] = useState<string>('Tuần này');
+  const [customFromDate, setCustomFromDate] = useState<string>('');
+  const [customToDate, setCustomToDate] = useState<string>('');
 
-  const fetchReportData = async () => {
+  const [loading, setLoading] = useState(true);
+  const [revenueOverview, setRevenueOverview] = useState<RevenueOverviewReport | null>(null);
+  const [topProducts, setTopProducts] = useState<TopProductReport[]>([]);
+  const [lowStockIngredients, setLowStockIngredients] = useState<LowStockIngredientReport[]>([]);
+
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Compute date range based on timeFilter
+  const getDateRange = useCallback(() => {
+    const today = new Date();
+    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+    if (timeFilter === 'Tùy chỉnh') {
+      return {
+        fromDate: customFromDate || undefined,
+        toDate: customToDate || undefined,
+      };
+    }
+
+    if (timeFilter === 'Hôm nay') {
+      const start = formatDate(today);
+      return { fromDate: start, toDate: start };
+    }
+
+    if (timeFilter === 'Tuần này') {
+      const pastWeek = new Date();
+      pastWeek.setDate(today.getDate() - 7);
+      return { fromDate: formatDate(pastWeek), toDate: formatDate(today) };
+    }
+
+    if (timeFilter === 'Tháng này') {
+      const pastMonth = new Date();
+      pastMonth.setDate(today.getDate() - 30);
+      return { fromDate: formatDate(pastMonth), toDate: formatDate(today) };
+    }
+
+    if (timeFilter === 'Năm nay') {
+      const startOfYear = new Date(today.getFullYear(), 0, 1);
+      return { fromDate: formatDate(startOfYear), toDate: formatDate(today) };
+    }
+
+    return {};
+  }, [timeFilter, customFromDate, customToDate]);
+
+  const fetchReportData = useCallback(async () => {
     setLoading(true);
+    const { fromDate, toDate } = getDateRange();
+
     try {
-      const [topRes, revRes, lowStockRes] = await Promise.all([
-        reportService.getTopProducts().catch(() => []),
-        reportService.getDailyRevenue().catch(() => []),
+      const [overviewData, topRes, lowStockRes] = await Promise.all([
+        reportService.getRevenueOverview({ fromDate, toDate }).catch(() => null),
+        reportService.getTopProducts({ limit: 5, fromDate, toDate }).catch(() => []),
         reportService.getLowStockAlert().catch(() => []),
       ]);
 
+      setRevenueOverview(overviewData);
       setTopProducts(Array.isArray(topRes) ? topRes : []);
-      setRevenueData(Array.isArray(revRes) ? revRes : []);
-      setLowStockCount(Array.isArray(lowStockRes) ? lowStockRes.length : 0);
+      setLowStockIngredients(Array.isArray(lowStockRes) ? lowStockRes : []);
     } catch (err) {
-      console.error("Failed to load report data:", err);
+      console.error('Failed to load report data:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [getDateRange]);
 
   useEffect(() => {
     fetchReportData();
-  }, [timeFilter]);
+  }, [fetchReportData]);
 
-  const totalRevenue = revenueData.reduce((sum, item) => sum + (Number(item.revenue) || 0), 0);
-  const totalOrders = revenueData.reduce((sum, item) => sum + (Number(item.orders) || 0), 0);
-  const topProduct = topProducts[0]?.productName || topProducts[0]?.name || "—";
-  const topProductQty = topProducts[0]?.totalQuantity || 0;
+  const handleExportData = (
+    format: 'csv' | 'json',
+    options: { includeTopProducts: boolean; includeLowStock: boolean }
+  ) => {
+    const exportPayload = {
+      title: `Báo cáo Doanh thu & Kinh doanh (${timeFilter})`,
+      exportedAt: new Date().toLocaleString('vi-VN'),
+      revenueOverview,
+      ...(options.includeTopProducts ? { topProducts } : {}),
+      ...(options.includeLowStock ? { lowStockIngredients } : {}),
+    };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(val);
+    if (format === 'json') {
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('download', `bao-cao-doanh-thu-${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    } else {
+      // CSV format
+      let csvContent = 'data:text/csv;charset=utf-8,\uFEFF';
+      csvContent += 'BÁO CÁO DOANH THU & KINH DOANH\n';
+      csvContent += `Thời gian,${timeFilter}\n`;
+      csvContent += `Tổng số đơn hàng,${revenueOverview?.totalOrders || 0}\n`;
+      csvContent += `Doanh thu thực nhận,${revenueOverview?.netRevenue || 0}\n`;
+      csvContent += `Tổng chiết khấu,${revenueOverview?.totalDiscount || 0}\n\n`;
+
+      if (options.includeTopProducts && topProducts.length > 0) {
+        csvContent += 'TOP SẢN PHẨM BÁN CHẠY\n';
+        csvContent += 'Tên sản phẩm,Số lượng bán,Doanh thu\n';
+        topProducts.forEach((p) => {
+          csvContent += `"${p.productName}",${p.totalQuantitySold},${p.totalRevenue}\n`;
+        });
+        csvContent += '\n';
+      }
+
+      if (options.includeLowStock && lowStockIngredients.length > 0) {
+        csvContent += 'CẢNH BÁO NGUYÊN LIỆU SẮP HẾT\n';
+        csvContent += 'Tên nguyên liệu,Đơn vị,Tồn hiện tại,Ngưỡng tối thiểu\n';
+        lowStockIngredients.forEach((i) => {
+          csvContent += `"${i.name}",${i.unit},${i.stockQuantity},${i.minimumThreshold}\n`;
+        });
+      }
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `bao-cao-doanh-thu-${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+
+    showToast(`Đã xuất báo cáo định dạng .${format.toUpperCase()} thành công!`);
   };
 
-  const maxRevenue = Math.max(...revenueData.map((r) => Number(r.revenue) || 1), 1);
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(val || 0);
+  };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* 1. Page Header & Filter Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-5 right-5 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg text-sm font-semibold z-50 animate-in fade-in">
+          {toastMessage}
+        </div>
+      )}
+
+      {/* Header & Controls */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
             Báo cáo doanh thu & Kinh doanh
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Tổng hợp hiệu suất kinh doanh, số lượng đơn hàng và sản phẩm bán chạy từ hệ thống
+            Tổng hợp hiệu suất bán hàng, sản phẩm tiêu biểu và cảnh báo tồn kho
           </p>
         </div>
 
-        {/* Action Toolbar */}
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={fetchReportData}
-            className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
-            title="Làm mới"
+            className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
+            title="Làm mới dữ liệu"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#6F4E37]' : ''}`} />
           </button>
 
+          {/* Time Filter Selector */}
           <div className="relative">
             <select
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value)}
-              className="pl-3.5 pr-8 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-xs font-semibold shadow-2xs hover:bg-gray-50 transition-colors focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20 cursor-pointer appearance-none"
+              className="pl-3.5 pr-8 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 text-xs font-semibold focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20 cursor-pointer appearance-none shadow-2xs"
             >
               <option value="Hôm nay">Hôm nay</option>
-              <option value="Tuần này">Tuần này</option>
-              <option value="Tháng này">Tháng này</option>
+              <option value="Tuần này">Tuần này (7 ngày)</option>
+              <option value="Tháng này">Tháng này (30 ngày)</option>
               <option value="Năm nay">Năm nay</option>
+              <option value="Tùy chỉnh">Tùy chỉnh ngày</option>
             </select>
             <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
+          {/* Export Button */}
           <button
             type="button"
-            onClick={() => alert("Đang xuất file Excel báo cáo...")}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            onClick={() => setIsExportModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
           >
-            <Download className="w-4 h-4 text-gray-500" />
-            <span>Xuất Excel</span>
+            <Download className="w-4 h-4" />
+            <span>Xuất báo cáo</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Quick Stat Cards (4 Columns) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        {/* Card 1: Tổng doanh thu */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between">
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Tổng doanh thu
-            </p>
-            <h3 className="text-2xl font-extrabold text-[#6F4E37] mt-1.5">
-              {formatCurrency(totalRevenue)}
-            </h3>
-            <p className="text-xs text-emerald-600 font-semibold mt-1">Dữ liệu thời gian thực</p>
+      {/* Custom Date Pickers (Shown if "Tùy chỉnh" is selected) */}
+      {timeFilter === 'Tùy chỉnh' && (
+        <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center gap-3 animate-in fade-in">
+          <div className="flex items-center gap-2 text-xs font-medium text-gray-600">
+            <Calendar className="w-4 h-4 text-[#6F4E37]" />
+            <span>Khoảng thời gian:</span>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <TrendingUp className="w-5 h-5" />
-          </div>
-        </div>
-
-        {/* Card 2: Tổng số đơn hàng */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between">
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Tổng đơn hàng
-            </p>
-            <h3 className="text-2xl font-extrabold text-gray-900 mt-1.5">
-              {totalOrders} <span className="text-sm font-normal text-gray-500">đơn</span>
-            </h3>
-            <p className="text-xs text-gray-400 mt-1">Ghi nhận qua POS</p>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
-            <Receipt className="w-5 h-5" />
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={customFromDate}
+              onChange={(e) => setCustomFromDate(e.target.value)}
+              className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-mono focus:outline-none focus:border-[#6F4E37]"
+            />
+            <span className="text-gray-400 text-xs">đến</span>
+            <input
+              type="date"
+              value={customToDate}
+              onChange={(e) => setCustomToDate(e.target.value)}
+              className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-mono focus:outline-none focus:border-[#6F4E37]"
+            />
+            <button
+              type="button"
+              onClick={fetchReportData}
+              className="px-3 py-1.5 bg-[#6F4E37] text-white rounded-xl text-xs font-semibold hover:bg-[#5A3F2C]"
+            >
+              Áp dụng
+            </button>
           </div>
         </div>
+      )}
 
-        {/* Card 3: Món bán chạy nhất */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between">
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Món bán chạy nhất
-            </p>
-            <h3 className="text-lg font-bold text-gray-900 mt-1.5 truncate max-w-[160px]">
-              {topProduct}
-            </h3>
-            <p className="text-xs text-gray-400 mt-1">
-              Đã bán: <span className="font-semibold text-gray-700">{topProductQty} ly</span>
-            </p>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-[#F5EBE6] text-[#6F4E37] flex items-center justify-center shrink-0">
-            <Coffee className="w-5 h-5" />
-          </div>
-        </div>
+      {/* 2. Stat Summary Cards */}
+      <RevenueSummaryCards
+        overview={revenueOverview}
+        lowStockCount={lowStockIngredients.length}
+        topProductName={topProducts[0]?.productName}
+        topProductQty={topProducts[0]?.totalQuantitySold}
+        loading={loading}
+      />
 
-        {/* Card 4: Cảnh báo kho */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between">
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Cảnh báo kho
-            </p>
-            <h3 className="text-2xl font-extrabold text-rose-600 mt-1.5">
-              {lowStockCount} <span className="text-sm font-normal text-rose-500">mặt hàng</span>
-            </h3>
-            <p className="text-xs text-rose-500/80 font-medium mt-1">Sắp hết hoặc cần nhập thêm</p>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Main Content: Chart (Left) + Top Products List (Right) */}
+      {/* 3. Top Products Chart & Low Stock Alert Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Cột Trái: Biểu đồ doanh thu */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
-            <div>
-              <h3 className="text-base font-bold text-gray-900">
-                Biểu đồ doanh thu ({timeFilter})
-              </h3>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Thống kê doanh thu theo mốc thời gian
-              </p>
-            </div>
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#6F4E37] bg-[#F5EBE6] px-3 py-1 rounded-full w-fit">
-              <Sparkles className="w-3.5 h-3.5" />
-              Tổng: {formatCurrency(totalRevenue)}
-            </span>
-          </div>
-
-          {loading ? (
-            <div className="h-64 flex flex-col items-center justify-center text-gray-400">
-              <Loader2 className="w-6 h-6 animate-spin mb-2 text-[#6F4E37]" />
-              Đang tải dữ liệu biểu đồ...
-            </div>
-          ) : revenueData.length > 0 ? (
-            <div className="h-64 sm:h-72 w-full flex items-end justify-between gap-2 sm:gap-4 pt-8 pb-2 px-2 border-b border-gray-100">
-              {revenueData.map((item, idx) => {
-                const heightPercent = Math.round(((Number(item.revenue) || 0) / maxRevenue) * 100);
-                const label = item.day || item.date || `T${idx + 1}`;
-                return (
-                  <div
-                    key={idx}
-                    className="flex-1 flex flex-col items-center h-full justify-end group cursor-pointer"
-                  >
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 mb-2 bg-gray-900 text-white text-[10px] font-medium py-1 px-2 rounded-md shadow-lg pointer-events-none whitespace-nowrap text-center">
-                      <p className="font-bold">{formatCurrency(Number(item.revenue) || 0)}</p>
-                      <p className="text-gray-300 text-[9px]">{item.orders || 0} đơn</p>
-                    </div>
-
-                    <div className="w-full max-w-[42px] bg-gray-100 rounded-t-xl overflow-hidden flex flex-col justify-end h-full">
-                      <div
-                        style={{ height: `${Math.max(heightPercent, 5)}%` }}
-                        className="w-full rounded-t-xl bg-[#6F4E37] group-hover:bg-[#5A3F2C] transition-all duration-300"
-                      />
-                    </div>
-
-                    <span className="text-[11px] mt-3 font-semibold text-gray-500 group-hover:text-gray-800 truncate max-w-[50px]">
-                      {label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
-              Chưa có dữ liệu doanh thu trong khoảng thời gian này.
-            </div>
-          )}
+        {/* Left Column: Top Selling Products */}
+        <div className="lg:col-span-2">
+          <RevenueBarChart
+            topProducts={topProducts}
+            loading={loading}
+            timeFilterLabel={timeFilter}
+          />
         </div>
 
-        {/* Cột Phải: Top sản phẩm bán chạy */}
-        <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-gray-100 flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-bold text-gray-900">
-              Top sản phẩm bán chạy
-            </h3>
-            <span className="text-xs text-gray-400 font-medium">Số lượng ly</span>
-          </div>
+        {/* Right Column: Low Stock Ingredients Table */}
+        <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-500" />
+                <span>Cảnh báo kho nguyên liệu</span>
+              </h3>
+              <span className="text-xs text-rose-600 font-semibold bg-rose-50 px-2.5 py-1 rounded-full">
+                {lowStockIngredients.length} mặt hàng
+              </span>
+            </div>
 
-          <div className="flex-1 space-y-4">
             {loading ? (
-              <div className="py-12 text-center text-gray-400">
-                <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-[#6F4E37]" />
-                Đang tải danh sách...
-              </div>
-            ) : topProducts.length > 0 ? (
-              topProducts.slice(0, 5).map((prod, idx) => {
-                const name = prod.productName || prod.name || `Sản phẩm #${idx + 1}`;
-                const qty = prod.totalQuantity || 0;
-                const rev = prod.totalRevenue || 0;
-                return (
-                  <div key={idx} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
-                            idx === 0
-                              ? "bg-amber-100 text-amber-800"
-                              : idx === 1
-                              ? "bg-slate-200 text-slate-700"
-                              : idx === 2
-                              ? "bg-orange-100 text-orange-800"
-                              : "bg-gray-100 text-gray-500"
-                          }`}
-                        >
-                          {idx + 1}
-                        </span>
-                        <span className="font-semibold text-gray-800">{name}</span>
+              <div className="py-10 text-center text-xs text-gray-400">Đang tải dữ liệu kho...</div>
+            ) : lowStockIngredients.length > 0 ? (
+              <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                {lowStockIngredients.map((item) => {
+                  const shortage = item.minimumThreshold - item.stockQuantity;
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-3 rounded-xl border border-rose-100 bg-rose-50/40 flex items-center justify-between text-xs hover:bg-rose-50 transition-colors"
+                    >
+                      <div>
+                        <p className="font-bold text-gray-900">{item.name}</p>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          Tồn hiện tại: <span className="font-bold text-rose-600">{item.stockQuantity} {item.unit}</span>
+                        </p>
                       </div>
-                      <span className="font-bold text-[#6F4E37]">{qty} ly</span>
-                    </div>
 
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            (qty / (topProducts[0]?.totalQuantity || 1)) * 100
-                          )}%`,
-                        }}
-                        className="h-full bg-[#6F4E37] rounded-full"
-                      />
+                      <div className="text-right">
+                        <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                          Thiếu {shortage > 0 ? shortage : 0} {item.unit}
+                        </span>
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          Ngưỡng tối thiểu: {item.minimumThreshold} {item.unit}
+                        </p>
+                      </div>
                     </div>
-
-                    <div className="flex justify-between text-[11px] text-gray-400">
-                      <span>{prod.categoryName || "Thực đơn"}</span>
-                      <span className="font-medium text-gray-600">{formatCurrency(rev)}</span>
-                    </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             ) : (
-              <p className="text-xs text-gray-400 text-center py-8">Chưa có dữ liệu bán chạy.</p>
+              <div className="py-12 text-center text-gray-400 text-xs">
+                Kho hàng đang ở trạng thái an toàn. Không có nguyên liệu dưới ngưỡng tối thiểu.
+              </div>
             )}
           </div>
+
+          <div className="pt-4 border-t border-gray-100 text-right">
+            <a
+              href="/dashboard/inventory/ingredients"
+              className="text-xs font-semibold text-[#6F4E37] hover:underline inline-flex items-center gap-1"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Quản lý kho nguyên liệu</span>
+            </a>
+          </div>
         </div>
       </div>
+
+      {/* Export Report Modal */}
+      <ExportReportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onExport={handleExportData}
+      />
     </div>
   );
 }

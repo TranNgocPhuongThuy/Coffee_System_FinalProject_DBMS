@@ -22,6 +22,7 @@ export const validatePipe = (schema: ZodSchema, part: RequestPart = 'body') => {
           message: err.message,
         }))
 
+        console.log(formattedErrors)
         res.status(400).json({
           success: false,
           message: 'Dữ liệu yêu cầu không hợp lệ.',

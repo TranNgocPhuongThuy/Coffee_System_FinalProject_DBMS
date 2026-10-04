@@ -22,7 +22,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login({ identifier, password, userType });
+      await login({ identifier, password });
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Đăng nhập thất bại');
     } finally {
@@ -45,9 +45,8 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => { setUserType('EMPLOYEE'); setError(null); }}
-          className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            userType === 'EMPLOYEE' ? 'bg-white text-[#6F4E37] shadow-sm' : 'text-gray-500 hover:text-gray-700'
-          }`}
+          className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${userType === 'EMPLOYEE' ? 'bg-white text-[#6F4E37] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
         >
           <ShieldCheck className="w-4 h-4" />
           <span>Nhân viên</span>
@@ -55,9 +54,8 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => { setUserType('CUSTOMER'); setError(null); }}
-          className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            userType === 'CUSTOMER' ? 'bg-white text-[#6F4E37] shadow-sm' : 'text-gray-500 hover:text-gray-700'
-          }`}
+          className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${userType === 'CUSTOMER' ? 'bg-white text-[#6F4E37] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
         >
           <User className="w-4 h-4" />
           <span>Khách hàng</span>

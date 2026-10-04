@@ -16,10 +16,19 @@ export interface DailyRevenueReport {
 }
 
 export interface TopProductReport {
-  productId: number;
+  productId?: number;
   productName: string;
   totalQuantitySold: number;
   totalRevenue: number;
+}
+
+export interface LowStockIngredientReport {
+  id: number;
+  name: string;
+  unit: string;
+  stockQuantity: number;
+  minimumThreshold: number;
+  shortageAmount: number;
 }
 
 export interface ProductRecipeDetailReport {

@@ -1,5 +1,6 @@
 // Path: types/auth.ts
 import { UserType } from './enums';
+export type { UserType };
 
 export type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER' | 'BARISTA' | 'STOREKEEPER' | 'CUSTOMER';
 
