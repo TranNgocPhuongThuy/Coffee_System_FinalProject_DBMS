@@ -47,8 +47,8 @@ export class ProductRepository {
       conditions.push('p.status = @status')
     }
 
-    if (filter.search) {
-      req.input('search', sql.NVarChar(200), `%${filter.search}%`)
+    if (typeof filter?.search === 'string' && filter.search.trim() !== '') {
+      req.input('search', sql.NVarChar(200), `%${filter.search.trim()}%`)
       conditions.push('p.name LIKE @search')
     }
 
@@ -73,7 +73,7 @@ export class ProductRepository {
           FOR JSON PATH
         ) AS variantsJson
       FROM Product p
-      JOIN Category c ON p.categoryId = c.id
+      LEFT JOIN Category c ON p.categoryId = c.id
       ${whereClause}
       ORDER BY p.id DESC
     `
@@ -121,7 +121,7 @@ export class ProductRepository {
           FOR JSON PATH
         ) AS variantsJson
       FROM Product p
-      JOIN Category c ON p.categoryId = c.id
+      LEFT JOIN Category c ON p.categoryId = c.id
       WHERE p.id = @id AND p.deletedAt IS NULL
     `
 

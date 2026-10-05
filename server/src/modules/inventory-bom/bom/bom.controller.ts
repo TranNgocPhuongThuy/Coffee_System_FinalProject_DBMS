@@ -17,7 +17,7 @@ export class BOMController {
 
   getToppingBOM = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const toppingId = Number(req.params.toppingId)
+      const toppingId = req.params.toppingId ? Number(req.params.toppingId) : undefined
       const data = await this.bomService.getToppingBOM(toppingId)
       res.status(200).json({ success: true, data })
     } catch (error) {

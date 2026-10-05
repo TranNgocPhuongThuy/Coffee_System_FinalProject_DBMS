@@ -8,7 +8,7 @@ export class BOMService {
     return await this.bomRepo.getAllRecipeDetails(variantId)
   }
 
-  async getToppingBOM(toppingId: number) {
+  async getToppingBOM(toppingId?: number) {
     return await this.bomRepo.getToppingBOM(toppingId)
   }
 

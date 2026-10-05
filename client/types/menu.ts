@@ -1,6 +1,8 @@
 import { BaseEntity, SoftDeletableEntity } from './common';
 import { CategoryDisplayStatus, ProductSize, ProductStatus, ToppingStatus } from './enums';
 
+export type { ProductSize, CategoryDisplayStatus, ProductStatus, ToppingStatus };
+
 export interface Category extends BaseEntity {
     name: string;
     displayStatus: CategoryDisplayStatus;

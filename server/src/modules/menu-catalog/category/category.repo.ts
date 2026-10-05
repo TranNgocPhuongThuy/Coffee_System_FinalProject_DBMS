@@ -18,34 +18,41 @@ export class CategoryRepository {
   /**
    * Lấy danh sách danh mục (hỗ trợ lọc displayStatus & tìm kiếm name)
    */
-  async findAll(filters?: FilterCategoryQueryType): Promise<Category[]> {
+  async findAll(filters?: FilterCategoryQueryType): Promise<any[]> {
     const pool = await getPool()
     const req = pool.request()
-    const conditions: string[] = ['deletedAt IS NULL']
+    const conditions: string[] = ['c.deletedAt IS NULL']
 
     const displayStatus =
-      typeof filters?.displayStatus === 'string' ? filters.displayStatus : undefined
+      typeof filters?.displayStatus === 'string' && filters.displayStatus.trim() !== ''
+        ? filters.displayStatus
+        : undefined
     const search =
-      typeof filters?.search === 'string' ? filters.search : undefined
+      typeof filters?.search === 'string' && filters.search.trim() !== ''
+        ? filters.search.trim()
+        : undefined
 
     if (displayStatus) {
       req.input('displayStatus', sql.NVarChar(50), displayStatus)
-      conditions.push('displayStatus = @displayStatus')
+      conditions.push('c.displayStatus = @displayStatus')
     }
 
     if (search) {
       req.input('search', sql.NVarChar(150), `%${search}%`)
-      conditions.push('name LIKE @search')
+      conditions.push('c.name LIKE @search')
     }
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`
     const query = `
-      SELECT id, name, displayStatus, createdAt, updatedAt
-      FROM Category
+      SELECT c.id, c.name, c.displayStatus, c.createdAt, c.updatedAt,
+             COUNT(p.id) AS productCount
+      FROM Category c
+      LEFT JOIN Product p ON c.id = p.categoryId AND p.deletedAt IS NULL
       ${whereClause}
-      ORDER BY id ASC
+      GROUP BY c.id, c.name, c.displayStatus, c.createdAt, c.updatedAt
+      ORDER BY c.id ASC
     `
-    const result = await req.query<Category>(query)
+    const result = await req.query<any>(query)
     return result.recordset
   }
 

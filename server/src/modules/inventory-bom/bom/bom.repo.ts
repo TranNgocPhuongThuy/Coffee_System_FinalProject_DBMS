@@ -23,17 +23,19 @@ export class BOMRepo {
     return result.recordset
   }
 
-  async getToppingBOM(toppingId: number) {
+  async getToppingBOM(toppingId?: number) {
     const pool = await getPool()
     const req = pool.request()
-    req.input('toppingId', sql.Int, toppingId)
-    const query = `
-      SELECT t.name AS toppingName, i.name AS ingredientName, tb.consumedQuantity, i.unit
+    let query = `
+      SELECT tb.toppingId, t.name AS toppingName, tb.ingredientId, i.name AS ingredientName, tb.consumedQuantity, i.unit
       FROM ToppingBOM tb
       JOIN Topping t ON tb.toppingId = t.id
       JOIN Ingredient i ON tb.ingredientId = i.id
-      WHERE tb.toppingId = @toppingId
     `
+    if (toppingId) {
+      req.input('toppingId', sql.Int, toppingId)
+      query += ` WHERE tb.toppingId = @toppingId`
+    }
     const result = await req.query(query)
     return result.recordset
   }

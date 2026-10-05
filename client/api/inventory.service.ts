@@ -43,8 +43,11 @@ export const inventoryService = {
     return res.data?.data || res.data?.items || res.data || [];
   },
 
-  getToppingBOMs: async (toppingId: string | number) => {
-    const res = await apiClient.get(ENDPOINTS.INVENTORY.BOMS.TOPPING_DETAIL(toppingId));
+  getToppingBOMs: async (toppingId?: string | number) => {
+    const endpoint = toppingId
+      ? ENDPOINTS.INVENTORY.BOMS.TOPPING_DETAIL(toppingId)
+      : ENDPOINTS.INVENTORY.BOMS.TOPPINGS;
+    const res = await apiClient.get(endpoint);
     return res.data?.data || res.data?.items || res.data || [];
   },
 

@@ -18,6 +18,7 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
+import { useAuthContext } from "@/context/AuthContext";
 import inventoryService from "@/api/inventory.service";
 
 interface ImportDetail {
@@ -47,6 +48,7 @@ interface Ingredient {
 }
 
 export default function InventoryImportsPage() {
+  const { user } = useAuthContext();
   const [tickets, setTickets] = useState<ImportTicket[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,6 +176,10 @@ export default function InventoryImportsPage() {
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formSupplier.trim()) {
+      setErrorMsg("Vui lòng nhập tên nhà cung cấp");
+      return;
+    }
     if (formLines.length === 0) {
       setErrorMsg("Vui lòng thêm ít nhất 1 mặt hàng");
       return;
@@ -183,7 +189,8 @@ export default function InventoryImportsPage() {
 
     try {
       await inventoryService.createImportTicket({
-        supplierName: formSupplier.trim() || undefined,
+        supplierName: formSupplier.trim(),
+        employeeId: user?.id || 1,
         note: formNote.trim() || undefined,
         details: formLines.map((l) => ({
           ingredientId: Number(l.ingredientId),

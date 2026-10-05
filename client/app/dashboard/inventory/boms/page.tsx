@@ -189,6 +189,11 @@ export default function BOMManagementPage() {
           setSubmitting(false);
           return;
         }
+        await inventoryService.addToppingBOMItem({
+          toppingId: Number(selectedToppingId),
+          ingredientId: Number(formIngredientId),
+          consumedQuantity: Number(formQty),
+        });
         showToast("Đã lưu định lượng Topping!");
       }
       setIsModalOpen(false);
