@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Bell, ChevronDown, KeyRound, LogOut, User as UserIcon } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
 
@@ -9,17 +10,32 @@ interface HeaderProps {
   title?: string;
 }
 
-export default function Header({ title = 'Tổng quan' }: HeaderProps) {
+export default function Header({ title }: HeaderProps) {
+  const pathname = usePathname();
   const { user, logout } = useAuthContext();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  const getPageTitle = () => {
+    if (title) return title;
+    if (pathname.startsWith('/dashboard/menu')) return 'Quản lý Thực đơn';
+    if (pathname.startsWith('/dashboard/inventory')) return 'Quản lý Kho & Định lượng';
+    if (pathname.startsWith('/dashboard/customers')) return 'Khách hàng & Hội viên';
+    if (pathname.startsWith('/dashboard/reports')) return 'Báo cáo & Thống kê';
+    if (pathname.startsWith('/dashboard/employees')) return 'Quản lý Nhân viên';
+    if (pathname.startsWith('/pos')) return 'Bán hàng POS';
+    if (pathname.startsWith('/kds')) return 'Bếp / Pha chế (KDS)';
+    if (pathname === '/dashboard') return 'Tổng quan';
+    return 'Tổng quan';
+  };
+
+  const currentTitle = getPageTitle();
   const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U';
 
   return (
     <header className="h-16 fixed top-0 right-0 left-64 bg-white border-b border-gray-100 flex items-center justify-between px-6 z-30">
       {/* Left: Page Title */}
       <div>
-        <h1 className="text-xl font-semibold text-gray-800 tracking-tight">{title}</h1>
+        <h1 className="text-xl font-semibold text-gray-800 tracking-tight">{currentTitle}</h1>
       </div>
 
       {/* Right: Actions */}

@@ -21,6 +21,12 @@ bomRouter.get(
 )
 
 bomRouter.get(
+  '/toppings',
+  roleGuard('BARISTA', 'MANAGER'),
+  controller.getToppingBOM
+)
+
+bomRouter.get(
   '/toppings/:toppingId',
   roleGuard('BARISTA', 'MANAGER'),
   controller.getToppingBOM

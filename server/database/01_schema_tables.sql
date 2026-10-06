@@ -7,7 +7,8 @@ CREATE TABLE Category (
     name NVARCHAR(150) NOT NULL,
     displayStatus NVARCHAR(50) NOT NULL,
     createdAt DATETIME2(7) NOT NULL,
-    updatedAt DATETIME2(7)
+    updatedAt DATETIME2(7),
+    deletedAt DATETIME2(7)
 );
 GO
 
@@ -17,7 +18,8 @@ CREATE TABLE Topping (
     price DECIMAL(18, 2) NOT NULL,
     status NVARCHAR(50) NOT NULL,
     createdAt DATETIME2(7),
-    updatedAt DATETIME2(7)
+    updatedAt DATETIME2(7),
+    deletedAt DATETIME2(7)
 );
 GO
 
