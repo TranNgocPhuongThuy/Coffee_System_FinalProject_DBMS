@@ -31,10 +31,10 @@ GO
 SET IDENTITY_INSERT Employee ON;
 INSERT INTO Employee (id, fullName, username, password, role, phoneNumber, status, createdAt, updatedAt)
 VALUES
-(1, N'Đinh Đức Khang', 'manager01', '$2b$10$8lP6QeFP/rlLJmP2jmnjR.w3777agIBqpv0uDKPBwWPJbixunilei', 'MANAGER', '0901111222', 'ACTIVE', GETDATE(), GETDATE()),
-(2, N'Võ Thị Hồng Gấm', 'cashier01', '$2b$10$8lP6QeFP/rlLJmP2jmnjR.w3777agIBqpv0uDKPBwWPJbixunilei', 'CASHIER', '0902222333', 'ACTIVE', GETDATE(), GETDATE()),
-(3, N'Hồ Công Phong', 'barista01', '$2b$10$8lP6QeFP/rlLJmP2jmnjR.w3777agIBqpv0uDKPBwWPJbixunilei', 'BARISTA', '0903333444', 'ACTIVE', GETDATE(), GETDATE()),
-(4, N'Trần Ngọc Phương Thùy', 'storekeeper01', '$2b$10$8lP6QeFP/rlLJmP2jmnjR.w3777agIBqpv0uDKPBwWPJbixunilei', 'STOREKEEPER', '0904444555', 'ACTIVE', GETDATE(), GETDATE());
+(1, N'Đinh Đức Khang', 'manager01', '$2b$10$N74QV.3xVyajn.V6so9uS.3f4ahiPitcAqC.nPV4sepOL2nOL5lpW', 'MANAGER', '0901111222', 'ACTIVE', GETDATE(), GETDATE()),
+(2, N'Võ Thị Hồng Gấm', 'cashier01', '$2b$10$N74QV.3xVyajn.V6so9uS.3f4ahiPitcAqC.nPV4sepOL2nOL5lpW', 'CASHIER', '0902222333', 'ACTIVE', GETDATE(), GETDATE()),
+(3, N'Hồ Công Phong', 'barista01', '$2b$10$N74QV.3xVyajn.V6so9uS.3f4ahiPitcAqC.nPV4sepOL2nOL5lpW', 'BARISTA', '0903333444', 'ACTIVE', GETDATE(), GETDATE()),
+(4, N'Trần Ngọc Phương Thùy', 'storekeeper01', '$2b$10$N74QV.3xVyajn.V6so9uS.3f4ahiPitcAqC.nPV4sepOL2nOL5lpW', 'STOREKEEPER', '0904444555', 'ACTIVE', GETDATE(), GETDATE());
 SET IDENTITY_INSERT Employee OFF;
 GO
 
@@ -45,10 +45,10 @@ GO
 SET IDENTITY_INSERT Customer ON;
 INSERT INTO Customer (id, phoneNumber, fullName, password, address, rewardPoints, membershipTier, createdAt, updatedAt)
 VALUES
-(1, '0988111222', N'Nguyễn Văn An', '$2b$10$8lP6QeFP/rlLJmP2jmnjR.w3777agIBqpv0uDKPBwWPJbixunilei', N'Số 1 Võ Văn Ngân, TP. Thủ Đức', 150, 'SILVER', GETDATE(), GETDATE()),
-(2, '0977222333', N'Lê Thị Mai', '$2b$10$8lP6QeFP/rlLJmP2jmnjR.w3777agIBqpv0uDKPBwWPJbixunilei', N'123 Lê Văn Việt, TP. Thủ Đức', 550, 'GOLD', GETDATE(), GETDATE()),
-(3, '0966333444', N'Trần Tuấn Kiệt', '$2b$10$8lP6QeFP/rlLJmP2jmnjR.w3777agIBqpv0uDKPBwWPJbixunilei', N'45 Kha Vạn Cân, TP. Thủ Đức', 20, 'STANDARD', GETDATE(), GETDATE()),
-(4, '0911888999', N'Phạm Hoàng Nam', '$2b$10$8lP6QeFP/rlLJmP2jmnjR.w3777agIBqpv0uDKPBwWPJbixunilei', N'10 Đặng Văn Bi, TP. Thủ Đức', 1250, 'DIAMOND', GETDATE(), GETDATE());
+(1, '0988111222', N'Nguyễn Văn An', '$2b$10$N74QV.3xVyajn.V6so9uS.3f4ahiPitcAqC.nPV4sepOL2nOL5lpW', N'Số 1 Võ Văn Ngân, TP. Thủ Đức', 150, 'SILVER', GETDATE(), GETDATE()),
+(2, '0977222333', N'Lê Thị Mai', '$2b$10$N74QV.3xVyajn.V6so9uS.3f4ahiPitcAqC.nPV4sepOL2nOL5lpW', N'123 Lê Văn Việt, TP. Thủ Đức', 550, 'GOLD', GETDATE(), GETDATE()),
+(3, '0966333444', N'Trần Tuấn Kiệt', '$2b$10$N74QV.3xVyajn.V6so9uS.3f4ahiPitcAqC.nPV4sepOL2nOL5lpW', N'45 Kha Vạn Cân, TP. Thủ Đức', 20, 'STANDARD', GETDATE(), GETDATE()),
+(4, '0911888999', N'Phạm Hoàng Nam', '$2b$10$N74QV.3xVyajn.V6so9uS.3f4ahiPitcAqC.nPV4sepOL2nOL5lpW', N'10 Đặng Văn Bi, TP. Thủ Đức', 1250, 'DIAMOND', GETDATE(), GETDATE());
 SET IDENTITY_INSERT Customer OFF;
 GO
 
