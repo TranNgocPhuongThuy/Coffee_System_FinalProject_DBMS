@@ -128,8 +128,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
             <button
               key={tab.key}
               type="button"
-              onClick={() => onSetOrderChannel(tab.key)}
-              className={`rounded-lg py-1.5 text-center font-bold transition-all ${
+              onClick={() => {
+                onSetOrderChannel(tab.key);
+                if (tab.key === 'DELIVERY') {
+                  onSelectPager(null);
+                }
+              }}
+              className={`rounded-lg py-1.5 text-center font-bold transition-all cursor-pointer ${
                 orderChannel === tab.key
                   ? 'bg-white text-amber-700 shadow-xs dark:bg-zinc-900 dark:text-amber-300'
                   : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
@@ -148,7 +153,8 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
           </div>
 
           <select
-            value={selectedPager?.id || ''}
+            value={orderChannel === 'DELIVERY' ? '' : (selectedPager?.id || '')}
+            disabled={orderChannel === 'DELIVERY'}
             onChange={(e) => {
               const val = e.target.value;
               if (!val) {
@@ -158,14 +164,15 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 if (p) onSelectPager({ id: p.id, pagerCode: p.pagerCode, batteryLevel: p.batteryLevel });
               }
             }}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 font-bold text-zinc-900 focus:border-amber-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 font-bold text-zinc-900 focus:border-amber-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 disabled:opacity-60 disabled:bg-zinc-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
           >
-            <option value="">-- Không cấp thẻ --</option>
-            {availablePagers.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.pagerCode} (Pin {p.batteryLevel}%)
-              </option>
-            ))}
+            <option value="">{orderChannel === 'DELIVERY' ? '-- Không cấp thẻ (Giao đi) --' : '-- Không cấp thẻ --'}</option>
+            {orderChannel !== 'DELIVERY' &&
+              availablePagers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.pagerCode} (Pin {p.batteryLevel}%)
+                </option>
+              ))}
           </select>
         </div>
 
@@ -357,14 +364,15 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
         {/* Chọn Phương thức thanh toán */}
         <div>
           <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
-            Phương thức thanh toán:
+            <span>Phương thức thanh toán:</span>
           </div>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-5 gap-1">
             {[
               { key: 'CASH', label: 'Tiền mặt', icon: Banknote },
-              { key: 'BANKING', label: 'Chuyển khoản', icon: QrCode },
+              { key: 'BANK_TRANSFER', label: 'Ngân hàng', icon: QrCode },
+              { key: 'CARD', label: 'Quẹt thẻ', icon: CreditCard },
               { key: 'MOMO', label: 'MoMo', icon: CreditCard },
-              { key: 'VNPAY', label: 'VNPay', icon: CreditCard },
+              { key: 'VNPAY', label: 'VNPay', icon: QrCode },
             ].map((pm) => {
               const Icon = pm.icon;
               const isSelected = paymentMethod === pm.key;
@@ -373,13 +381,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                   key={pm.key}
                   type="button"
                   onClick={() => onSetPaymentMethod(pm.key as PaymentMethod)}
-                  className={`flex flex-col items-center justify-center rounded-xl border p-2 text-center transition-all ${
+                  className={`flex flex-col items-center justify-center rounded-xl border py-2 px-1 text-center transition-all cursor-pointer ${
                     isSelected
-                      ? 'border-amber-500 bg-amber-50 text-amber-800 ring-2 ring-amber-500/20 dark:border-amber-500 dark:bg-amber-950/40 dark:text-amber-200'
+                      ? 'border-amber-500 bg-amber-50 text-amber-800 ring-2 ring-amber-500/20 dark:border-amber-500 dark:bg-amber-950/40 dark:text-amber-200 shadow-xs'
                       : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400'
                   }`}
                 >
-                  <Icon className="h-3.5 w-3.5 mb-1" />
+                  <Icon className="h-3.5 w-3.5 mb-1 text-amber-600 dark:text-amber-400" />
                   <span className="text-[10px] font-bold leading-tight">{pm.label}</span>
                 </button>
               );

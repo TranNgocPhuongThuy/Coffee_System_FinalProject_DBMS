@@ -171,7 +171,7 @@ export default function PosTerminalPage() {
               <h1 className="font-extrabold text-sm text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight">
                 POS TERMINAL
               </h1>
-              <p className="text-[10px] text-zinc-400 font-medium leading-none">Quầy Bán Hàng & Order</p>
+              <p className="text-[10px] text-zinc-400 font-medium leading-none">Quầy Order</p>
             </div>
           </div>
         </div>
@@ -183,7 +183,7 @@ export default function PosTerminalPage() {
             className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
           >
             <Receipt className="h-3.5 w-3.5 text-amber-600" />
-            <span>Hóa đơn</span>
+            <span>Lịch sử hóa đơn</span>
           </Link>
 
           <Link
@@ -209,11 +209,10 @@ export default function PosTerminalPage() {
       {toastMessage && (
         <div className="fixed top-16 right-6 z-50 animate-bounce">
           <div
-            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold shadow-xl ${
-              toastMessage.type === 'success'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-rose-600 text-white'
-            }`}
+            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold shadow-xl ${toastMessage.type === 'success'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-rose-600 text-white'
+              }`}
           >
             {toastMessage.type === 'success' ? (
               <CheckCircle2 className="h-4 w-4" />

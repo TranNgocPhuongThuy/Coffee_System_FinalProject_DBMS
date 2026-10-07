@@ -9,12 +9,10 @@ import {
 
 export class OrderRepo {
   /**
-   * Khởi tạo Table-Valued Parameter (TVP) udt_OrderDetailList theo đúng schema Database
-   * Bổ sung cột itemIndex (0, 1, 2...) để định danh dòng cho các Topping đi kèm
+   * Khởi tạo Table-Valued Parameter (TVP) udt_OrderDetailList theo đúng 8 cột trong Database
    */
   private buildOrderDetailTVP(items: OrderItemType[]): sql.Table {
     const tvp = new sql.Table('udt_OrderDetailList')
-    tvp.columns.add('itemIndex', sql.Int, { nullable: false })
     tvp.columns.add('variantId', sql.Int, { nullable: false })
     tvp.columns.add('quantity', sql.Int, { nullable: false })
     tvp.columns.add('note', sql.NVarChar(255), { nullable: true })
@@ -24,9 +22,8 @@ export class OrderRepo {
     tvp.columns.add('totalToppingPriceSnapshot', sql.Decimal(18, 2), { nullable: false })
     tvp.columns.add('totalPrice', sql.Decimal(18, 2), { nullable: false })
 
-    items.forEach((item, index) => {
+    items.forEach((item) => {
       tvp.rows.add(
-        index,
         item.variantId,
         item.quantity,
         item.note || null,
@@ -41,45 +38,58 @@ export class OrderRepo {
   }
 
   /**
-   * Khởi tạo Table-Valued Parameter (TVP) udt_OrderDetailToppingList
-   * Map với từng ly nước thông qua itemIndex
+   * Lưu danh sách Topping cho các món trong đơn hàng (nếu có)
    */
-  private buildOrderToppingTVP(items: OrderItemType[]): sql.Table {
-    const tvp = new sql.Table('udt_OrderDetailToppingList')
-    tvp.columns.add('itemIndex', sql.Int, { nullable: false })
-    tvp.columns.add('toppingId', sql.Int, { nullable: true })
-    tvp.columns.add('toppingSnapshotName', sql.NVarChar(150), { nullable: false })
-    tvp.columns.add('toppingPrice', sql.Decimal(18, 2), { nullable: false })
-    tvp.columns.add('quantity', sql.Int, { nullable: false })
+  private async insertToppingsForOrder(orderId: number, items: OrderItemType[]) {
+    const hasToppings = items.some((it) => it.toppings && it.toppings.length > 0)
+    if (!hasToppings) return
 
-    items.forEach((item, index) => {
-      if (item.toppings && item.toppings.length > 0) {
+    const pool = await getPool()
+    const detailRes = await pool
+      .request()
+      .input('orderId', sql.Int, orderId)
+      .query(`SELECT id FROM OrderDetail WHERE orderId = @orderId ORDER BY id ASC`)
+
+    const detailIds = detailRes.recordset.map((r: any) => r.id)
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      const detailId = detailIds[i]
+      if (detailId && item.toppings && item.toppings.length > 0) {
         for (const topping of item.toppings) {
-          tvp.rows.add(
-            index,
-            topping.toppingId || null,
-            topping.toppingSnapshotName,
-            topping.toppingPrice,
-            topping.quantity || 1
-          )
+          await pool
+            .request()
+            .input('orderDetailId', sql.Int, detailId)
+            .input('toppingId', sql.Int, topping.toppingId || null)
+            .input('toppingSnapshotName', sql.NVarChar(150), topping.toppingSnapshotName)
+            .input('toppingPrice', sql.Decimal(18, 2), topping.toppingPrice)
+            .input('quantity', sql.Int, topping.quantity || 1)
+            .query(`
+              IF NOT EXISTS (
+                SELECT 1 FROM OrderDetailTopping 
+                WHERE orderDetailId = @orderDetailId AND toppingSnapshotName = @toppingSnapshotName
+              )
+              BEGIN
+                INSERT INTO OrderDetailTopping (orderDetailId, toppingId, toppingSnapshotName, toppingPrice, quantity)
+                VALUES (@orderDetailId, @toppingId, @toppingSnapshotName, @toppingPrice, @quantity)
+              END
+            `)
         }
       }
-    })
-    return tvp
+    }
   }
 
   /**
    * Tạo đơn hàng tại quầy thông qua Stored Procedure sp_CreateCounterOrder
-   * Truyền đồng thời cả 2 TVP danh sách món và topping
    */
   async createCounterOrder(data: CreateOrderType): Promise<number> {
     const pool = await getPool()
     const request = pool.request()
 
     const detailsTVP = this.buildOrderDetailTVP(data.items)
-    const toppingsTVP = this.buildOrderToppingTVP(data.items)
 
     request.input('OrderCode', sql.VarChar(64), data.orderCode)
+    request.input('OrderChannel', sql.NVarChar(50), data.orderChannel || 'ORDER_AT_COUNTER')
     request.input('EmployeeId', sql.Int, data.employeeId)
     request.input('CustomerId', sql.Int, data.customerId || null)
     request.input('PagerId', sql.Int, data.pagerId || null)
@@ -88,11 +98,16 @@ export class OrderRepo {
     request.input('TotalAmount', sql.Decimal(18, 2), data.totalAmount)
     request.input('PaymentMethod', sql.NVarChar(50), data.paymentMethod)
     request.input('OrderDetails', detailsTVP)
-    request.input('OrderToppings', toppingsTVP)
     request.output('NewOrderId', sql.Int)
 
     const result = await request.execute('sp_CreateCounterOrder')
-    return result.output.NewOrderId
+    const newOrderId = result.output.NewOrderId
+
+    if (newOrderId) {
+      await this.insertToppingsForOrder(newOrderId, data.items)
+    }
+
+    return newOrderId
   }
 
   /**
@@ -103,10 +118,9 @@ export class OrderRepo {
     const request = pool.request()
 
     const detailsTVP = this.buildOrderDetailTVP(data.items)
-    const toppingsTVP = this.buildOrderToppingTVP(data.items)
 
     request.input('OrderCode', sql.VarChar(64), data.orderCode)
-    request.input('OrderChannel', sql.NVarChar(50), data.orderChannel)
+    request.input('OrderChannel', sql.NVarChar(50), data.orderChannel || 'ORDER_AT_COUNTER')
     request.input('PagerCode', sql.VarChar(50), data.pagerCode)
     request.input('EmployeeId', sql.Int, data.employeeId)
     request.input('CustomerId', sql.Int, data.customerId || null)
@@ -114,11 +128,51 @@ export class OrderRepo {
     request.input('DiscountAmount', sql.Decimal(18, 2), data.discountAmount || 0)
     request.input('PaymentMethod', sql.NVarChar(50), data.paymentMethod)
     request.input('OrderDetails', detailsTVP)
-    request.input('OrderToppings', toppingsTVP)
     request.output('NewOrderId', sql.Int)
 
     const result = await request.execute('sp_CreateOrderWithPager')
-    return result.output.NewOrderId
+    const newOrderId = result.output.NewOrderId
+
+    if (newOrderId) {
+      await this.insertToppingsForOrder(newOrderId, data.items)
+    }
+
+    return newOrderId
+  }
+
+  /**
+   * Tự động tích điểm hội viên khi tạo đơn hàng thành công tại quầy (10.000 VNĐ = 1 Điểm)
+   */
+  async earnLoyaltyPoints(orderId: number, customerId: number, totalAmount: number): Promise<number> {
+    if (!customerId || totalAmount < 10000) return 0
+
+    const pointsEarned = Math.floor(totalAmount / 10000)
+    if (pointsEarned <= 0) return 0
+
+    const pool = await getPool()
+    // Lấy số dư điểm hiện tại
+    const custRes = await pool
+      .request()
+      .input('customerId', sql.Int, customerId)
+      .query(`SELECT rewardPoints FROM Customer WHERE id = @customerId AND deletedAt IS NULL`)
+
+    const currentPoints = custRes.recordset[0]?.rewardPoints || 0
+    const newBalance = currentPoints + pointsEarned
+
+    // Ghi vào sổ cái LoyaltyTransaction (Trigger trg_LoyaltyTransaction_SyncPoints sẽ tự động sync sang Customer.rewardPoints)
+    await pool
+      .request()
+      .input('customerId', sql.Int, customerId)
+      .input('orderId', sql.Int, orderId)
+      .input('points', sql.Int, pointsEarned)
+      .input('balanceAfter', sql.Int, newBalance)
+      .input('description', sql.NVarChar(500), `Tích điểm từ đơn hàng #${orderId}`)
+      .query(`
+        INSERT INTO LoyaltyTransaction (customerId, orderId, transactionType, points, balanceAfter, description, createdAt)
+        VALUES (@customerId, @orderId, 'EARN', @points, @balanceAfter, @description, SYSDATETIME())
+      `)
+
+    return pointsEarned
   }
 
   /**

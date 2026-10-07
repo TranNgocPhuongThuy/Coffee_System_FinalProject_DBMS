@@ -98,7 +98,8 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
 
               <div className="space-y-0.5 text-[11px]">
                 <div>
-                  <strong>Thời gian:</strong> {invoice.paidAt ? new Date(invoice.paidAt).toLocaleString('vi-VN') : 'Đang xử lý'}
+                  <strong>Thời gian:</strong>{' '}
+                  {new Date(invoice.paidAt || invoice.orderCreatedAt || Date.now()).toLocaleString('vi-VN')}
                 </div>
                 <div>
                   <strong>Thu ngân:</strong> {invoice.employeeName || 'Quầy POS'}
@@ -108,6 +109,22 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
                     <strong>Khách hàng:</strong> {invoice.customerName} ({invoice.customerPhone})
                   </div>
                 )}
+                <div>
+                  <strong>Phương thức thanh toán:</strong>{' '}
+                  <span className="font-bold text-amber-800 dark:text-amber-300">
+                    {invoice.paymentMethod === 'BANK_TRANSFER' || invoice.paymentMethod === 'BANKING'
+                      ? 'Chuyển khoản (VietQR)'
+                      : invoice.paymentMethod === 'CARD' || invoice.paymentMethod === 'CREDIT_CARD'
+                        ? 'Thẻ ngân hàng (POS)'
+                        : invoice.paymentMethod === 'MOMO'
+                          ? 'Ví MoMo'
+                          : invoice.paymentMethod === 'VNPAY'
+                            ? 'Cổng VNPay-QR'
+                            : invoice.paymentMethod === 'POINT_EXCHANGE'
+                              ? 'Đổi điểm hội viên'
+                              : 'Tiền mặt'}
+                  </span>
+                </div>
               </div>
               <div className="my-2 border-t border-dashed border-zinc-400" />
 
@@ -154,6 +171,22 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
                 <div className="flex justify-between text-sm font-black pt-1 border-t border-zinc-300">
                   <span>TỔNG CỘNG:</span>
                   <span>{formatCurrency(invoice.totalAmount)}</span>
+                </div>
+                <div className="flex justify-between text-[11px] text-zinc-600 dark:text-zinc-400 pt-0.5">
+                  <span>Thanh toán:</span>
+                  <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                    {invoice.paymentMethod === 'BANK_TRANSFER' || invoice.paymentMethod === 'BANKING'
+                      ? 'Chuyển khoản (VietQR)'
+                      : invoice.paymentMethod === 'CARD' || invoice.paymentMethod === 'CREDIT_CARD'
+                        ? 'Thẻ ngân hàng (POS)'
+                        : invoice.paymentMethod === 'MOMO'
+                          ? 'Ví MoMo'
+                          : invoice.paymentMethod === 'VNPAY'
+                            ? 'Cổng VNPay-QR'
+                            : invoice.paymentMethod === 'POINT_EXCHANGE'
+                              ? 'Đổi điểm hội viên'
+                              : 'Tiền mặt'}
+                  </span>
                 </div>
               </div>
 

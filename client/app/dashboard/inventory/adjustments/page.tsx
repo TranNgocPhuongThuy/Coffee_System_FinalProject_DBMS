@@ -146,7 +146,8 @@ export default function InventoryAdjustmentsPage() {
     try {
       await inventoryService.createAdjustment({
         ingredientId: Number(selectedIngId),
-        actualQuantity: Number(inputNewQty),
+        employeeId: 1,
+        newQuantity: Number(inputNewQty),
         reason: inputReason.trim(),
       });
 

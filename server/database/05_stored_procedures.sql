@@ -103,12 +103,12 @@ CREATE OR ALTER PROCEDURE sp_CreateCounterOrder
     @EmployeeId INT,
     @CustomerId INT = NULL,
     @PagerId INT = NULL,
+    @OrderChannel NVARCHAR(50) = N'ORDER_AT_COUNTER',
     @SubTotal DECIMAL(18, 2),
     @DiscountAmount DECIMAL(18, 2) = 0,
     @TotalAmount DECIMAL(18, 2),
     @PaymentMethod NVARCHAR(50),
     @OrderDetails udt_OrderDetailList READONLY,
-    @OrderToppings udt_OrderDetailToppingList READONLY,  -- Bổ sung TVP topping
     @NewOrderId INT OUTPUT
 AS
 BEGIN
@@ -122,12 +122,12 @@ BEGIN
         INSERT INTO [Order] (
             orderCode, customerId, pagerId, employeeId, orderChannel,
             subTotal, discountAmount, totalAmount, paymentMethod,
-            status, createdAt
+            status, paidAt, createdAt
         )
         VALUES (
-            @OrderCode, @CustomerId, @PagerId, @EmployeeId, N'ORDER_AT_COUNTER',
+            @OrderCode, @CustomerId, @PagerId, @EmployeeId, ISNULL(@OrderChannel, N'ORDER_AT_COUNTER'),
             @SubTotal, @DiscountAmount, @TotalAmount, @PaymentMethod,
-            N'PENDING_PREP', SYSDATETIME()
+            N'PENDING_PREP', SYSDATETIME(), SYSDATETIME()
         );
 
         SET @NewOrderId = SCOPE_IDENTITY();
@@ -549,7 +549,7 @@ GO
 -- ============================================================================
 
 -- 3.1. sp_CreateOrderWithPager
-CREATE PROCEDURE sp_CreateOrderWithPager
+CREATE OR ALTER PROCEDURE sp_CreateOrderWithPager
     @OrderCode VARCHAR(64),
     @OrderChannel NVARCHAR(50),
     @PagerCode VARCHAR(50),
