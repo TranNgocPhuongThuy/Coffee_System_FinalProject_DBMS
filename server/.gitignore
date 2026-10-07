@@ -46,3 +46,4 @@ coverage/
 database/.vs/
 # 8. File test
 test-pos.http
+/test
