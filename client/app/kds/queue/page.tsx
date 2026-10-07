@@ -1,120 +1,47 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
   ChefHat,
   Clock,
-  CheckCircle2,
-  Play,
   ArrowLeft,
-  Utensils,
-  ShoppingBag,
-  CheckCheck,
-} from "lucide-react";
-
-type OrderStatus = "pending" | "in_progress" | "completed";
-
-interface OrderItem {
-  id: string;
-  name: string;
-  quantity: number;
-  note?: string;
-}
-
-interface KDSOrder {
-  id: string;
-  orderNumber: string;
-  table: string;
-  orderType: "dine_in" | "take_away";
-  createdAt: string;
-  minutesAgo: number;
-  status: OrderStatus;
-  items: OrderItem[];
-}
-
-const INITIAL_ORDERS: KDSOrder[] = [
-  {
-    id: "ord-1",
-    orderNumber: "#ORD-104",
-    table: "Bàn 04",
-    orderType: "dine_in",
-    createdAt: "14:25",
-    minutesAgo: 4,
-    status: "pending",
-    items: [
-      { id: "i1", name: "Cà phê sữa đá", quantity: 2, note: "Ít đường, nhiều đá" },
-      { id: "i2", name: "Bạc xỉu 3 tầng", quantity: 1, note: "Ít sữa đặc" },
-      { id: "i3", name: "Bánh Tiramisu Espresso", quantity: 1 },
-    ],
-  },
-  {
-    id: "ord-2",
-    orderNumber: "#ORD-105",
-    table: "Mang về #12",
-    orderType: "take_away",
-    createdAt: "14:22",
-    minutesAgo: 7,
-    status: "in_progress",
-    items: [
-      { id: "i4", name: "Trà đào cam sả", quantity: 2, note: "70% đường, 100% đá" },
-      { id: "i5", name: "Trà sen vàng macchiato", quantity: 1, note: "Thêm trân châu trắng" },
-    ],
-  },
-  {
-    id: "ord-3",
-    orderNumber: "#ORD-106",
-    table: "Bàn 02",
-    orderType: "dine_in",
-    createdAt: "14:18",
-    minutesAgo: 11,
-    status: "pending",
-    items: [
-      { id: "i6", name: "Cappuccino nóng", quantity: 1, note: "Tạo hình Latte Art" },
-      { id: "i7", name: "Croissant bơ Pháp", quantity: 2, note: "Làm nóng bánh" },
-    ],
-  },
-  {
-    id: "ord-4",
-    orderNumber: "#ORD-107",
-    table: "Bàn 07",
-    orderType: "dine_in",
-    createdAt: "14:15",
-    minutesAgo: 14,
-    status: "in_progress",
-    items: [
-      { id: "i8", name: "Caramel Macchiato đá", quantity: 2 },
-      { id: "i9", name: "Sinh tố xoài đá xay", quantity: 1, note: "Không lấy kem tươi" },
-    ],
-  },
-  {
-    id: "ord-5",
-    orderNumber: "#ORD-103",
-    table: "Bàn 01",
-    orderType: "dine_in",
-    createdAt: "14:05",
-    minutesAgo: 24,
-    status: "completed",
-    items: [
-      { id: "i10", name: "Cà phê đen đá", quantity: 2, note: "Đậm vị" },
-      { id: "i11", name: "Trà vải hoa hồng", quantity: 1 },
-    ],
-  },
-];
+  RefreshCw,
+  BellRing,
+} from 'lucide-react';
+import { kdsService } from '@/api/kds.service';
+import { KdsQueueItem } from '@/types/kds';
+import { KDSTicketCard } from '@/components/kds/KDSTicketCard';
+import { QuickRecipeModal } from '@/components/kds/QuickRecipeModal';
 
 export default function KDSQueuePage() {
-  const [orders, setOrders] = useState<KDSOrder[]>(INITIAL_ORDERS);
-  const [activeTab, setActiveTab] = useState<"all" | OrderStatus>("all");
-  const [currentTime, setCurrentTime] = useState<string>("");
+  const [queueItems, setQueueItems] = useState<KdsQueueItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'PREPARING'>('ALL');
+  const [currentTime, setCurrentTime] = useState<string>('');
+  const [loadingId, setLoadingId] = useState<number | null>(null);
 
+  // Recipe Modal
+  const [isRecipeOpen, setIsRecipeOpen] = useState(false);
+  const [selectedRecipeProduct, setSelectedRecipeProduct] = useState('');
+
+  // Toast notification
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Clock widget update
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
       setCurrentTime(
-        now.toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
+        now.toLocaleTimeString('vi-VN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
         })
       );
     };
@@ -123,37 +50,78 @@ export default function KDSQueuePage() {
     return () => clearInterval(interval);
   }, []);
 
-  const advanceOrderStatus = (orderId: string) => {
-    setOrders((prev) =>
-      prev.map((order) => {
-        if (order.id !== orderId) return order;
-        if (order.status === "pending") {
-          return { ...order, status: "in_progress" };
-        }
-        if (order.status === "in_progress") {
-          return { ...order, status: "completed" };
-        }
-        return order;
-      })
-    );
+  // Fetch KDS Queue from Backend
+  const fetchQueue = useCallback(async () => {
+    try {
+      const items = await kdsService.getQueue({
+        status: activeTab,
+      });
+      setQueueItems(items || []);
+    } catch {
+      // Bỏ qua lỗi ngắt kết nối hoặc thử lại sau
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchQueue();
+    // Tự động làm mới hàng đợi mỗi 5 giây (Real-time auto-polling)
+    const interval = setInterval(fetchQueue, 5000);
+    return () => clearInterval(interval);
+  }, [fetchQueue]);
+
+  // Barista chuyển trạng thái món (PENDING -> PREPARING -> DONE)
+  const handleUpdateStatus = async (
+    orderDetailId: number,
+    status: 'PREPARING' | 'DONE' | 'CANCELLED'
+  ) => {
+    setLoadingId(orderDetailId);
+    try {
+      await kdsService.updateItemStatus(orderDetailId, { itemStatus: status });
+      showToast(
+        status === 'PREPARING'
+          ? 'Đã bắt đầu pha chế!'
+          : status === 'DONE'
+          ? 'Hoàn tất pha chế thành công!'
+          : 'Đã hủy món'
+      );
+      await fetchQueue();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Cập nhật trạng thái thất bại');
+    } finally {
+      setLoadingId(null);
+    }
   };
 
-  const filteredOrders = orders.filter((order) => {
-    if (activeTab === "all") return true;
-    return order.status === activeTab;
-  });
+  // Rung chuông Pager báo khách hàng lấy đồ uống
+  const handleNotifyOrderReady = async (orderId: number) => {
+    try {
+      const res = await kdsService.notifyOrderReady(orderId);
+      const msg = res.data?.message || 'Đã kích hoạt rung chuông thẻ rung thành công!';
+      showToast(msg);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Kích hoạt thẻ rung thất bại');
+    }
+  };
 
-  const pendingCount = orders.filter((o) => o.status === "pending").length;
-  const inProgressCount = orders.filter((o) => o.status === "in_progress").length;
-  const completedCount = orders.filter((o) => o.status === "completed").length;
+  // Stats counting
+  const pendingCount = queueItems.filter((i) => i.itemStatus === 'PENDING').length;
+  const preparingCount = queueItems.filter((i) => i.itemStatus === 'PREPARING').length;
+  const doneCount = queueItems.filter((i) => i.itemStatus === 'DONE').length;
 
   return (
     <div className="min-h-screen bg-[#FAF6F0] text-gray-800 flex flex-col font-sans antialiased">
-      {/* ========================================================
-          1. HEADER KDS MÀN HÌNH BẾP (Light Cream Theme)
-          ======================================================== */}
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-5 right-5 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg text-sm font-semibold z-50 animate-in fade-in">
+          {toastMessage}
+        </div>
+      )}
+
+      {/* Header Bar */}
       <header className="bg-white border-b border-gray-200/80 px-6 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sticky top-0 z-30 shadow-xs">
-        {/* Left: Brand Logo & Clock */}
+        {/* Left: Logo & Time */}
         <div className="flex items-center gap-4">
           <Link
             href="/dashboard"
@@ -169,11 +137,11 @@ export default function KDSQueuePage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900 tracking-tight leading-none">
-                Hàng đợi pha chế (KDS)
+                Màn hình Bếp / Quầy Bar (KDS)
               </h1>
               <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5 font-medium">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                Hệ thống thời gian thực • Quầy Bar
+                Real-time Sync (5s) • Quầy pha chế
               </p>
             </div>
           </div>
@@ -181,237 +149,128 @@ export default function KDSQueuePage() {
           {/* Clock Widget */}
           <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#F0E6DD] text-[#6F4E37] font-mono text-sm font-bold ml-3">
             <Clock className="w-4 h-4 text-[#6F4E37]/70" />
-            <span>{currentTime || "14:30:00"}</span>
+            <span>{currentTime || '14:30:00'}</span>
           </div>
         </div>
 
-        {/* Right: Status Filters Horizontal Tabs */}
-        <div className="flex items-center gap-1.5 bg-gray-100/80 p-1.5 rounded-2xl">
+        {/* Right: Controls & Tabs */}
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={() => setActiveTab("all")}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === "all"
-                ? "bg-[#6F4E37] text-white shadow-xs"
-                : "text-gray-600 hover:text-gray-900 hover:bg-white"
-            }`}
+            onClick={fetchQueue}
+            className="p-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+            title="Làm mới hàng đợi"
           >
-            Tất cả ({orders.length})
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#6F4E37]' : ''}`} />
           </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("pending")}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === "pending"
-                ? "bg-[#6F4E37] text-white shadow-xs"
-                : "text-gray-600 hover:text-gray-900 hover:bg-white"
-            }`}
-          >
-            <span>Chờ làm</span>
-            {pendingCount > 0 && (
-              <span
-                className={`w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center ${
-                  activeTab === "pending"
-                    ? "bg-[#F5EBE6] text-[#6F4E37]"
-                    : "bg-amber-100 text-amber-800"
-                }`}
-              >
-                {pendingCount}
-              </span>
-            )}
-          </button>
+          <div className="flex items-center gap-1.5 bg-gray-100/80 p-1.5 rounded-2xl">
+            <button
+              type="button"
+              onClick={() => setActiveTab('ALL')}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'ALL'
+                  ? 'bg-[#6F4E37] text-white shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white'
+              }`}
+            >
+              Tất cả ({queueItems.length})
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("in_progress")}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === "in_progress"
-                ? "bg-[#6F4E37] text-white shadow-xs"
-                : "text-gray-600 hover:text-gray-900 hover:bg-white"
-            }`}
-          >
-            <span>Đang làm</span>
-            {inProgressCount > 0 && (
-              <span
-                className={`w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center ${
-                  activeTab === "in_progress"
-                    ? "bg-[#F5EBE6] text-[#6F4E37]"
-                    : "bg-blue-100 text-blue-800"
-                }`}
-              >
-                {inProgressCount}
-              </span>
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('PENDING')}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'PENDING'
+                  ? 'bg-[#6F4E37] text-white shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white'
+              }`}
+            >
+              <span>Chờ pha chế</span>
+              {pendingCount > 0 && (
+                <span
+                  className={`w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center ${
+                    activeTab === 'PENDING'
+                      ? 'bg-[#F5EBE6] text-[#6F4E37]'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}
+                >
+                  {pendingCount}
+                </span>
+              )}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("completed")}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === "completed"
-                ? "bg-[#6F4E37] text-white shadow-xs"
-                : "text-gray-600 hover:text-gray-900 hover:bg-white"
-            }`}
-          >
-            <span>Xong</span>
-            {completedCount > 0 && (
-              <span
-                className={`w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center ${
-                  activeTab === "completed"
-                    ? "bg-[#F5EBE6] text-[#6F4E37]"
-                    : "bg-emerald-100 text-emerald-800"
-                }`}
-              >
-                {completedCount}
-              </span>
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('PREPARING')}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'PREPARING'
+                  ? 'bg-[#6F4E37] text-white shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white'
+              }`}
+            >
+              <span>Đang pha chế</span>
+              {preparingCount > 0 && (
+                <span
+                  className={`w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center ${
+                    activeTab === 'PREPARING'
+                      ? 'bg-[#F5EBE6] text-[#6F4E37]'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}
+                >
+                  {preparingCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* ========================================================
-          2. LƯỚI THẺ ORDER (Grid Card - White Card on Cream Background)
-          ======================================================== */}
+      {/* Main Grid Content */}
       <main className="flex-1 p-6 overflow-y-auto max-w-7xl w-full mx-auto">
-        {filteredOrders.length > 0 ? (
+        {loading && queueItems.length === 0 ? (
+          <div className="h-96 flex flex-col items-center justify-center text-center p-8 text-gray-400 animate-pulse">
+            <ChefHat className="w-12 h-12 mb-3 stroke-1 text-gray-300" />
+            <p className="text-sm font-semibold text-gray-600">Đang đồng bộ hàng đợi KDS từ hệ thống...</p>
+          </div>
+        ) : queueItems.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredOrders.map((order) => {
-              const isUrgent = order.minutesAgo >= 10 && order.status !== "completed";
-
-              return (
-                <div
-                  key={order.id}
-                  className={`bg-white rounded-2xl border flex flex-col justify-between overflow-hidden shadow-sm transition-all duration-200 ${
-                    order.status === "in_progress"
-                      ? "border-blue-400 ring-2 ring-blue-400/20"
-                      : order.status === "completed"
-                      ? "border-emerald-300 opacity-90"
-                      : isUrgent
-                      ? "border-rose-400 ring-2 ring-rose-400/20"
-                      : "border-[#F0E6DD]"
-                  }`}
-                >
-                  {/* Header Thẻ Order */}
-                  <div className="p-4 border-b border-gray-100 bg-[#FAF6F0]/40 flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-lg text-gray-900 tracking-tight">
-                          {order.table}
-                        </span>
-                        <span className="text-xs font-mono text-gray-400 font-medium">
-                          {order.orderNumber}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                        <Clock className="w-3.5 h-3.5 text-gray-400" />
-                        <span>{order.createdAt}</span>
-                        <span>•</span>
-                        <span
-                          className={`font-semibold ${
-                            isUrgent ? "text-rose-600" : "text-gray-600"
-                          }`}
-                        >
-                          {order.minutesAgo} phút trước
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Loại hình phục vụ */}
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                        order.orderType === "dine_in"
-                          ? "bg-[#F5EBE6] text-[#6F4E37]"
-                          : "bg-amber-50 text-amber-800 border border-amber-200"
-                      }`}
-                    >
-                      {order.orderType === "dine_in" ? (
-                        <>
-                          <Utensils className="w-3 h-3" />
-                          Tại quán
-                        </>
-                      ) : (
-                        <>
-                          <ShoppingBag className="w-3 h-3" />
-                          Mang đi
-                        </>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Thân Thẻ: Danh sách món */}
-                  <div className="p-4 space-y-2.5 flex-1 overflow-y-auto bg-white">
-                    {order.items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-3 rounded-xl bg-gray-50/80 border border-gray-100 flex items-start justify-between gap-3"
-                      >
-                        <div className="flex items-start gap-2.5 flex-1">
-                          <span className="w-6 h-6 rounded-lg bg-[#6F4E37] text-white text-xs font-bold flex items-center justify-center shrink-0">
-                            {item.quantity}
-                          </span>
-                          <div>
-                            <p className="font-semibold text-sm text-gray-900 leading-snug">
-                              {item.name}
-                            </p>
-                            {item.note && (
-                              <p className="text-xs font-medium text-amber-900 bg-amber-50 border border-amber-200/80 rounded-md px-2 py-0.5 mt-1 inline-block">
-                                ⭐ {item.note}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Footer Thẻ: Nút chuyển trạng thái */}
-                  <div className="p-4 border-t border-gray-100 bg-white">
-                    {order.status === "pending" && (
-                      <button
-                        type="button"
-                        onClick={() => advanceOrderStatus(order.id)}
-                        className="w-full py-3 px-4 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-[0.98]"
-                      >
-                        <Play className="w-4 h-4 fill-white" />
-                        <span>Bắt đầu pha chế</span>
-                      </button>
-                    )}
-
-                    {order.status === "in_progress" && (
-                      <button
-                        type="button"
-                        onClick={() => advanceOrderStatus(order.id)}
-                        className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-[0.98]"
-                      >
-                        <CheckCheck className="w-5 h-5" />
-                        <span>Hoàn thành món</span>
-                      </button>
-                    )}
-
-                    {order.status === "completed" && (
-                      <div className="w-full py-2.5 px-4 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-700 font-semibold text-xs flex items-center justify-center gap-2">
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>Đã giao bàn / Hoàn tất</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {queueItems.map((item) => (
+              <KDSTicketCard
+                key={item.orderDetailId}
+                item={item}
+                loadingId={loadingId}
+                onUpdateStatus={handleUpdateStatus}
+                onNotifyReady={handleNotifyOrderReady}
+                onViewRecipe={(pName) => {
+                  setSelectedRecipeProduct(pName);
+                  setIsRecipeOpen(true);
+                }}
+              />
+            ))}
           </div>
         ) : (
           <div className="h-96 flex flex-col items-center justify-center text-center p-8 text-gray-400">
             <ChefHat className="w-16 h-16 mb-3 stroke-1 text-gray-300" />
             <p className="text-base font-semibold text-gray-700">
-              Không có đơn hàng nào trong mục này
+              Không có món nào cần pha chế trong danh mục này
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              Đơn hàng mới từ quầy POS sẽ tự động xuất hiện tại đây
+              Đơn gọi món mới từ quầy POS sẽ tự động xuất hiện tại đây theo thời gian thực (5s)
             </p>
           </div>
         )}
       </main>
+
+      {/* Quick Recipe BOM Modal */}
+      <QuickRecipeModal
+        isOpen={isRecipeOpen}
+        onClose={() => {
+          setIsRecipeOpen(false);
+          setSelectedRecipeProduct('');
+        }}
+        productName={selectedRecipeProduct}
+      />
     </div>
   );
 }
