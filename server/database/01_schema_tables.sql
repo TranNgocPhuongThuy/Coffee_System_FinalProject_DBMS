@@ -210,3 +210,15 @@ CREATE TABLE InventoryAdjustment (
     adjustmentDate DATETIME2(7) NOT NULL
 );
 GO
+
+-- 6. SYSTEM LOG
+CREATE TABLE SystemLog (
+    LogId INT IDENTITY(1,1) PRIMARY KEY,
+    ActionType VARCHAR(50) NOT NULL,
+    PerformedBy VARCHAR(50) DEFAULT SYSTEM_USER,
+    TableName VARCHAR(50),
+    Description NVARCHAR(255),
+    ErrorMessage NVARCHAR(MAX),
+    CreatedAt DATETIME DEFAULT GETDATE()
+);
+GO

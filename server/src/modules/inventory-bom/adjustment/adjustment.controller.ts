@@ -17,8 +17,15 @@ export class AdjustmentController {
 
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const body = CreateAdjustmentSchema.parse(req.body)
-      const result = await this.adjustmentService.createAdjustment(body)
+      const parsed = CreateAdjustmentSchema.parse(req.body)
+      const employeeId = parsed.employeeId || req.user?.id
+      if (!employeeId) {
+        throw new Error('Thiếu thông tin người thực hiện kiểm kê (employeeId)')
+      }
+      const result = await this.adjustmentService.createAdjustment({
+        ...parsed,
+        employeeId,
+      })
       res.status(201).json({ success: true, ...result })
     } catch (error) {
       next(error)

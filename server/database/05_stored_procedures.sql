@@ -9,14 +9,6 @@ IF OBJECT_ID('sp_CreateCounterOrder', 'P') IS NOT NULL
     DROP PROCEDURE sp_CreateCounterOrder;
 GO
 
-IF EXISTS (SELECT * FROM sys.types WHERE name = 'udt_OrderDetailList')
-    DROP TYPE udt_OrderDetailList;
-GO
-
-IF EXISTS (SELECT * FROM sys.types WHERE name = 'udt_OrderDetailToppingList')
-    DROP TYPE udt_OrderDetailToppingList;
-GO
-
 IF OBJECT_ID('sp_CreateOrderWithPager', 'P') IS NOT NULL 
     DROP PROCEDURE sp_CreateOrderWithPager;
 GO
@@ -79,6 +71,19 @@ CREATE TYPE udt_OrderDetailList AS TABLE (
 );
 GO
 
+IF EXISTS (SELECT * FROM sys.types WHERE name = 'udt_OrderDetailToppingList')
+    DROP TYPE udt_OrderDetailToppingList;
+GO
+
+CREATE TYPE udt_OrderDetailToppingList AS TABLE (
+    itemIndex INT NOT NULL,       
+    toppingId INT NULL,
+    toppingSnapshotName NVARCHAR(150) NOT NULL,
+    toppingPrice DECIMAL(18, 2) NOT NULL,
+    quantity INT NOT NULL
+);
+GO
+
 IF EXISTS (SELECT * FROM sys.types WHERE name = 'udt_InventoryImportDetailList')
     DROP TYPE udt_InventoryImportDetailList;
 GO
@@ -113,6 +118,7 @@ CREATE OR ALTER PROCEDURE sp_CreateCounterOrder
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
     BEGIN TRY
@@ -185,6 +191,7 @@ CREATE PROCEDURE sp_CompleteOrderPayment
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
     BEGIN TRY
@@ -284,6 +291,7 @@ CREATE PROCEDURE sp_CancelOrder
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
     BEGIN TRY
@@ -393,6 +401,7 @@ CREATE PROCEDURE sp_ApplyLoyaltyPoints
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
     BEGIN TRY
@@ -440,6 +449,8 @@ CREATE PROCEDURE sp_RemoveOrderItem
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
     BEGIN TRY
         BEGIN TRANSACTION;
 
@@ -458,6 +469,8 @@ BEGIN
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        INSERT INTO SystemLog (ActionType, TableName, Description, ErrorMessage)
+        VALUES ('ERROR', 'OrderDetail', 'Error in sp_RemoveOrderItem', ERROR_MESSAGE());
         THROW;
     END CATCH
 END;
@@ -476,35 +489,51 @@ CREATE PROCEDURE sp_UpsertRecipeBOM
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF @ConsumedQuantity <= 0
-    BEGIN
-        RAISERROR(N'Consumed quantity must be greater than 0!', 16, 1);
-        RETURN;
-    END
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
 
-    IF NOT EXISTS (SELECT 1 FROM ProductVariant WHERE id = @VariantId AND deletedAt IS NULL)
-    BEGIN
-        RAISERROR(N'Product variant does not exist or has been deleted!', 16, 1);
-        RETURN;
-    END
+        IF @ConsumedQuantity <= 0
+        BEGIN
+            RAISERROR(N'Consumed quantity must be greater than 0!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
 
-    IF NOT EXISTS (SELECT 1 FROM Ingredient WHERE id = @IngredientId AND deletedAt IS NULL)
-    BEGIN
-        RAISERROR(N'Ingredient does not exist or has been deleted!', 16, 1);
-        RETURN;
-    END
+        IF NOT EXISTS (SELECT 1 FROM ProductVariant WHERE id = @VariantId AND deletedAt IS NULL)
+        BEGIN
+            RAISERROR(N'Product variant does not exist or has been deleted!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
 
-    IF EXISTS (SELECT 1 FROM RecipeBOM WHERE variantId = @VariantId AND ingredientId = @IngredientId)
-    BEGIN
-        UPDATE RecipeBOM
-        SET consumedQuantity = @ConsumedQuantity
-        WHERE variantId = @VariantId AND ingredientId = @IngredientId;
-    END
-    ELSE
-    BEGIN
-        INSERT INTO RecipeBOM (variantId, ingredientId, consumedQuantity)
-        VALUES (@VariantId, @IngredientId, @ConsumedQuantity);
-    END
+        IF NOT EXISTS (SELECT 1 FROM Ingredient WHERE id = @IngredientId AND deletedAt IS NULL)
+        BEGIN
+            RAISERROR(N'Ingredient does not exist or has been deleted!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        IF EXISTS (SELECT 1 FROM RecipeBOM WHERE variantId = @VariantId AND ingredientId = @IngredientId)
+        BEGIN
+            UPDATE RecipeBOM
+            SET consumedQuantity = @ConsumedQuantity
+            WHERE variantId = @VariantId AND ingredientId = @IngredientId;
+        END
+        ELSE
+        BEGIN
+            INSERT INTO RecipeBOM (variantId, ingredientId, consumedQuantity)
+            VALUES (@VariantId, @IngredientId, @ConsumedQuantity);
+        END
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        INSERT INTO SystemLog (ActionType, TableName, Description, ErrorMessage)
+        VALUES ('ERROR', 'RecipeBOM', 'Error in sp_UpsertRecipeBOM', ERROR_MESSAGE());
+        THROW;
+    END CATCH
 END;
 GO
 
@@ -519,6 +548,8 @@ CREATE PROCEDURE sp_CreateInventoryImport
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
     BEGIN TRY
         BEGIN TRANSACTION;
 
@@ -538,6 +569,8 @@ BEGIN
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        INSERT INTO SystemLog (ActionType, TableName, Description, ErrorMessage)
+        VALUES ('ERROR', 'InventoryImport', 'Error in sp_CreateInventoryImport', ERROR_MESSAGE());
         THROW;
     END CATCH
 END;
@@ -563,6 +596,7 @@ CREATE OR ALTER PROCEDURE sp_CreateOrderWithPager
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 
     BEGIN TRY
@@ -641,6 +675,7 @@ CREATE PROCEDURE sp_UpsertCustomerMember
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
     BEGIN TRY
@@ -758,6 +793,7 @@ CREATE PROCEDURE sp_DieuChinhTonKho
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
     BEGIN TRY
@@ -792,6 +828,7 @@ BEGIN
         THROW;
     END CATCH
 END;
+GO
 
 CREATE OR ALTER PROCEDURE sp_KDS_NotifyOrderReady
     @OrderId INT,
@@ -800,6 +837,7 @@ CREATE OR ALTER PROCEDURE sp_KDS_NotifyOrderReady
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
     BEGIN TRY
@@ -844,25 +882,4 @@ BEGIN
         THROW;
     END CATCH
 END;
-
-CREATE TYPE udt_OrderDetailToppingList AS TABLE (
-    itemIndex INT NOT NULL,       
-    toppingId INT NULL,
-    toppingSnapshotName NVARCHAR(150) NOT NULL,
-    toppingPrice DECIMAL(18, 2) NOT NULL,
-    quantity INT NOT NULL
-);
-
-
-CREATE TYPE udt_OrderDetailList AS TABLE (
-    itemIndex INT NOT NULL,               -- Định danh dòng: 0, 1, 2...
-    variantId INT NOT NULL,
-    quantity INT NOT NULL,
-    note NVARCHAR(255),
-    itemSnapshotName NVARCHAR(200) NOT NULL,
-    sizeSnapshot NVARCHAR(50) NOT NULL,
-    unitPrice DECIMAL(18, 2) NOT NULL,
-    totalToppingPriceSnapshot DECIMAL(18, 2) NOT NULL,
-    totalPrice DECIMAL(18, 2) NOT NULL
-);
 GO
