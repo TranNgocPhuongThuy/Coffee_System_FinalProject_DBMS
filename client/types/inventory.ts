@@ -19,8 +19,8 @@ export interface UpdateIngredientPayload extends Partial<CreateIngredientPayload
 
 export interface CreateAdjustmentPayload {
   ingredientId: number;
-  employeeId: number;
-  newQuantity: number; // Backend đòi hỏi newQuantity, không phải actualQuantity
+  employeeId?: number;
+  newQuantity: number; // Backend đòi hỏi newQuantity, không bắt buộc truyền employeeId từ client
   reason: string;
 }
 
