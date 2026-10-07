@@ -299,13 +299,15 @@ export class OrderRepo {
     }
 
     if (fromDate) {
-      request.input('fromDate', sql.DateTime2, new Date(fromDate))
-      conditions.push('o.createdAt >= @fromDate')
+      const formattedFrom = fromDate.includes('T') ? fromDate.split('T')[0] : fromDate
+      request.input('fromDate', sql.Date, formattedFrom)
+      conditions.push('CAST(o.createdAt AS DATE) >= @fromDate')
     }
 
     if (toDate) {
-      request.input('toDate', sql.DateTime2, new Date(toDate))
-      conditions.push('o.createdAt <= @toDate')
+      const formattedTo = toDate.includes('T') ? toDate.split('T')[0] : toDate
+      request.input('toDate', sql.Date, formattedTo)
+      conditions.push('CAST(o.createdAt AS DATE) <= @toDate')
     }
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`

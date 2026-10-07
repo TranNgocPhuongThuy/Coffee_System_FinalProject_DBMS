@@ -29,10 +29,14 @@ import {
   User,
   Coffee,
   Check,
+  LogOut,
+  LayoutDashboard,
 } from 'lucide-react';
+import { useAuthContext } from '@/context/AuthContext';
 import { pagerService } from '@/api/pager.service';
 import { ActivePagerDashboardItem, PagerDevice, CreatePagerPayload } from '@/types/pager';
 import { PagerStatus } from '@/types/enums';
+import { PosUserDropdown } from '@/components/pos/PosUserDropdown';
 
 const PAGER_STATUS_TABS: { key: PagerStatus | 'ALL'; label: string }[] = [
   { key: 'ALL', label: 'Tất cả trạng thái' },
@@ -43,6 +47,8 @@ const PAGER_STATUS_TABS: { key: PagerStatus | 'ALL'; label: string }[] = [
 ];
 
 export default function PagersManagementPage() {
+  const { user, logout } = useAuthContext();
+  const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const [activeTab, setActiveTab] = useState<'active_dashboard' | 'all_devices'>('active_dashboard');
 
   // Tab 1: Dashboard Data
@@ -378,6 +384,16 @@ export default function PagersManagementPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            {isManagerOrAdmin && (
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
+              >
+                <LayoutDashboard className="h-4 w-4 text-amber-600" />
+                <span>Về Dashboard</span>
+              </Link>
+            )}
+
             <button
               type="button"
               onClick={() => {
@@ -396,6 +412,10 @@ export default function PagersManagementPage() {
               <Coffee className="w-4 h-4" />
               <span>Về Thu Ngân POS</span>
             </Link>
+
+            {/* User Dropdown */}
+            <div className="h-6 w-px bg-zinc-200 dark:bg-zinc-700 mx-1" />
+            <PosUserDropdown />
           </div>
         </div>
       </header>
