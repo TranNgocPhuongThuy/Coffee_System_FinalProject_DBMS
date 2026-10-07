@@ -44,3 +44,6 @@ next-env.d.ts
 # Next.js build output & cache
 /.next/
 /out/
+
+README.md
+/docs
