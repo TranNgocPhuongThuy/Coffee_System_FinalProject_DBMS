@@ -93,6 +93,15 @@ export class KDSRepo {
     req.input("itemStatus", sql.NVarChar(50), data.itemStatus);
 
     const result = await req.query(`
+      DECLARE @updatedItems TABLE (
+        id INT,
+        orderId INT,
+        itemSnapshotName NVARCHAR(200),
+        sizeSnapshot NVARCHAR(50),
+        itemStatus NVARCHAR(50),
+        updatedAt DATETIME2(7)
+      );
+
       UPDATE OrderDetail
       SET itemStatus = @itemStatus,
           updatedAt = SYSDATETIME()
@@ -103,7 +112,11 @@ export class KDSRepo {
         INSERTED.sizeSnapshot,
         INSERTED.itemStatus,
         INSERTED.updatedAt
+      INTO @updatedItems
       WHERE id = @orderDetailId
+
+      SELECT id, orderId, itemSnapshotName, sizeSnapshot, itemStatus, updatedAt
+      FROM @updatedItems
     `);
 
     return result.recordset[0] || null;
@@ -121,7 +134,7 @@ export class KDSRepo {
     req.output("PendingCount", sql.Int);
 
     // Gọi Stored Procedure đóng gói trọn vẹn nghiệp vụ
-    const result = await req.execute("sp_KDS_NotifyOrderReady");
+    const result = await req.execute("dbo.sp_KDS_NotifyOrderReady");
 
     const pagerId = result.output.PagerId;
     const pendingCount = result.output.PendingCount;

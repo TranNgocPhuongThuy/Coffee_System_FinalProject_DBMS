@@ -77,7 +77,7 @@ GRANT SELECT, UPDATE (status) ON PagerDevice TO BARISTA;
 
 GRANT SELECT ON v_ProductRecipeDetails TO BARISTA;
 GRANT SELECT ON v_ActivePagerDashboard TO BARISTA;
-GRANT EXECUTE ON sp_KDS_NotifyOrderReady TO BARISTA;
+GRANT EXECUTE ON dbo.sp_KDS_NotifyOrderReady TO BARISTA;
 
 
 DENY INSERT, DELETE ON [Order] TO BARISTA;
@@ -142,7 +142,7 @@ GRANT EXECUTE ON sp_ApplyLoyaltyPoints TO MANAGER;
 GRANT EXECUTE ON sp_RemoveOrderItem TO MANAGER;
 GRANT EXECUTE ON sp_UpsertCustomerMember TO MANAGER;
 GRANT EXECUTE ON sp_DieuChinhTonKho TO MANAGER;
-GRANT EXECUTE ON sp_KDS_NotifyOrderReady TO MANAGER;
+GRANT EXECUTE ON dbo.sp_KDS_NotifyOrderReady TO MANAGER;
 
 -- Quyền sử dụng các Kiểu dữ liệu bảng (TVP)
 GRANT EXECUTE ON TYPE::udt_OrderDetailList TO MANAGER;

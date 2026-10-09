@@ -830,7 +830,7 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE sp_KDS_NotifyOrderReady
+CREATE OR ALTER PROCEDURE dbo.sp_KDS_NotifyOrderReady
     @OrderId INT,
     @PagerId INT OUTPUT,
     @PendingCount INT OUTPUT
