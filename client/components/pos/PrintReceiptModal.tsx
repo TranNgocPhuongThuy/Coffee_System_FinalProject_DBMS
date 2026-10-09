@@ -58,7 +58,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F5EBE6] text-[#6F4E37] dark:bg-[#6F4E37]/20 dark:text-[#D4A373]">
               <Printer className="h-5 w-5" />
             </div>
             <div>
@@ -68,7 +68,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -78,7 +78,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 text-zinc-400">
-              <Loader2 className="h-8 w-8 animate-spin text-amber-600 mb-2" />
+              <Loader2 className="h-8 w-8 animate-spin text-[#6F4E37] mb-2" />
               <p className="text-xs font-medium">Đang trích xuất snapshot hóa đơn...</p>
             </div>
           ) : errorMsg ? (
@@ -93,7 +93,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
               <div className="my-2 border-t border-dashed border-zinc-400" />
 
               <div className="text-center font-bold text-xs">PHIẾU THANH TOÁN</div>
-              <div className="text-center font-bold text-amber-700 dark:text-amber-400">{invoice.orderCode}</div>
+              <div className="text-center font-bold text-[#6F4E37] dark:text-[#D4A373]">{invoice.orderCode}</div>
               <div className="my-2 border-t border-dashed border-zinc-400" />
 
               <div className="space-y-0.5 text-[11px]">
@@ -111,7 +111,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
                 )}
                 <div>
                   <strong>Phương thức thanh toán:</strong>{' '}
-                  <span className="font-bold text-amber-800 dark:text-amber-300">
+                  <span className="font-bold text-[#6F4E37] dark:text-[#D4A373]">
                     {invoice.paymentMethod === 'BANK_TRANSFER' || invoice.paymentMethod === 'BANKING'
                       ? 'Chuyển khoản (VietQR)'
                       : invoice.paymentMethod === 'CARD' || invoice.paymentMethod === 'CREDIT_CARD'
@@ -163,7 +163,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
                   <span className="font-bold">{formatCurrency(invoice.subTotal)}</span>
                 </div>
                 {invoice.discountAmount > 0 && (
-                  <div className="flex justify-between text-amber-700 dark:text-amber-400 font-bold">
+                  <div className="flex justify-between text-[#6F4E37] dark:text-[#D4A373] font-bold">
                     <span>Chiết khấu:</span>
                     <span>-{formatCurrency(invoice.discountAmount)}</span>
                   </div>
@@ -201,7 +201,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 cursor-pointer"
           >
             Đóng
           </button>
@@ -209,7 +209,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
             type="button"
             disabled={!invoice || loading}
             onClick={handlePrint}
-            className="flex items-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-amber-600/30 hover:bg-amber-700 active:scale-[0.98] disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-[#6F4E37] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-[#6F4E37]/30 hover:bg-[#5A3F2C] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
           >
             <Printer className="h-4 w-4" />
             <span>In Hóa Đơn Ngay</span>

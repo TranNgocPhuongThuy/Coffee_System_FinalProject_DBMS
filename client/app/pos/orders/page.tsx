@@ -192,7 +192,7 @@ export default function PosOrdersPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-zinc-100 dark:bg-zinc-950">
+    <div className="flex min-h-screen w-full flex-col bg-[#FAF6F0] dark:bg-zinc-950">
       {/* 1. Topbar */}
       <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-6 dark:border-zinc-800 dark:bg-zinc-900 shadow-2xs">
         <div className="flex items-center gap-3">
@@ -204,7 +204,7 @@ export default function PosOrdersPage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-600 text-white font-black">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#6F4E37] text-white font-black">
               <Receipt className="h-4 w-4" />
             </div>
             <div>
@@ -220,16 +220,16 @@ export default function PosOrdersPage() {
           {isManagerOrAdmin && (
             <Link
               href="/dashboard"
-              className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
+              className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
             >
-              <LayoutDashboard className="h-4 w-4 text-amber-600" />
+              <LayoutDashboard className="h-4 w-4 text-[#6F4E37] dark:text-[#D4A373]" />
               <span>Về Dashboard</span>
             </Link>
           )}
 
           <Link
             href="/pos/terminal"
-            className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-amber-600/30 hover:bg-amber-700 active:scale-95 transition-all"
+            className="flex items-center gap-2 rounded-xl bg-[#6F4E37] px-4 py-2 text-xs font-bold text-white shadow-md shadow-[#6F4E37]/30 hover:bg-[#5A3F2C] active:scale-95 transition-all"
           >
             <Plus className="h-4 w-4" />
             <span>Mở POS Bán hàng</span>
@@ -278,7 +278,7 @@ export default function PosOrdersPage() {
                 placeholder="Tìm mã đơn, tên khách, số điện thoại..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 py-2.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-amber-500 focus:bg-white focus:outline-none dark:border-zinc-800 dark:bg-zinc-850 dark:text-zinc-100"
+                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 py-2.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-[#6F4E37] focus:bg-white focus:outline-none dark:border-zinc-800 dark:bg-zinc-850 dark:text-zinc-100"
               />
             </div>
 
@@ -291,7 +291,7 @@ export default function PosOrdersPage() {
                   onClick={() => setDatePreset('TODAY')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     isTodayActive()
-                      ? 'bg-amber-600 text-white shadow-xs'
+                      ? 'bg-[#6F4E37] text-white shadow-xs'
                       : 'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white'
                   }`}
                 >
@@ -302,7 +302,7 @@ export default function PosOrdersPage() {
                   onClick={() => setDatePreset('YESTERDAY')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     isYesterdayActive()
-                      ? 'bg-amber-600 text-white shadow-xs'
+                      ? 'bg-[#6F4E37] text-white shadow-xs'
                       : 'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white'
                   }`}
                 >
@@ -349,9 +349,9 @@ export default function PosOrdersPage() {
                   key={f.key}
                   type="button"
                   onClick={() => setStatusFilter(f.key)}
-                  className={`rounded-xl px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all ${
+                  className={`rounded-xl px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                     active
-                      ? 'bg-amber-600 text-white shadow-xs'
+                      ? 'bg-[#6F4E37] text-white shadow-xs'
                       : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
                   }`}
                 >
@@ -415,14 +415,14 @@ export default function PosOrdersPage() {
                       </td>
                       <td className="py-3 px-4">
                         {order.pagerId || order.pagerCode ? (
-                          <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-black text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+                          <span className="rounded-md bg-[#F5EBE6] text-[#6F4E37] border border-[#EBE3D5] dark:bg-[#6F4E37]/30 dark:border-zinc-700 dark:text-[#E8DDD4] px-2 py-0.5 text-xs font-black">
                             #{order.pagerId || order.pagerCode}
                           </span>
                         ) : (
                           <span className="text-zinc-400">-</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 font-black text-amber-600 dark:text-amber-400">
+                      <td className="py-3 px-4 font-black text-[#6F4E37] dark:text-[#D4A373]">
                         {formatCurrency(order.totalAmount)}
                       </td>
                       <td className="py-3 px-4 font-medium text-zinc-600 dark:text-zinc-300">

@@ -157,12 +157,12 @@ export default function PosTerminalPage() {
   };
 
   return (
-    <div className="flex h-screen w-full flex-col bg-zinc-100 dark:bg-zinc-950 overflow-hidden select-none">
+    <div className="flex h-screen w-full flex-col bg-[#FAF6F0] dark:bg-zinc-950 overflow-hidden select-none">
       {/* 1. Header Topbar POS */}
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-5 dark:border-zinc-800 dark:bg-zinc-900 shadow-2xs">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-600 text-white font-black shadow-xs">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#6F4E37] text-white font-black shadow-xs">
               <Coffee className="h-4 w-4" />
             </div>
             <div>
@@ -179,26 +179,26 @@ export default function PosTerminalPage() {
           {isManagerOrAdmin && (
             <Link
               href="/dashboard"
-              className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
+              className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
             >
-              <LayoutDashboard className="h-3.5 w-3.5 text-amber-600" />
+              <LayoutDashboard className="h-3.5 w-3.5 text-[#6F4E37] dark:text-[#D4A373]" />
               <span>Về Dashboard</span>
             </Link>
           )}
 
           <Link
             href="/pos/orders"
-            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
+            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
           >
-            <Receipt className="h-3.5 w-3.5 text-amber-600" />
+            <Receipt className="h-3.5 w-3.5 text-[#6F4E37] dark:text-[#D4A373]" />
             <span>Lịch sử hóa đơn</span>
           </Link>
 
           <Link
             href="/pos/pagers"
-            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
+            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
           >
-            <Radio className="h-3.5 w-3.5 text-amber-600" />
+            <Radio className="h-3.5 w-3.5 text-[#6F4E37] dark:text-[#D4A373]" />
             <span>Thẻ rung</span>
           </Link>
 

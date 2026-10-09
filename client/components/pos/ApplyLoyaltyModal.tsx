@@ -52,7 +52,7 @@ export const ApplyLoyaltyModal: React.FC<ApplyLoyaltyModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F5EBE6] text-[#6F4E37] dark:bg-[#6F4E37]/20 dark:text-[#D4A373]">
               <Award className="h-5 w-5" />
             </div>
             <div>
@@ -62,7 +62,7 @@ export const ApplyLoyaltyModal: React.FC<ApplyLoyaltyModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -70,16 +70,16 @@ export const ApplyLoyaltyModal: React.FC<ApplyLoyaltyModalProps> = ({
 
         {/* Thông tin hội viên */}
         <div className="p-6 space-y-5">
-          <div className="rounded-2xl border border-amber-200/80 bg-amber-50/50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20 flex items-center justify-between">
+          <div className="rounded-2xl border border-[#EBE3D5] bg-[#FAF6F0] p-4 dark:border-[#6F4E37]/30 dark:bg-zinc-850 flex items-center justify-between">
             <div>
               <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{customer.fullName}</div>
               <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{customer.phoneNumber}</div>
             </div>
             <div className="text-right">
-              <div className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+              <div className="text-xs font-semibold text-[#6F4E37] dark:text-[#D4A373] uppercase tracking-wider">
                 Hạng {customer.membershipTier}
               </div>
-              <div className="text-base font-black text-amber-600 dark:text-amber-300">
+              <div className="text-base font-black text-[#6F4E37] dark:text-[#D4A373]">
                 {customer.rewardPoints} <span className="text-xs font-medium">điểm</span>
               </div>
             </div>
@@ -97,7 +97,7 @@ export const ApplyLoyaltyModal: React.FC<ApplyLoyaltyModalProps> = ({
                   max={maxUsablePoints}
                   value={points}
                   onChange={(e) => setPoints(Number(e.target.value) || 0)}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-lg font-bold text-zinc-900 focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-100"
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-lg font-bold text-zinc-900 focus:border-[#6F4E37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6F4E37]/20 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-100"
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-zinc-400">
                   điểm
@@ -114,7 +114,7 @@ export const ApplyLoyaltyModal: React.FC<ApplyLoyaltyModalProps> = ({
                     key={pt}
                     type="button"
                     onClick={() => setPoints(pt)}
-                    className="flex-1 rounded-lg border border-zinc-200 bg-zinc-50 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300"
+                    className="flex-1 rounded-lg border border-zinc-200 bg-zinc-50 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300 cursor-pointer"
                   >
                     +{pt} điểm
                   </button>
@@ -123,7 +123,7 @@ export const ApplyLoyaltyModal: React.FC<ApplyLoyaltyModalProps> = ({
               <button
                 type="button"
                 onClick={() => setPoints(maxUsablePoints)}
-                className="flex-1 rounded-lg border border-amber-300 bg-amber-50 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                className="flex-1 rounded-lg border border-[#EBE3D5] bg-[#F5EBE6] py-1.5 text-xs font-bold text-[#6F4E37] hover:bg-[#F5EBE6]/80 dark:border-[#6F4E37]/40 dark:bg-[#6F4E37]/20 dark:text-[#D4A373] cursor-pointer"
               >
                 Dùng hết ({maxUsablePoints})
               </button>
@@ -132,7 +132,7 @@ export const ApplyLoyaltyModal: React.FC<ApplyLoyaltyModalProps> = ({
             {/* Preview giảm giá */}
             <div className="rounded-xl bg-zinc-100 p-3.5 dark:bg-zinc-800/60 flex items-center justify-between text-sm">
               <span className="text-zinc-600 dark:text-zinc-400 font-medium">Số tiền giảm trừ:</span>
-              <span className="font-extrabold text-amber-600 dark:text-amber-400 text-base">
+              <span className="font-extrabold text-[#6F4E37] dark:text-[#D4A373] text-base">
                 -{formatCurrency(points * conversionRate)}
               </span>
             </div>
@@ -144,13 +144,13 @@ export const ApplyLoyaltyModal: React.FC<ApplyLoyaltyModalProps> = ({
                   onApply(0);
                   onClose();
                 }}
-                className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 cursor-pointer"
               >
                 Bỏ áp dụng
               </button>
               <button
                 type="submit"
-                className="flex items-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-amber-600/30 hover:bg-amber-700 active:scale-[0.98]"
+                className="flex items-center gap-2 rounded-xl bg-[#6F4E37] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-[#6F4E37]/30 hover:bg-[#5A3F2C] active:scale-[0.98] cursor-pointer"
               >
                 <CheckCircle2 className="h-4 w-4" />
                 <span>Xác nhận đổi điểm</span>

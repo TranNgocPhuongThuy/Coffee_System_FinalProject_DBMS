@@ -113,11 +113,11 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
-      <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-zinc-900">
+      <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
         {/* Header Modal */}
         <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F5EBE6] text-[#6F4E37] dark:bg-[#6F4E37]/20 dark:text-[#D4A373]">
               <Coffee className="h-5 w-5" />
             </div>
             <div>
@@ -129,7 +129,7 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors"
+            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -150,9 +150,9 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
                     key={v.id}
                     type="button"
                     onClick={() => setSelectedVariant(v)}
-                    className={`flex flex-col items-center justify-center rounded-xl border p-3.5 transition-all text-center ${
+                    className={`flex flex-col items-center justify-center rounded-xl border p-3.5 transition-all text-center cursor-pointer ${
                       isSelected
-                        ? 'border-amber-500 bg-amber-50/70 text-amber-900 ring-2 ring-amber-500/20 dark:border-amber-500 dark:bg-amber-950/40 dark:text-amber-200'
+                        ? 'border-[#6F4E37] bg-[#F5EBE6] text-[#6F4E37] ring-2 ring-[#6F4E37]/20 dark:border-[#D4A373] dark:bg-[#6F4E37]/30 dark:text-[#D4A373]'
                         : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/60 dark:hover:bg-zinc-800'
                     }`}
                   >
@@ -184,7 +184,7 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
                         key={t.id}
                         className={`flex items-center justify-between rounded-xl border p-3 transition-all ${
                           isChecked
-                            ? 'border-amber-500/80 bg-amber-50/40 dark:border-amber-500/60 dark:bg-amber-950/20'
+                            ? 'border-[#6F4E37]/80 bg-[#F5EBE6]/60 dark:border-[#6F4E37]/60 dark:bg-[#6F4E37]/20'
                             : 'border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-850'
                         }`}
                       >
@@ -195,7 +195,7 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
                           <div
                             className={`flex h-5 w-5 items-center justify-center rounded-md border transition-all ${
                               isChecked
-                                ? 'border-amber-500 bg-amber-500 text-white'
+                                ? 'border-[#6F4E37] bg-[#6F4E37] text-white'
                                 : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
                             }`}
                           >
@@ -203,7 +203,7 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
                           </div>
                           <div>
                             <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t.name}</div>
-                            <div className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
+                            <div className="text-xs text-[#6F4E37] dark:text-[#D4A373] font-semibold">
                               +{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(t.price)}
                             </div>
                           </div>
@@ -214,7 +214,7 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
                             <button
                               type="button"
                               onClick={() => updateToppingQuantity(t.id, -1)}
-                              className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                              className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
                             >
                               <Minus className="h-3.5 w-3.5" />
                             </button>
@@ -222,7 +222,7 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
                             <button
                               type="button"
                               onClick={() => updateToppingQuantity(t.id, 1)}
-                              className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                              className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
                             >
                               <Plus className="h-3.5 w-3.5" />
                             </button>
@@ -245,7 +245,7 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
               placeholder="VD: Ít đá, 50% đường, để đá riêng..."
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:bg-zinc-900"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-[#6F4E37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6F4E37]/20 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:bg-zinc-900"
             />
           </div>
         </div>
@@ -258,7 +258,7 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
               <button
                 type="button"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="rounded p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                className="rounded p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100 cursor-pointer"
               >
                 <Minus className="h-4 w-4" />
               </button>
@@ -266,7 +266,7 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
               <button
                 type="button"
                 onClick={() => setQuantity((q) => q + 1)}
-                className="rounded p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                className="rounded p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100 cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -276,7 +276,7 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
           <button
             type="button"
             onClick={handleAddToCart}
-            className="flex-1 rounded-xl bg-amber-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-amber-600/30 hover:bg-amber-700 active:scale-[0.98] transition-all flex items-center justify-between"
+            className="flex-1 rounded-xl bg-[#6F4E37] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-[#6F4E37]/30 hover:bg-[#5A3F2C] active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer"
           >
             <span>Thêm vào đơn</span>
             <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(lineTotalPrice)}</span>
