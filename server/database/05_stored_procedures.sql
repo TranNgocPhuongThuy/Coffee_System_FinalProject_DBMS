@@ -138,41 +138,16 @@ BEGIN
 
         SET @NewOrderId = SCOPE_IDENTITY();
 
-        -- 2. Bảng tạm để lưu OrderDetailId sinh ra kèm itemIndex
-        DECLARE @InsertedDetails TABLE (
-            orderDetailId INT,
-            itemIndex INT
-        );
-
-        -- 3. Insert chi tiết các ly nước và lấy ID sinh ra
-        MERGE INTO OrderDetail AS target
-        USING @OrderDetails AS src
-        ON 1 = 0 -- Luôn thực hiện INSERT
-        WHEN NOT MATCHED THEN
-            INSERT (
-                orderId, variantId, quantity, note, itemSnapshotName,
-                sizeSnapshot, unitPrice, totalToppingPriceSnapshot,
-                totalPrice, itemStatus, createdAt
-            )
-            VALUES (
-                @NewOrderId, src.variantId, src.quantity, src.note, src.itemSnapshotName,
-                src.sizeSnapshot, src.unitPrice, src.totalToppingPriceSnapshot,
-                src.totalPrice, N'PENDING', SYSDATETIME()
-            )
-        OUTPUT inserted.id, src.itemIndex INTO @InsertedDetails(orderDetailId, itemIndex);
-
-        -- 4. Insert toàn bộ Topping ghép qua itemIndex (chạy 1 lệnh duy nhất)
-        INSERT INTO OrderDetailTopping (
-            orderDetailId, toppingId, toppingSnapshotName, toppingPrice, quantity
+ INSERT INTO OrderDetail (
+            orderId, variantId, quantity, note, itemSnapshotName,
+            sizeSnapshot, unitPrice, totalToppingPriceSnapshot,
+            totalPrice, itemStatus, createdAt
         )
         SELECT 
-            idmap.orderDetailId,
-            topSrc.toppingId,
-            topSrc.toppingSnapshotName,
-            topSrc.toppingPrice,
-            topSrc.quantity
-        FROM @OrderToppings topSrc
-        INNER JOIN @InsertedDetails idmap ON topSrc.itemIndex = idmap.itemIndex;
+            @NewOrderId, src.variantId, src.quantity, src.note, src.itemSnapshotName,
+            src.sizeSnapshot, src.unitPrice, src.totalToppingPriceSnapshot,
+            src.totalPrice, N'PENDING', SYSDATETIME()
+        FROM @OrderDetails AS src;
 
         COMMIT TRANSACTION;
     END TRY
