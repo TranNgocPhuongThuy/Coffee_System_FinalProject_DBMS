@@ -7,8 +7,8 @@ export const PagerStatusEnum = z.enum(['AVAILABLE', 'IN_USE', 'CHARGING', 'MAINT
 export const CreatePagerSchema = z.object({
   pagerCode: z
     .string()
-    .min(1, 'Mã thẻ rung không được để trống')
-    .max(50, 'Mã thẻ rung tối đa 50 ký tự'),
+    .max(50, 'Mã thẻ rung tối đa 50 ký tự')
+    .optional(),
   status: PagerStatusEnum.default('AVAILABLE'),
   batteryLevel: z
     .number()

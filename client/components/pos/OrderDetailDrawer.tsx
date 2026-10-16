@@ -103,7 +103,7 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
               </div>
               <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                 {order.pagerCode ? (
-                  <span className="text-amber-600 dark:text-amber-400 font-extrabold">{order.pagerCode}</span>
+                  <span className="text-[#6F4E37] dark:text-[#D4A373] font-extrabold">{order.pagerCode}</span>
                 ) : (
                   <span className="text-zinc-400">Không dùng</span>
                 )}
@@ -113,8 +113,8 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
 
           {/* Thông tin Khách hàng hội viên */}
           {order.customerName && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3.5 dark:border-amber-900/40 dark:bg-amber-950/20">
-              <div className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider mb-1">
+            <div className="rounded-xl border border-[#EBE3D5] bg-[#FAF6F0] p-3.5 dark:border-[#6F4E37]/30 dark:bg-zinc-850">
+              <div className="text-xs font-bold text-[#6F4E37] dark:text-[#D4A373] uppercase tracking-wider mb-1">
                 Khách hàng hội viên
               </div>
               <div className="flex items-center justify-between text-sm">
@@ -123,7 +123,7 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
                   <span className="text-zinc-500 dark:text-zinc-400 ml-2">({order.customerPhone})</span>
                 </div>
                 {order.customerTier && (
-                  <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-xs font-black text-amber-700 dark:text-amber-300">
+                  <span className="rounded-md bg-[#F5EBE6] px-2 py-0.5 text-xs font-black text-[#6F4E37] dark:bg-[#6F4E37]/20 dark:text-[#D4A373]">
                     Hạng {order.customerTier}
                   </span>
                 )}
@@ -161,7 +161,7 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
                           {item.toppings.map((t) => (
                             <span
                               key={t.id}
-                              className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                              className="rounded-md bg-[#F5EBE6] px-2 py-0.5 text-[11px] font-medium text-[#6F4E37] dark:bg-[#6F4E37]/20 dark:text-[#D4A373]"
                             >
                               +{t.toppingSnapshotName} ({formatCurrency(t.toppingPrice)})
                             </span>
@@ -198,14 +198,14 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
               <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatCurrency(order.subTotal)}</span>
             </div>
             {order.discountAmount > 0 && (
-              <div className="flex justify-between text-amber-600 dark:text-amber-400 font-semibold">
+              <div className="flex justify-between text-[#6F4E37] dark:text-[#D4A373] font-semibold">
                 <span>Chiết khấu / Đổi điểm:</span>
                 <span>-{formatCurrency(order.discountAmount)}</span>
               </div>
             )}
             <div className="flex justify-between font-extrabold text-base text-zinc-900 dark:text-zinc-100 pt-2 border-t border-zinc-200 dark:border-zinc-800">
               <span>Tổng thanh toán:</span>
-              <span className="text-amber-600 dark:text-amber-400">{formatCurrency(order.totalAmount)}</span>
+              <span className="text-[#6F4E37] dark:text-[#D4A373]">{formatCurrency(order.totalAmount)}</span>
             </div>
             <div className="flex justify-between text-xs text-zinc-500 pt-1">
               <span>Phương thức:</span>

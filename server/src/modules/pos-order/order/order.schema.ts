@@ -28,7 +28,7 @@ export const CreateOrderSchema = z.object({
   customerId: z.number().int().positive('ID khách hàng không hợp lệ').optional().nullable(),
   pagerId: z.number().int().positive('ID thẻ rung không hợp lệ').optional().nullable(),
   pagerCode: z.string().max(50).optional().nullable(), // Mã thẻ rung nếu gán bằng mã thẻ
-  orderChannel: z.enum(['ORDER_AT_COUNTER', 'TAKE_AWAY', 'DINE_IN']).default('ORDER_AT_COUNTER'),
+  orderChannel: z.enum(['POS', 'APP', 'DELIVERY', 'ORDER_AT_COUNTER']).default('ORDER_AT_COUNTER'),
   subTotal: z.number().nonnegative('Tạm tính phải >= 0'),
   discountAmount: z.number().nonnegative('Tiền giảm giá phải >= 0').default(0),
   totalAmount: z.number().nonnegative('Tổng tiền thanh toán phải >= 0'),
@@ -38,7 +38,7 @@ export const CreateOrderSchema = z.object({
 
 // 4. Schema hoàn tất thanh toán
 export const CompletePaymentSchema = z.object({
-  paymentMethod: z.enum(['CASH', 'BANKING', 'MOMO', 'VNPAY', 'CREDIT_CARD', 'POINT_EXCHANGE'], {
+  paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'CARD', 'MOMO', 'VNPAY', 'POINT_EXCHANGE'], {
     required_error: 'Phương thức thanh toán là bắt buộc',
   }),
 })

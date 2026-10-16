@@ -89,7 +89,7 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
             </div>
           )}
 
-          <div className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+          <div className="rounded-xl bg-[#FAF6F0] p-3 text-xs text-[#6F4E37] dark:bg-amber-950/30 dark:text-amber-300 border border-[#EBE3D5] dark:border-amber-800">
             ⚠️ <strong>Lưu ý:</strong> Khi hủy đơn, thiết bị thẻ rung liên kết sẽ tự động được giải phóng về trạng thái <strong>AVAILABLE</strong>.
           </div>
 

@@ -21,13 +21,19 @@ import {
   Filter,
   Receipt,
   Plus,
+  Calendar,
+  X,
+  LogOut,
+  LayoutDashboard,
 } from 'lucide-react';
+import { useAuthContext } from '@/context/AuthContext';
 import { posService } from '@/api/pos.service';
 import { OrderItemResponse } from '@/types/pos';
 import { OrderStatus } from '@/types/enums';
 import { OrderDetailDrawer } from '@/components/pos/OrderDetailDrawer';
 import { PrintReceiptModal } from '@/components/pos/PrintReceiptModal';
 import { CancelOrderModal } from '@/components/pos/CancelOrderModal';
+import { PosUserDropdown } from '@/components/pos/PosUserDropdown';
 
 const STATUS_FILTERS: { key: OrderStatus | 'ALL'; label: string }[] = [
   { key: 'ALL', label: 'Tất cả' },
@@ -39,6 +45,8 @@ const STATUS_FILTERS: { key: OrderStatus | 'ALL'; label: string }[] = [
 ];
 
 export default function PosOrdersPage() {
+  const { user, logout } = useAuthContext();
+  const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const [orders, setOrders] = useState<OrderItemResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState({ page: 1, limit: 10, totalItems: 0, totalPages: 1 });
@@ -98,6 +106,52 @@ export default function PosOrdersPage() {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
+  const getTodayRange = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    return { from: dateStr, to: dateStr };
+  };
+
+  const getYesterdayRange = () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yyyy = yesterday.getFullYear();
+    const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
+    const dd = String(yesterday.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    return { from: dateStr, to: dateStr };
+  };
+
+  const setDatePreset = (type: 'TODAY' | 'YESTERDAY') => {
+    if (type === 'TODAY') {
+      const { from, to } = getTodayRange();
+      setFromDate(from);
+      setToDate(to);
+    } else if (type === 'YESTERDAY') {
+      const { from, to } = getYesterdayRange();
+      setFromDate(from);
+      setToDate(to);
+    }
+  };
+
+  const clearDateFilter = () => {
+    setFromDate('');
+    setToDate('');
+  };
+
+  const isTodayActive = () => {
+    const { from, to } = getTodayRange();
+    return fromDate === from && toDate === to;
+  };
+
+  const isYesterdayActive = () => {
+    const { from, to } = getYesterdayRange();
+    return fromDate === from && toDate === to;
+  };
+
   const getStatusBadge = (status: OrderStatus) => {
     switch (status) {
       case 'PENDING_PREP':
@@ -138,18 +192,19 @@ export default function PosOrdersPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-zinc-100 dark:bg-zinc-950">
+    <div className="flex min-h-screen w-full flex-col bg-[#FAF6F0] dark:bg-zinc-950">
       {/* 1. Topbar */}
       <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-6 dark:border-zinc-800 dark:bg-zinc-900 shadow-2xs">
         <div className="flex items-center gap-3">
           <Link
             href="/pos/terminal"
             className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+            title="Về POS Bán hàng"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-600 text-white font-black">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#6F4E37] text-white font-black">
               <Receipt className="h-4 w-4" />
             </div>
             <div>
@@ -162,9 +217,19 @@ export default function PosOrdersPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {isManagerOrAdmin && (
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
+            >
+              <LayoutDashboard className="h-4 w-4 text-[#6F4E37] dark:text-[#D4A373]" />
+              <span>Về Dashboard</span>
+            </Link>
+          )}
+
           <Link
             href="/pos/terminal"
-            className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-amber-600/30 hover:bg-amber-700 active:scale-95 transition-all"
+            className="flex items-center gap-2 rounded-xl bg-[#6F4E37] px-4 py-2 text-xs font-bold text-white shadow-md shadow-[#6F4E37]/30 hover:bg-[#5A3F2C] active:scale-95 transition-all"
           >
             <Plus className="h-4 w-4" />
             <span>Mở POS Bán hàng</span>
@@ -172,10 +237,15 @@ export default function PosOrdersPage() {
           <button
             type="button"
             onClick={() => fetchOrders(meta.page)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            title="Tải lại danh sách"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 cursor-pointer"
           >
             <RotateCcw className="h-4 w-4" />
           </button>
+
+          {/* User Dropdown */}
+          <div className="h-6 w-px bg-zinc-200 dark:bg-zinc-700 mx-1" />
+          <PosUserDropdown />
         </div>
       </header>
 
@@ -208,25 +278,65 @@ export default function PosOrdersPage() {
                 placeholder="Tìm mã đơn, tên khách, số điện thoại..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 py-2.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-amber-500 focus:bg-white focus:outline-none dark:border-zinc-800 dark:bg-zinc-850 dark:text-zinc-100"
+                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 py-2.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-[#6F4E37] focus:bg-white focus:outline-none dark:border-zinc-800 dark:bg-zinc-850 dark:text-zinc-100"
               />
             </div>
 
-            {/* Date filter */}
-            <div className="flex items-center gap-2 text-xs">
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-800 dark:border-zinc-800 dark:bg-zinc-850 dark:text-zinc-200"
-              />
-              <span className="text-zinc-400 font-bold">-</span>
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-800 dark:border-zinc-800 dark:bg-zinc-850 dark:text-zinc-200"
-              />
+            {/* Quick date presets & custom date range */}
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {/* Preset buttons on the left */}
+              <div className="flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setDatePreset('TODAY')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    isTodayActive()
+                      ? 'bg-[#6F4E37] text-white shadow-xs'
+                      : 'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white'
+                  }`}
+                >
+                  Hôm nay
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDatePreset('YESTERDAY')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    isYesterdayActive()
+                      ? 'bg-[#6F4E37] text-white shadow-xs'
+                      : 'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white'
+                  }`}
+                >
+                  Hôm qua
+                </button>
+                {(fromDate || toDate) && (
+                  <button
+                    type="button"
+                    onClick={clearDateFilter}
+                    title="Bỏ lọc ngày"
+                    className="p-1 rounded-lg text-zinc-400 hover:text-rose-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Date range inputs on the right */}
+              <div className="flex items-center gap-1.5 bg-zinc-50 dark:bg-zinc-850 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-1">
+                <Calendar className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="bg-transparent text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none cursor-pointer"
+                />
+                <span className="text-zinc-400 font-bold px-0.5">-</span>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="bg-transparent text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none cursor-pointer"
+                />
+              </div>
             </div>
           </div>
 
@@ -239,9 +349,9 @@ export default function PosOrdersPage() {
                   key={f.key}
                   type="button"
                   onClick={() => setStatusFilter(f.key)}
-                  className={`rounded-xl px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all ${
+                  className={`rounded-xl px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                     active
-                      ? 'bg-amber-600 text-white shadow-xs'
+                      ? 'bg-[#6F4E37] text-white shadow-xs'
                       : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
                   }`}
                 >
@@ -304,15 +414,15 @@ export default function PosOrdersPage() {
                         )}
                       </td>
                       <td className="py-3 px-4">
-                        {order.pagerCode ? (
-                          <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-black text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
-                            {order.pagerCode}
+                        {order.pagerId || order.pagerCode ? (
+                          <span className="rounded-md bg-[#F5EBE6] text-[#6F4E37] border border-[#EBE3D5] dark:bg-[#6F4E37]/30 dark:border-zinc-700 dark:text-[#E8DDD4] px-2 py-0.5 text-xs font-black">
+                            #{order.pagerId || order.pagerCode}
                           </span>
                         ) : (
                           <span className="text-zinc-400">-</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 font-black text-amber-600 dark:text-amber-400">
+                      <td className="py-3 px-4 font-black text-[#6F4E37] dark:text-[#D4A373]">
                         {formatCurrency(order.totalAmount)}
                       </td>
                       <td className="py-3 px-4 font-medium text-zinc-600 dark:text-zinc-300">

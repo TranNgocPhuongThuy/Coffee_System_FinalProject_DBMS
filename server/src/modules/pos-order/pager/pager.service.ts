@@ -46,14 +46,23 @@ export class PagerService {
    * Tạo mới thiết bị thẻ rung
    */
   async createPager(data: CreatePagerType) {
-    const existing = await this.pagerRepo.getPagerByCode(data.pagerCode)
-    if (existing) {
-      throw new Error(`Mã thẻ rung '${data.pagerCode}' đã tồn tại trên hệ thống`)
+    let pagerCode = data.pagerCode?.trim()
+
+    if (!pagerCode) {
+      pagerCode = await this.pagerRepo.getNextPagerCode()
+    } else {
+      const existing = await this.pagerRepo.getPagerByCode(pagerCode)
+      if (existing) {
+        throw new Error(`Mã thẻ rung '${pagerCode}' đã tồn tại trên hệ thống`)
+      }
     }
 
-    const created = await this.pagerRepo.createPager(data)
+    const created = await this.pagerRepo.createPager({
+      ...data,
+      pagerCode,
+    })
     return {
-      message: 'Thêm thiết bị thẻ rung thành công',
+      message: `Thêm thiết bị thẻ rung '${pagerCode}' thành công`,
       data: created,
     }
   }

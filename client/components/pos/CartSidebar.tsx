@@ -91,7 +91,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
       {/* 1. Header Giỏ hàng */}
       <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3.5 dark:border-zinc-800">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F5EBE6] text-[#6F4E37] dark:bg-[#6F4E37]/20 dark:text-[#D4A373]">
             <ShoppingBag className="h-4 w-4" />
           </div>
           <div>
@@ -106,7 +106,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
           <button
             type="button"
             onClick={onClearCart}
-            className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 transition-colors"
+            className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
           >
             <Trash2 className="h-3.5 w-3.5" />
             <span>Xóa hết</span>
@@ -128,10 +128,15 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
             <button
               key={tab.key}
               type="button"
-              onClick={() => onSetOrderChannel(tab.key)}
-              className={`rounded-lg py-1.5 text-center font-bold transition-all ${
+              onClick={() => {
+                onSetOrderChannel(tab.key);
+                if (tab.key === 'DELIVERY') {
+                  onSelectPager(null);
+                }
+              }}
+              className={`rounded-lg py-1.5 text-center font-bold transition-all cursor-pointer ${
                 orderChannel === tab.key
-                  ? 'bg-white text-amber-700 shadow-xs dark:bg-zinc-900 dark:text-amber-300'
+                  ? 'bg-white text-[#6F4E37] shadow-xs dark:bg-zinc-900 dark:text-[#D4A373]'
                   : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
               }`}
             >
@@ -143,12 +148,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
         {/* Cấp Thẻ rung (Pager) */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 font-bold text-zinc-700 dark:text-zinc-300">
-            <Radio className="h-3.5 w-3.5 text-amber-600" />
+            <Radio className="h-3.5 w-3.5 text-[#6F4E37] dark:text-[#D4A373]" />
             <span>Thẻ rung:</span>
           </div>
 
           <select
-            value={selectedPager?.id || ''}
+            value={orderChannel === 'DELIVERY' ? '' : (selectedPager?.id || '')}
+            disabled={orderChannel === 'DELIVERY'}
             onChange={(e) => {
               const val = e.target.value;
               if (!val) {
@@ -158,30 +164,31 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 if (p) onSelectPager({ id: p.id, pagerCode: p.pagerCode, batteryLevel: p.batteryLevel });
               }
             }}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 font-bold text-zinc-900 focus:border-amber-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 font-bold text-zinc-900 focus:border-[#6F4E37] focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 disabled:opacity-60 disabled:bg-zinc-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
           >
-            <option value="">-- Không cấp thẻ --</option>
-            {availablePagers.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.pagerCode} (Pin {p.batteryLevel}%)
-              </option>
-            ))}
+            <option value="">{orderChannel === 'DELIVERY' ? '-- Không cấp thẻ (Giao đi) --' : '-- Không cấp thẻ --'}</option>
+            {orderChannel !== 'DELIVERY' &&
+              availablePagers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.pagerCode} (Pin {p.batteryLevel}%)
+                </option>
+              ))}
           </select>
         </div>
 
         {/* Khách hàng hội viên */}
         <div>
           {selectedCustomer ? (
-            <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/70 p-2.5 dark:border-amber-900/50 dark:bg-amber-950/30">
+            <div className="flex items-center justify-between rounded-xl border border-[#EBE3D5] bg-[#FAF6F0] p-2.5 dark:border-[#6F4E37]/30 dark:bg-zinc-850">
               <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-[10px]">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#6F4E37] text-white font-bold text-[10px]">
                   {selectedCustomer.fullName.charAt(0)}
                 </div>
                 <div>
                   <div className="font-bold text-zinc-900 dark:text-zinc-100 line-clamp-1">
                     {selectedCustomer.fullName}
                   </div>
-                  <div className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
+                  <div className="text-[10px] text-[#6F4E37] dark:text-[#D4A373] font-semibold">
                     {selectedCustomer.phoneNumber} • {selectedCustomer.rewardPoints} điểm
                   </div>
                 </div>
@@ -191,7 +198,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 <button
                   type="button"
                   onClick={onOpenApplyLoyalty}
-                  className="rounded-lg bg-amber-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-700"
+                  className="rounded-lg bg-[#6F4E37] px-2 py-1 text-[11px] font-bold text-white hover:bg-[#5A3F2C] cursor-pointer"
                 >
                   <Award className="inline h-3 w-3 mr-0.5" />
                   Đổi điểm
@@ -199,7 +206,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => onSelectCustomer(null)}
-                  className="rounded-lg p-1 text-zinc-400 hover:text-red-600"
+                  className="rounded-lg p-1 text-zinc-400 hover:text-red-600 cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -219,14 +226,14 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                       setShowCustomerDropdown(true);
                     }}
                     onFocus={() => setShowCustomerDropdown(true)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white pl-8 pr-2 py-1.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-amber-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                    className="w-full rounded-xl border border-zinc-200 bg-white pl-8 pr-2 py-1.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-[#6F4E37] focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={onOpenQuickCreateCustomer}
                   title="Đăng ký thành viên nhanh"
-                  className="rounded-xl border border-dashed border-amber-400 bg-amber-50/50 p-1.5 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300 transition-colors"
+                  className="rounded-xl border border-dashed border-[#6F4E37]/40 bg-[#F5EBE6]/60 p-1.5 text-[#6F4E37] hover:bg-[#F5EBE6] dark:border-[#6F4E37]/60 dark:bg-[#6F4E37]/20 dark:text-[#D4A373] transition-colors cursor-pointer"
                 >
                   <UserPlus className="h-4 w-4" />
                 </button>
@@ -250,13 +257,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                         setShowCustomerDropdown(false);
                         setCustomerSearchQuery('');
                       }}
-                      className="w-full rounded-lg px-3 py-1.5 text-left text-xs hover:bg-amber-50 dark:hover:bg-zinc-700/60 flex items-center justify-between"
+                      className="w-full rounded-lg px-3 py-1.5 text-left text-xs hover:bg-[#F5EBE6] dark:hover:bg-zinc-700/60 flex items-center justify-between cursor-pointer"
                     >
                       <div>
                         <div className="font-bold text-zinc-800 dark:text-zinc-200">{c.fullName}</div>
                         <div className="text-[10px] text-zinc-400">{c.phoneNumber}</div>
                       </div>
-                      <span className="font-semibold text-amber-600 dark:text-amber-400">{c.rewardPoints} đ</span>
+                      <span className="font-semibold text-[#6F4E37] dark:text-[#D4A373]">{c.rewardPoints} đ</span>
                     </button>
                   ))}
                 </div>
@@ -295,7 +302,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                       {item.toppings.map((t, idx) => (
                         <span
                           key={idx}
-                          className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                          className="rounded-md bg-[#F5EBE6] px-1.5 py-0.5 text-[10px] font-medium text-[#6F4E37] dark:bg-[#6F4E37]/20 dark:text-[#D4A373]"
                         >
                           +{t.toppingSnapshotName} {t.quantity > 1 ? `x${t.quantity}` : ''}
                         </span>
@@ -315,7 +322,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => onRemoveItem(item.id)}
-                  className="text-zinc-400 hover:text-red-500 transition-colors p-0.5"
+                  className="text-zinc-400 hover:text-red-500 transition-colors p-0.5 cursor-pointer"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -327,7 +334,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                   <button
                     type="button"
                     onClick={() => onUpdateQuantity(item.id, -1)}
-                    className="p-0.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                    className="p-0.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
                   >
                     <Minus className="h-3 w-3" />
                   </button>
@@ -337,13 +344,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                   <button
                     type="button"
                     onClick={() => onUpdateQuantity(item.id, 1)}
-                    className="p-0.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                    className="p-0.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
                   >
                     <Plus className="h-3 w-3" />
                   </button>
                 </div>
 
-                <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400">
+                <span className="text-xs font-extrabold text-[#6F4E37] dark:text-[#D4A373]">
                   {formatCurrency(item.totalPrice)}
                 </span>
               </div>
@@ -357,14 +364,15 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
         {/* Chọn Phương thức thanh toán */}
         <div>
           <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
-            Phương thức thanh toán:
+            <span>Phương thức thanh toán:</span>
           </div>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-5 gap-1">
             {[
               { key: 'CASH', label: 'Tiền mặt', icon: Banknote },
-              { key: 'BANKING', label: 'Chuyển khoản', icon: QrCode },
+              { key: 'BANK_TRANSFER', label: 'Ngân hàng', icon: QrCode },
+              { key: 'CARD', label: 'Quẹt thẻ', icon: CreditCard },
               { key: 'MOMO', label: 'MoMo', icon: CreditCard },
-              { key: 'VNPAY', label: 'VNPay', icon: CreditCard },
+              { key: 'VNPAY', label: 'VNPay', icon: QrCode },
             ].map((pm) => {
               const Icon = pm.icon;
               const isSelected = paymentMethod === pm.key;
@@ -373,13 +381,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                   key={pm.key}
                   type="button"
                   onClick={() => onSetPaymentMethod(pm.key as PaymentMethod)}
-                  className={`flex flex-col items-center justify-center rounded-xl border p-2 text-center transition-all ${
+                  className={`flex flex-col items-center justify-center rounded-xl border py-2 px-1 text-center transition-all cursor-pointer ${
                     isSelected
-                      ? 'border-amber-500 bg-amber-50 text-amber-800 ring-2 ring-amber-500/20 dark:border-amber-500 dark:bg-amber-950/40 dark:text-amber-200'
+                      ? 'border-[#6F4E37] bg-[#F5EBE6] text-[#6F4E37] ring-2 ring-[#6F4E37]/20 dark:border-[#D4A373] dark:bg-[#6F4E37]/30 dark:text-[#D4A373] shadow-xs'
                       : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400'
                   }`}
                 >
-                  <Icon className="h-3.5 w-3.5 mb-1" />
+                  <Icon className="h-3.5 w-3.5 mb-1 text-[#6F4E37] dark:text-[#D4A373]" />
                   <span className="text-[10px] font-bold leading-tight">{pm.label}</span>
                 </button>
               );
@@ -395,7 +403,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
           </div>
 
           {discountAmount > 0 && (
-            <div className="flex justify-between text-amber-600 dark:text-amber-400 font-semibold">
+            <div className="flex justify-between text-[#6F4E37] dark:text-[#D4A373] font-semibold">
               <span>Chiết khấu / Đổi điểm:</span>
               <span>-{formatCurrency(discountAmount)}</span>
             </div>
@@ -403,7 +411,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
 
           <div className="flex justify-between text-sm font-black text-zinc-900 dark:text-zinc-100 pt-1">
             <span>TỔNG CỘNG:</span>
-            <span className="text-base text-amber-600 dark:text-amber-400">{formatCurrency(totalAmount)}</span>
+            <span className="text-base text-[#6F4E37] dark:text-[#D4A373]">{formatCurrency(totalAmount)}</span>
           </div>
         </div>
 
@@ -412,7 +420,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
           type="button"
           disabled={items.length === 0 || isSubmitting}
           onClick={onSubmitOrder}
-          className="w-full rounded-xl bg-amber-600 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-amber-600/30 hover:bg-amber-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+          className="w-full rounded-xl bg-[#6F4E37] py-3.5 text-sm font-extrabold text-white shadow-lg shadow-[#6F4E37]/30 hover:bg-[#5A3F2C] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           {isSubmitting ? (
             <>

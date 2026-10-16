@@ -101,7 +101,16 @@ export class OrderService {
       newOrderId = await this.orderRepo.createCounterOrder(data)
     }
 
-    // 4. Lấy lại dữ liệu đơn hàng hoàn chỉnh vừa tạo
+    // 4. Tự động tích điểm hội viên nếu có gán customerId và đơn >= 10.000đ
+    if (data.customerId && data.totalAmount >= 10000) {
+      await this.orderRepo
+        .earnLoyaltyPoints(newOrderId, data.customerId, data.totalAmount)
+        .catch((err) => {
+          console.error('Lỗi khi tích điểm hội viên:', err)
+        })
+    }
+
+    // 5. Lấy lại dữ liệu đơn hàng hoàn chỉnh vừa tạo
     const createdOrder = await this.getOrderById(newOrderId)
 
     return {

@@ -28,6 +28,27 @@ export interface InvoiceData {
   items: InvoiceItem[];
 }
 
+export const formatPaymentMethodText = (method?: string | null): string => {
+  switch (method) {
+    case 'CASH':
+      return 'Tiền mặt';
+    case 'BANK_TRANSFER':
+    case 'BANKING':
+      return 'Chuyển khoản ngân hàng (VietQR)';
+    case 'CARD':
+    case 'CREDIT_CARD':
+      return 'Thẻ ngân hàng (POS)';
+    case 'MOMO':
+      return 'Ví điện tử MoMo';
+    case 'VNPAY':
+      return 'Cổng thanh toán VNPay-QR';
+    case 'POINT_EXCHANGE':
+      return 'Đổi điểm hội viên';
+    default:
+      return method || 'Tiền mặt';
+  }
+};
+
 export function printReceipt(invoice: InvoiceData) {
   if (typeof window === 'undefined') return;
 
@@ -118,7 +139,8 @@ export function printReceipt(invoice: InvoiceData) {
           <div><strong>Thời gian:</strong> ${formatDate(invoice.paidAt || invoice.orderCreatedAt)}</div>
           <div><strong>Thu ngân:</strong> ${invoice.employeeName || 'Quầy POS 01'}</div>
           ${invoice.customerName ? `<div><strong>Khách hàng:</strong> ${invoice.customerName} (${invoice.customerPhone || ''})</div>` : ''}
-          <div><strong>Kênh bán:</strong> ${invoice.orderChannel === 'TAKE_AWAY' ? 'Mang đi' : invoice.orderChannel === 'DINE_IN' ? 'Tại bàn' : 'Tại quầy'}</div>
+          <div><strong>Kênh bán:</strong> ${invoice.orderChannel === 'DELIVERY' ? 'Giao hàng' : invoice.orderChannel === 'POS' ? 'Mang đi (POS)' : 'Tại quầy'}</div>
+          <div><strong>Phương thức TT:</strong> <span class="font-bold">${formatPaymentMethodText(invoice.paymentMethod)}</span></div>
         </div>
 
         <div class="divider"></div>
@@ -157,7 +179,7 @@ export function printReceipt(invoice: InvoiceData) {
             <td class="text-right font-bold">${formatCurrency(invoice.totalAmount)}</td>
           </tr>
           <tr>
-            <td>Thanh toán (${invoice.paymentMethod || 'Tiền mặt'}):</td>
+            <td>Thanh toán (${formatPaymentMethodText(invoice.paymentMethod)}):</td>
             <td class="text-right font-bold">${formatCurrency(invoice.totalAmount)}</td>
           </tr>
         </table>

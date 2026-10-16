@@ -14,7 +14,10 @@ import {
   AlertCircle,
   Clock,
   UserCheck,
+  LogOut,
+  LayoutDashboard,
 } from 'lucide-react';
+import { useAuthContext } from '@/context/AuthContext';
 import { menuService } from '@/api/menu.service';
 import { pagerService } from '@/api/pager.service';
 import { loyaltyService, CustomerItem } from '@/api/loyalty.service';
@@ -28,8 +31,11 @@ import { ProductOptionModal } from '@/components/pos/ProductOptionModal';
 import { QuickCreateCustomerModal } from '@/components/pos/QuickCreateCustomerModal';
 import { ApplyLoyaltyModal } from '@/components/pos/ApplyLoyaltyModal';
 import { PrintReceiptModal } from '@/components/pos/PrintReceiptModal';
+import { PosUserDropdown } from '@/components/pos/PosUserDropdown';
 
 export default function PosTerminalPage() {
+  const { user, logout } = useAuthContext();
+  const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   // 1. Data States từ API
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -120,8 +126,8 @@ export default function PosTerminalPage() {
     setIsSubmitting(true);
 
     try {
-      // employeeId = 1 (hoặc lấy từ auth user profile)
-      const payload = buildPayload(1);
+      // employeeId lấy từ auth user profile hoặc 1
+      const payload = buildPayload(user?.id || 1);
       const res = await posService.createOrder(payload);
       const createdOrder = res?.data || res;
       const newOrderId = createdOrder.id || res.orderId;
@@ -151,46 +157,48 @@ export default function PosTerminalPage() {
   };
 
   return (
-    <div className="flex h-screen w-full flex-col bg-zinc-100 dark:bg-zinc-950 overflow-hidden select-none">
+    <div className="flex h-screen w-full flex-col bg-[#FAF6F0] dark:bg-zinc-950 overflow-hidden select-none">
       {/* 1. Header Topbar POS */}
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-5 dark:border-zinc-800 dark:bg-zinc-900 shadow-2xs">
         <div className="flex items-center gap-3">
-          <Link
-            href="/pos/orders"
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 transition-colors"
-            title="Về danh sách đơn"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-600 text-white font-black shadow-xs">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#6F4E37] text-white font-black shadow-xs">
               <Coffee className="h-4 w-4" />
             </div>
             <div>
               <h1 className="font-extrabold text-sm text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight">
                 POS TERMINAL
               </h1>
-              <p className="text-[10px] text-zinc-400 font-medium leading-none">Quầy Bán Hàng & Order</p>
+              <p className="text-[10px] text-zinc-400 font-medium leading-none">Quầy Order</p>
             </div>
           </div>
         </div>
 
         {/* Quick Nav Links */}
         <div className="flex items-center gap-2">
+          {isManagerOrAdmin && (
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5 text-[#6F4E37] dark:text-[#D4A373]" />
+              <span>Về Dashboard</span>
+            </Link>
+          )}
+
           <Link
             href="/pos/orders"
-            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
+            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
           >
-            <Receipt className="h-3.5 w-3.5 text-amber-600" />
-            <span>Hóa đơn</span>
+            <Receipt className="h-3.5 w-3.5 text-[#6F4E37] dark:text-[#D4A373]" />
+            <span>Lịch sử hóa đơn</span>
           </Link>
 
           <Link
             href="/pos/pagers"
-            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
+            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
           >
-            <Radio className="h-3.5 w-3.5 text-amber-600" />
+            <Radio className="h-3.5 w-3.5 text-[#6F4E37] dark:text-[#D4A373]" />
             <span>Thẻ rung</span>
           </Link>
 
@@ -198,10 +206,14 @@ export default function PosTerminalPage() {
             type="button"
             onClick={fetchData}
             title="Làm mới thực đơn"
-            className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 cursor-pointer"
           >
             <RotateCcw className="h-3.5 w-3.5" />
           </button>
+
+          {/* User Dropdown */}
+          <div className="h-6 w-px bg-zinc-200 dark:bg-zinc-700 mx-1" />
+          <PosUserDropdown />
         </div>
       </header>
 
@@ -209,11 +221,10 @@ export default function PosTerminalPage() {
       {toastMessage && (
         <div className="fixed top-16 right-6 z-50 animate-bounce">
           <div
-            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold shadow-xl ${
-              toastMessage.type === 'success'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-rose-600 text-white'
-            }`}
+            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold shadow-xl ${toastMessage.type === 'success'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-rose-600 text-white'
+              }`}
           >
             {toastMessage.type === 'success' ? (
               <CheckCircle2 className="h-4 w-4" />

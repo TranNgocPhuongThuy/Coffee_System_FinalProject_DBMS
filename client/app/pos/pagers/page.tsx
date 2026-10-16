@@ -29,10 +29,14 @@ import {
   User,
   Coffee,
   Check,
+  LogOut,
+  LayoutDashboard,
 } from 'lucide-react';
+import { useAuthContext } from '@/context/AuthContext';
 import { pagerService } from '@/api/pager.service';
 import { ActivePagerDashboardItem, PagerDevice, CreatePagerPayload } from '@/types/pager';
 import { PagerStatus } from '@/types/enums';
+import { PosUserDropdown } from '@/components/pos/PosUserDropdown';
 
 const PAGER_STATUS_TABS: { key: PagerStatus | 'ALL'; label: string }[] = [
   { key: 'ALL', label: 'Tất cả trạng thái' },
@@ -43,6 +47,8 @@ const PAGER_STATUS_TABS: { key: PagerStatus | 'ALL'; label: string }[] = [
 ];
 
 export default function PagersManagementPage() {
+  const { user, logout } = useAuthContext();
+  const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const [activeTab, setActiveTab] = useState<'active_dashboard' | 'all_devices'>('active_dashboard');
 
   // Tab 1: Dashboard Data
@@ -63,7 +69,6 @@ export default function PagersManagementPage() {
 
   // Modal: Thêm Thẻ Mới
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newPagerCode, setNewPagerCode] = useState('');
   const [newBatteryLevel, setNewBatteryLevel] = useState(100);
   const [newStatus, setNewStatus] = useState<PagerStatus>('AVAILABLE');
   const [isSubmittingAdd, setIsSubmittingAdd] = useState(false);
@@ -190,24 +195,24 @@ export default function PagersManagementPage() {
   // 5. Thêm mới thiết bị thẻ rung
   const handleAddDevice = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPagerCode.trim()) return;
 
     setIsSubmittingAdd(true);
     try {
       const payload: CreatePagerPayload = {
-        pagerCode: newPagerCode.trim().toUpperCase(),
         batteryLevel: Number(newBatteryLevel),
         status: newStatus,
       };
 
-      await pagerService.createPager(payload);
+      const res = await pagerService.createPager(payload);
+      const createdCode = res?.data?.pagerCode || '';
       setToastMessage({
         type: 'success',
-        message: `Thêm thiết bị thẻ rung ${payload.pagerCode} thành công!`,
+        message: createdCode
+          ? `Thêm thiết bị thẻ rung ${createdCode} thành công!`
+          : 'Thêm thiết bị thẻ rung thành công!',
       });
 
       setIsAddModalOpen(false);
-      setNewPagerCode('');
       setNewBatteryLevel(100);
       setNewStatus('AVAILABLE');
 
@@ -350,7 +355,7 @@ export default function PagersManagementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 font-sans antialiased pb-12">
+    <div className="min-h-screen bg-[#FAF6F0] dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 font-sans antialiased pb-12">
       {/* 1. HEADER */}
       <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-6 py-4 sticky top-0 z-20 shadow-2xs">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -363,7 +368,7 @@ export default function PagersManagementPage() {
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-xl bg-[#6F4E37] text-white flex items-center justify-center font-bold shadow-xs">
                 <BellRing className="w-5 h-5" />
               </div>
               <div>
@@ -378,6 +383,16 @@ export default function PagersManagementPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            {isManagerOrAdmin && (
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
+              >
+                <LayoutDashboard className="h-4 w-4 text-[#6F4E37] dark:text-[#D4A373]" />
+                <span>Về Dashboard</span>
+              </Link>
+            )}
+
             <button
               type="button"
               onClick={() => {
@@ -391,11 +406,15 @@ export default function PagersManagementPage() {
             </button>
             <Link
               href="/pos/terminal"
-              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+              className="px-4 py-2 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
             >
               <Coffee className="w-4 h-4" />
               <span>Về Thu Ngân POS</span>
             </Link>
+
+            {/* User Dropdown */}
+            <div className="h-6 w-px bg-zinc-200 dark:bg-zinc-700 mx-1" />
+            <PosUserDropdown />
           </div>
         </div>
       </header>
@@ -428,7 +447,7 @@ export default function PagersManagementPage() {
               onClick={() => setActiveTab('active_dashboard')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'active_dashboard'
-                  ? 'bg-amber-600 text-white shadow-xs'
+                  ? 'bg-[#6F4E37] text-white shadow-xs'
                   : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
               }`}
             >
@@ -437,7 +456,7 @@ export default function PagersManagementPage() {
               <span
                 className={`px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${
                   activeTab === 'active_dashboard'
-                    ? 'bg-amber-100 text-amber-900'
+                    ? 'bg-[#F5EBE6] text-[#6F4E37]'
                     : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
                 }`}
               >
@@ -450,7 +469,7 @@ export default function PagersManagementPage() {
               onClick={() => setActiveTab('all_devices')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'all_devices'
-                  ? 'bg-amber-600 text-white shadow-xs'
+                  ? 'bg-[#6F4E37] text-white shadow-xs'
                   : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
               }`}
             >
@@ -459,7 +478,7 @@ export default function PagersManagementPage() {
               <span
                 className={`px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${
                   activeTab === 'all_devices'
-                    ? 'bg-amber-100 text-amber-900'
+                    ? 'bg-[#F5EBE6] text-[#6F4E37]'
                     : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
                 }`}
               >
@@ -472,8 +491,16 @@ export default function PagersManagementPage() {
           {activeTab === 'all_devices' && (
             <button
               type="button"
-              onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              disabled={!isManagerOrAdmin}
+              onClick={() => {
+                if (isManagerOrAdmin) setIsAddModalOpen(true);
+              }}
+              title={isManagerOrAdmin ? 'Thêm thiết bị thẻ rung mới' : 'Chỉ Quản lý mới có quyền thêm thiết bị'}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold shadow-xs transition-colors ${
+                isManagerOrAdmin
+                  ? 'bg-[#6F4E37] hover:bg-[#5A3F2C] cursor-pointer'
+                  : 'bg-zinc-400 dark:bg-zinc-700 opacity-50 cursor-not-allowed'
+              }`}
             >
               <Plus className="w-4 h-4" />
               <span>Thêm thẻ rung mới</span>
@@ -491,7 +518,7 @@ export default function PagersManagementPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm mã thẻ PAGER-..., mã đơn, tên khách..."
-                className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 transition-colors focus:outline-none focus:border-amber-600"
+                className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 transition-colors focus:outline-none focus:border-[#6F4E37]"
               />
             </div>
 
@@ -512,7 +539,7 @@ export default function PagersManagementPage() {
                   onClick={() => setStatusFilter(tab.key)}
                   className={`rounded-xl px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-all ${
                     statusFilter === tab.key
-                      ? 'bg-amber-600 text-white shadow-xs'
+                      ? 'bg-[#6F4E37] text-white shadow-xs'
                       : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
                   }`}
                 >
@@ -571,10 +598,10 @@ export default function PagersManagementPage() {
                           {/* Mã Thẻ */}
                           <td className="py-3.5 px-5">
                             <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">
+                              <div className="w-8 h-8 rounded-xl bg-[#F5EBE6] text-[#6F4E37] dark:bg-[#6F4E37]/20 dark:text-[#D4A373] flex items-center justify-center font-bold text-xs shrink-0">
                                 <Radio className="w-4 h-4" />
                               </div>
-                              <span className="font-black text-sm text-zinc-900 dark:text-zinc-100 group-hover:text-amber-600 transition-colors">
+                              <span className="font-black text-sm text-zinc-900 dark:text-zinc-100 group-hover:text-[#6F4E37] transition-colors">
                                 {pager.pagerCode}
                               </span>
                             </div>
@@ -587,7 +614,7 @@ export default function PagersManagementPage() {
                           <td className="py-3.5 px-5">
                             <Link
                               href="/pos/orders"
-                              className="font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 font-mono text-xs"
+                              className="font-bold text-[#6F4E37] dark:text-[#D4A373] hover:underline flex items-center gap-1 font-mono text-xs"
                               title="Xem chi tiết đơn trong Quản lý đơn"
                             >
                               <Receipt className="w-3.5 h-3.5" />
@@ -644,7 +671,7 @@ export default function PagersManagementPage() {
                               <button
                                 type="button"
                                 onClick={() => handleReleasePager(pager.pagerCode)}
-                                className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+                                className="px-3 py-1.5 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
                                 title="Thu hồi thẻ về khay sạc"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -708,7 +735,7 @@ export default function PagersManagementPage() {
                         className="hover:bg-zinc-50/60 dark:hover:bg-zinc-850/40 transition-colors group"
                       >
                         <td className="py-3.5 px-5">
-                          <span className="font-extrabold text-sm text-zinc-900 dark:text-zinc-100 group-hover:text-amber-600 transition-colors">
+                          <span className="font-extrabold text-sm text-zinc-900 dark:text-zinc-100 group-hover:text-[#6F4E37] transition-colors">
                             {dev.pagerCode}
                           </span>
                         </td>
@@ -727,7 +754,7 @@ export default function PagersManagementPage() {
                             <button
                               type="button"
                               onClick={() => handleReleasePager(dev.pagerCode)}
-                              className="px-2.5 py-1.5 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 font-bold"
+                              className="px-2.5 py-1.5 rounded-lg border border-[#EBE3D5] bg-[#F5EBE6] hover:bg-[#F5EBE6]/80 text-[#6F4E37] dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 font-bold"
                               title="Thu hồi thẻ"
                             >
                               Thu hồi
@@ -815,7 +842,7 @@ export default function PagersManagementPage() {
           <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800 space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-lg bg-[#F5EBE6] text-[#6F4E37] flex items-center justify-center font-bold">
                   <Plus className="w-4 h-4" />
                 </div>
                 <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
@@ -834,22 +861,23 @@ export default function PagersManagementPage() {
             <form onSubmit={handleAddDevice} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                  Mã thẻ rung (VD: PAGER-16) <span className="text-rose-500">*</span>
+                  Trạng thái thiết bị
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={newPagerCode}
-                  onChange={(e) => setNewPagerCode(e.target.value)}
-                  placeholder="Nhập mã thẻ rung..."
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-amber-600 uppercase font-mono"
-                />
+                <select
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value as PagerStatus)}
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-[#6F4E37] cursor-pointer"
+                >
+                  <option value="AVAILABLE">Sẵn sàng</option>
+                  <option value="CHARGING">Đang sạc</option>
+                  <option value="MAINTENANCE">Bảo trì</option>
+                </select>
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center text-xs font-bold text-zinc-700 dark:text-zinc-300">
                   <span>Mức pin ban đầu</span>
-                  <span className="text-amber-600 font-mono">{newBatteryLevel}%</span>
+                  <span className="text-[#6F4E37] dark:text-[#D4A373] font-mono font-bold">{newBatteryLevel}%</span>
                 </div>
                 <input
                   type="range"
@@ -857,23 +885,8 @@ export default function PagersManagementPage() {
                   max={100}
                   value={newBatteryLevel}
                   onChange={(e) => setNewBatteryLevel(Number(e.target.value))}
-                  className="w-full accent-amber-600"
+                  className="w-full accent-[#6F4E37] cursor-pointer"
                 />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                  Trạng thái thiết bị
-                </label>
-                <select
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value as PagerStatus)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-amber-600"
-                >
-                  <option value="AVAILABLE">Sẵn sàng (AVAILABLE)</option>
-                  <option value="CHARGING">Đang sạc (CHARGING)</option>
-                  <option value="MAINTENANCE">Bảo trì (MAINTENANCE)</option>
-                </select>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
@@ -887,7 +900,7 @@ export default function PagersManagementPage() {
                 <button
                   type="submit"
                   disabled={isSubmittingAdd}
-                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   {isSubmittingAdd ? 'Đang lưu...' : 'Xác nhận thêm'}
                 </button>
@@ -905,7 +918,7 @@ export default function PagersManagementPage() {
           <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-zinc-200 dark:border-zinc-800 space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-lg bg-[#F5EBE6] text-[#6F4E37] flex items-center justify-center font-bold">
                   <Edit2 className="w-4 h-4" />
                 </div>
                 <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
@@ -929,19 +942,19 @@ export default function PagersManagementPage() {
                 <select
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value as PagerStatus)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-amber-600"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-[#6F4E37] cursor-pointer"
                 >
-                  <option value="AVAILABLE">Sẵn sàng (AVAILABLE)</option>
-                  <option value="IN_USE">Đang phát cho khách (IN_USE)</option>
-                  <option value="CHARGING">Đang sạc (CHARGING)</option>
-                  <option value="MAINTENANCE">Bảo trì (MAINTENANCE)</option>
+                  <option value="AVAILABLE">Sẵn sàng</option>
+                  <option value="IN_USE">Đang phát cho khách</option>
+                  <option value="CHARGING">Đang sạc</option>
+                  <option value="MAINTENANCE">Bảo trì</option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center text-xs font-bold text-zinc-700 dark:text-zinc-300">
                   <span>Mức pin (%)</span>
-                  <span className="text-amber-600 font-mono">{editBattery}%</span>
+                  <span className="text-[#6F4E37] dark:text-[#D4A373] font-mono font-bold">{editBattery}%</span>
                 </div>
                 <input
                   type="range"
@@ -949,7 +962,7 @@ export default function PagersManagementPage() {
                   max={100}
                   value={editBattery}
                   onChange={(e) => setEditBattery(Number(e.target.value))}
-                  className="w-full accent-amber-600"
+                  className="w-full accent-[#6F4E37]"
                 />
               </div>
 
@@ -964,7 +977,7 @@ export default function PagersManagementPage() {
                 <button
                   type="submit"
                   disabled={isSubmittingEdit}
-                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   {isSubmittingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>

@@ -161,6 +161,42 @@ export class PagerRepo {
   }
 
   /**
+   * Tự động sinh mã thẻ rung tiếp theo (ví dụ: P01, P02, ..., P06, ...)
+   */
+  async getNextPagerCode(): Promise<string> {
+    const pool = await getPool()
+    const result = await pool
+      .request()
+      .query(`SELECT pagerCode FROM PagerDevice WHERE deletedAt IS NULL`)
+
+    const existingCodes: string[] = result.recordset.map(
+      (r: { pagerCode: string }) => r.pagerCode?.trim().toUpperCase()
+    )
+
+    let maxNum = 0
+    for (const code of existingCodes) {
+      if (!code) continue
+      const match = code.match(/(\d+)$/)
+      if (match) {
+        const num = parseInt(match[1], 10)
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num
+        }
+      }
+    }
+
+    let nextNum = maxNum + 1
+    let generatedCode = `P${String(nextNum).padStart(2, '0')}`
+
+    while (existingCodes.includes(generatedCode)) {
+      nextNum++
+      generatedCode = `P${String(nextNum).padStart(2, '0')}`
+    }
+
+    return generatedCode
+  }
+
+  /**
    * Tạo mới thiết bị thẻ rung
    */
   async createPager(data: CreatePagerType) {
