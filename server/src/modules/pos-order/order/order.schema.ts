@@ -24,7 +24,7 @@ export const OrderItemSchema = z.object({
 // 3. Schema tạo đơn hàng tại quầy (POS Order)
 export const CreateOrderSchema = z.object({
   orderCode: z.string().max(64).optional(),
-  employeeId: z.number().int().positive('ID nhân viên không hợp lệ'),
+  employeeId: z.number().int().positive('ID nhân viên không hợp lệ').optional().nullable(),
   customerId: z.number().int().positive('ID khách hàng không hợp lệ').optional().nullable(),
   pagerId: z.number().int().positive('ID thẻ rung không hợp lệ').optional().nullable(),
   pagerCode: z.string().max(50).optional().nullable(), // Mã thẻ rung nếu gán bằng mã thẻ

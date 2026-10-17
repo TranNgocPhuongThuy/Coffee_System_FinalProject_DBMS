@@ -1,20 +1,18 @@
 import { Router } from 'express'
 import { CustomerController } from './customer.controller'
+import { authGuard, roleGuard } from '@/middlewares'
 
 export const customerRouter = Router()
 const controller = new CustomerController()
 
-// GET /api/v1/customer-loyalty/customers
-customerRouter.get('/', controller.list)
+// Bắt buộc đăng nhập trước khi thao tác danh sách khách hàng
+customerRouter.use(authGuard)
 
-// GET /api/v1/customer-loyalty/customers/:id
-customerRouter.get('/:id', controller.detail)
+// Chỉ Cashier, Manager và Admin mới có quyền xem danh sách và chi tiết
+customerRouter.get('/', roleGuard('CASHIER', 'MANAGER', 'ADMIN'), controller.list)
+customerRouter.get('/:id', roleGuard('CASHIER', 'MANAGER', 'ADMIN'), controller.detail)
 
-// POST /api/v1/customer-loyalty/customers
-customerRouter.post('/', controller.create)
-
-// PUT /api/v1/customer-loyalty/customers/:id
-customerRouter.put('/:id', controller.update)
-
-// DELETE /api/v1/customer-loyalty/customers/:id (Xóa mềm khách hàng)
-customerRouter.delete('/:id', controller.delete)
+// Chỉ Manager và Admin được tạo mới, cập nhật hoặc xóa
+customerRouter.post('/', roleGuard('CASHIER', 'MANAGER', 'ADMIN'), controller.create)
+customerRouter.put('/:id', roleGuard('MANAGER', 'ADMIN'), controller.update)
+customerRouter.delete('/:id', roleGuard('MANAGER', 'ADMIN'), controller.delete)

@@ -32,12 +32,17 @@ export class AuthService {
     let message = 'Đăng ký tài khoản thành công';
 
     // TH2: Khách đã từng tích điểm tại quầy (password đang NULL)
-    // -> Kích hoạt tài khoản, giữ nguyên toàn bộ số điểm tích lũy và hạng thành viên
+    // -> Kích hoạt tài khoản, giữ nguyên toàn bộ số điểm tích lũy, hạng thành viên và tên thật
     if (existingCustomer && !existingCustomer.password) {
+      const resolvedFullName =
+        data.fullName && data.fullName.trim() !== '' && data.fullName !== 'Khách hàng'
+          ? data.fullName.trim()
+          : (existingCustomer.fullName || data.fullName || 'Khách hàng');
+
       customer = await this.authRepo.activateCustomerWithPassword(existingCustomer.id, {
-        fullName: data.fullName,
+        fullName: resolvedFullName,
         passwordHash: hashedPassword,
-        address: data.address,
+        address: data.address || existingCustomer.address,
       });
       message = `Đăng ký thành công! Đã tự động liên kết và giữ nguyên ${customer.rewardPoints} điểm tích lũy từ các lần mua trước.`;
     } 

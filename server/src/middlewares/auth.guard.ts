@@ -147,3 +147,83 @@ export const authGuard = async (
     next(error);
   }
 };
+
+/**
+ * Middleware xác thực tùy chọn (Optional Auth Guard):
+ * - Nếu có Bearer Token hợp lệ: gán thông tin vào req.user (Customer hoặc Employee)
+ * - Nếu không có Token hoặc khách vãng lai: tiếp tục thực thi với req.user = undefined
+ */
+export const optionalAuthGuard = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return next();
+    }
+
+    const token = authHeader.split(" ")[1];
+    let decoded: JwtPayload;
+    try {
+      decoded = jwt.verify(token, envConfig.JWT_SECRET) as JwtPayload;
+    } catch {
+      // Token hết hạn hoặc không hợp lệ -> Tiếp tục như khách vãng lai (Guest)
+      return next();
+    }
+
+    const pool = await getPool();
+
+    if (decoded.userType === "CUSTOMER") {
+      const custRes = await pool
+        .request()
+        .input("id", sql.Int, decoded.id)
+        .query(`
+          SELECT id, phoneNumber, fullName, membershipTier 
+          FROM Customer 
+          WHERE id = @id AND deletedAt IS NULL
+        `);
+
+      if (custRes.recordset.length > 0) {
+        const cust = custRes.recordset[0];
+        req.user = {
+          id: cust.id,
+          fullName: cust.fullName,
+          phoneNumber: cust.phoneNumber,
+          role: "CUSTOMER",
+          userType: "CUSTOMER",
+        };
+      }
+      return next();
+    }
+
+    if (decoded.userType === "EMPLOYEE") {
+      const empRes = await pool
+        .request()
+        .input("id", sql.Int, decoded.id)
+        .query(`
+          SELECT id, username, fullName, role, status, phoneNumber 
+          FROM Employee 
+          WHERE id = @id AND deletedAt IS NULL
+        `);
+
+      if (empRes.recordset.length > 0 && empRes.recordset[0].status === "ACTIVE") {
+        const emp = empRes.recordset[0];
+        req.user = {
+          id: emp.id,
+          fullName: emp.fullName,
+          username: emp.username,
+          phoneNumber: emp.phoneNumber,
+          role: emp.role,
+          userType: "EMPLOYEE",
+        };
+      }
+      return next();
+    }
+
+    return next();
+  } catch {
+    return next();
+  }
+};

@@ -171,7 +171,7 @@ GO
 
 
 -- 1.2. sp_CompleteOrderPayment
-CREATE PROCEDURE sp_CompleteOrderPayment
+CREATE OR ALTER PROCEDURE sp_CompleteOrderPayment
     @OrderId INT,
     @PaymentMethod NVARCHAR(50)
 AS
@@ -809,7 +809,7 @@ BEGIN
             END
         END
 
-        COMMIT TRANSACTION;
+        COMMIT TRANSACTION
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
@@ -861,7 +861,7 @@ BEGIN
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
         THROW;
     END CATCH
-END;
+END
 GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_KDS_NotifyOrderReady

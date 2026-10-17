@@ -148,4 +148,17 @@ export class KDSRepo {
       message: "Đã kích hoạt thẻ rung và cập nhật đơn hàng sẵn sàng nhận đồ uống.",
     };
   }
+
+  async countRemainingItemsInOrder(orderId: number): Promise<number> {
+    const pool = await getPool();
+    const result = await pool
+      .request()
+      .input("OrderId", sql.Int, orderId)
+      .query(`
+        SELECT COUNT(1) AS pendingCount
+        FROM OrderDetail
+        WHERE orderId = @OrderId AND itemStatus NOT IN ('DONE', 'CANCELLED')
+      `);
+    return result.recordset[0]?.pendingCount || 0;
+  }
 }

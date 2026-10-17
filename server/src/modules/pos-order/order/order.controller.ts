@@ -19,6 +19,9 @@ export class OrderController {
   list = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const query = FilterOrderQuerySchema.parse(req.query);
+      if (req.user?.role === 'CUSTOMER') {
+        query.customerId = req.user.id;
+      }
       const result = await this.orderService.getOrders(query);
       res.status(200).json({ success: true, ...result });
     } catch (error) {
@@ -33,6 +36,9 @@ export class OrderController {
     try {
       const { id } = OrderParamSchema.parse(req.params);
       const data = await this.orderService.getOrderById(id);
+      if (req.user?.role === 'CUSTOMER' && data && data.customerId !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Bạn không có quyền xem đơn hàng này' });
+      }
       res.status(200).json({ success: true, data });
     } catch (error) {
       next(error);
@@ -53,15 +59,21 @@ export class OrderController {
   };
 
   /**
-   * Tạo đơn hàng mới tại quầy POS
+   * Tạo đơn hàng mới tại quầy POS hoặc Khách đặt online COD
    */
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const body = CreateOrderSchema.parse(req.body);
-      const employeeId = req.user?.id || body.employeeId;
+      const isStaff = req.user && req.user.role !== 'CUSTOMER';
+      const employeeId = isStaff ? (req.user!.id || body.employeeId || 2) : 2;
+      const customerId = req.user?.role === 'CUSTOMER' ? req.user.id : (body.customerId || null);
+      const orderChannel = isStaff ? body.orderChannel : (body.orderChannel || 'DELIVERY');
+
       const result = await this.orderService.createOrder({
         ...body,
         employeeId,
+        customerId,
+        orderChannel,
       });
       res.status(201).json({ success: true, ...result });
     } catch (error) {
