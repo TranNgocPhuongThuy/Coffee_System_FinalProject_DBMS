@@ -124,17 +124,19 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                 >
                   {/* Ảnh hoặc Placeholder Thumbnail */}
                   <div className="relative mb-3 aspect-4/3 w-full overflow-hidden rounded-xl bg-gradient-to-br from-[#F5EBE6] to-[#FAF6F0] dark:from-zinc-800 dark:to-zinc-850 flex items-center justify-center">
-                    {product.image ? (
+                    <Coffee className="h-8 w-8 text-[#6F4E37]/60 dark:text-[#D4A373]/60 absolute" />
+                    {product.image && (
                       <img
                         src={product.image}
                         alt={product.name}
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                        decoding="async"
+                        className="relative h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
+                          const target = e.target as HTMLElement;
+                          target.style.display = 'none';
                         }}
                       />
-                    ) : (
-                      <Coffee className="h-8 w-8 text-[#6F4E37]/60 dark:text-[#D4A373]/60" />
                     )}
 
                     {/* Tag size đếm */}

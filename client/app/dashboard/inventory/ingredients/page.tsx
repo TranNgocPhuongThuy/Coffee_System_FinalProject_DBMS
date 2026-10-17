@@ -166,10 +166,12 @@ export default function IngredientsPage() {
   const warningCount = ingredients.filter(
     (item) => Number(item.stockQuantity) <= Number(item.minimumThreshold)
   ).length;
+  const safeCount = ingredients.length - warningCount;
+  const unitCount = Array.from(new Set(ingredients.map((i) => i.unit))).length;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* 1. Page Header */}
+    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 pb-16">
+      {/* 1. Page Header (Chuẩn như trang Khách hàng) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
@@ -180,7 +182,7 @@ export default function IngredientsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={fetchIngredients}
@@ -193,84 +195,78 @@ export default function IngredientsPage() {
           <button
             type="button"
             onClick={handleOpenCreateModal}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white font-medium text-sm shadow-sm transition-all duration-200 cursor-pointer active:scale-[0.98] w-full sm:w-auto"
+            className="flex items-center gap-2 bg-[#6F4E37] hover:bg-[#5A3F2C] text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-all cursor-pointer active:scale-[0.99]"
           >
-            <Plus className="w-4 h-4" strokeWidth={2.2} />
+            <Plus className="w-4 h-4" />
             <span>Thêm nguyên liệu</span>
           </button>
         </div>
       </div>
 
-      {/* 3 Thẻ Card Thống kê nhanh */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+      {/* 2. Thống kê tổng quan (4 Thẻ Metric Cards: Icon Trái - Thông Số Phải) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Tổng số mặt hàng */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between">
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Tổng số mặt hàng
-            </p>
-            <h3 className="text-2xl font-extrabold text-gray-900 mt-1.5">
-              {ingredients.length}{" "}
-              <span className="text-sm font-normal text-gray-500">nguyên liệu</span>
-            </h3>
-            <p className="text-xs text-gray-400 mt-1">
-              Phục vụ hoạt động pha chế & đóng gói
-            </p>
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-[#F5EBE6] text-[#6F4E37] flex items-center justify-center shrink-0 font-bold">
+            <Package className="w-6 h-6" />
           </div>
-          <div className="w-11 h-11 rounded-xl bg-[#F5EBE6] text-[#6F4E37] flex items-center justify-center shrink-0">
-            <Package className="w-5 h-5" />
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Tổng mặt hàng</p>
+            <p className="text-xl font-bold text-gray-900 mt-0.5">{ingredients.length.toLocaleString('vi-VN')}</p>
           </div>
         </div>
 
         {/* Card 2: Cảnh báo sắp hết / hết hàng */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between">
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Cảnh báo hết / sắp hết
-            </p>
-            <h3 className="text-2xl font-extrabold text-rose-600 mt-1.5">
-              {warningCount} <span className="text-sm font-normal text-rose-500">mặt hàng</span>
-            </h3>
-            <p className="text-xs text-rose-500/80 font-medium mt-1">
-              Dưới hoặc bằng định mức an toàn
-            </p>
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 font-bold">
+            <AlertTriangle className="w-6 h-6" />
           </div>
-          <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-5 h-5" />
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Cảnh báo tồn kho</p>
+            <p className="text-xl font-bold text-rose-600 mt-0.5">{warningCount.toLocaleString('vi-VN')}</p>
           </div>
         </div>
 
-        {/* Card 3: Số loại đơn vị tính */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between">
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Đơn vị quản lý
-            </p>
-            <h3 className="text-2xl font-extrabold text-[#6F4E37] mt-1.5">
-              {Array.from(new Set(ingredients.map((i) => i.unit))).length}{" "}
-              <span className="text-sm font-normal text-gray-500">đơn vị</span>
-            </h3>
-            <p className="text-xs text-gray-400 mt-1">
-              (kg, lít, chai, cái, gói,...)
-            </p>
+        {/* Card 3: Nguyên liệu an toàn */}
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold">
+            <CheckCircle2 className="w-6 h-6" />
           </div>
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-            <Coins className="w-5 h-5" />
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Mức tồn an toàn</p>
+            <p className="text-xl font-bold text-emerald-700 mt-0.5">{safeCount.toLocaleString('vi-VN')}</p>
+          </div>
+        </div>
+
+        {/* Card 4: Số loại đơn vị tính */}
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 font-bold">
+            <Coins className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Đơn vị quản lý</p>
+            <p className="text-xl font-bold text-amber-900 mt-0.5">{unitCount} <span className="text-xs font-normal text-gray-500">loại</span></p>
           </div>
         </div>
       </div>
 
-      {/* 2. Toolbar */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100">
+      {/* 3. Toolbar (Đóng gói trong Card trắng chuẩn) */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm kiếm theo tên hoặc mã nguyên liệu..."
-            className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm transition-colors focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20"
+            placeholder="Tìm theo tên nguyên liệu..."
+            className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20 transition-all"
           />
+        </div>
+
+        <div className="flex items-center justify-end shrink-0">
+          <span className="text-xs text-gray-500 font-medium">
+            Hiển thị: <b className="text-gray-900 font-bold">{filteredIngredients.length}</b>/{ingredients.length} nguyên liệu
+          </span>
         </div>
       </div>
 
@@ -280,7 +276,7 @@ export default function IngredientsPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/80 border-b border-gray-100 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                <th scope="col" className="py-3.5 px-5">Mã & Tên nguyên liệu</th>
+                <th scope="col" className="py-3.5 px-5">Tên nguyên liệu</th>
                 <th scope="col" className="py-3.5 px-5">Đơn vị tính</th>
                 <th scope="col" className="py-3.5 px-5">Số lượng tồn</th>
                 <th scope="col" className="py-3.5 px-5">Định mức an toàn</th>
@@ -305,14 +301,9 @@ export default function IngredientsPage() {
                       className="hover:bg-gray-50/60 transition-colors group"
                     >
                       <td className="py-3.5 px-5">
-                        <div>
-                          <span className="font-semibold text-gray-900 group-hover:text-[#6F4E37] transition-colors block">
-                            {item.name}
-                          </span>
-                          <span className="text-xs text-gray-400 font-mono">
-                            #NL{String(item.id).padStart(3, "0")}
-                          </span>
-                        </div>
+                        <span className="font-bold text-gray-900 group-hover:text-[#6F4E37] transition-colors">
+                          {item.name}
+                        </span>
                       </td>
 
                       <td className="py-3.5 px-5">

@@ -23,16 +23,19 @@ export default function Header({ title }: HeaderProps) {
     if (pathname.startsWith('/dashboard/reports')) return 'Báo cáo & Thống kê';
     if (pathname.startsWith('/dashboard/employees')) return 'Quản lý Nhân viên';
     if (pathname.startsWith('/pos')) return 'Bán hàng POS';
-    if (pathname.startsWith('/kds')) return 'Bếp / Pha chế (KDS)';
+    if (pathname.startsWith('/kds')) return 'Màn hình Bếp / Quầy Bar (KDS)';
     if (pathname === '/dashboard') return 'Tổng quan';
     return 'Tổng quan';
   };
 
   const currentTitle = getPageTitle();
-  const initial = user?.fullName ? user.fullName.charAt(0).toUpperCase() : 'U';
+  const isKds = pathname.startsWith('/kds');
+  const displayName = user?.fullName || (isKds ? 'Hồ Công Phong' : 'Người dùng');
+  const displayRole = user?.role || user?.userType || (isKds ? 'BARISTA' : 'GUEST');
+  const initial = displayName ? displayName.charAt(0).toUpperCase() : 'U';
 
   return (
-    <header className="h-16 fixed top-0 right-0 left-64 bg-white border-b border-gray-100 flex items-center justify-between px-6 z-30">
+    <header className="h-16 fixed top-0 right-0 left-64 bg-white border-b border-gray-100 flex items-center justify-between px-6 z-50">
       {/* Left: Page Title */}
       <div>
         <h1 className="text-xl font-semibold text-gray-800 tracking-tight">{currentTitle}</h1>
@@ -64,10 +67,10 @@ export default function Header({ title }: HeaderProps) {
             </div>
             <div className="flex flex-col text-left">
               <span className="text-sm font-medium text-gray-700 leading-tight">
-                {user?.fullName || 'Người dùng'}
+                {displayName}
               </span>
               <span className="text-[11px] text-gray-400 font-medium">
-                {user?.role || user?.userType || 'GUEST'}
+                {displayRole}
               </span>
             </div>
             <ChevronDown className="w-4 h-4 text-gray-400 shrink-0 ml-1" />
@@ -76,19 +79,19 @@ export default function Header({ title }: HeaderProps) {
           {dropdownOpen && (
             <>
               <div
-                className="fixed inset-0 z-10"
+                className="fixed inset-0 z-50"
                 onClick={() => setDropdownOpen(false)}
               />
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-20 animate-in fade-in">
-                <div className="px-4 py-2 border-b border-gray-100">
-                  <p className="text-xs font-semibold text-gray-800">{user?.fullName}</p>
-                  <p className="text-[11px] text-gray-400">{user?.phoneNumber || user?.username}</p>
+              <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="px-4 py-2.5 border-b border-gray-100">
+                  <p className="text-xs font-semibold text-gray-800">{displayName}</p>
+                  <p className="text-[11px] text-gray-400">{user?.phoneNumber || user?.username || (isKds ? 'barista01' : '')}</p>
                 </div>
 
                 <Link
                   href="/change-password"
                   onClick={() => setDropdownOpen(false)}
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   <KeyRound className="w-4 h-4 text-gray-500" />
                   <span>Đổi mật khẩu</span>
@@ -100,7 +103,7 @@ export default function Header({ title }: HeaderProps) {
                     setDropdownOpen(false);
                     logout();
                   }}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 text-red-500" />
                   <span>Đăng xuất</span>

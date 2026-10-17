@@ -410,7 +410,7 @@ export default function BOMManagementPage() {
                   ) : currentRecipeItems.length > 0 ? (
                     currentRecipeItems.map((item, idx) => (
                       <tr key={idx} className="hover:bg-gray-50/80 transition-colors">
-                        <td className="py-3.5 px-5 font-semibold text-gray-900">
+                        <td className="py-3.5 px-5 font-bold text-gray-900">
                           {item.ingredientName}
                         </td>
                         <td className="py-3.5 px-5 text-center">
@@ -519,7 +519,7 @@ export default function BOMManagementPage() {
                   ) : currentToppingItems.length > 0 ? (
                     currentToppingItems.map((item, idx) => (
                       <tr key={idx} className="hover:bg-gray-50/80 transition-colors">
-                        <td className="py-3.5 px-5 font-semibold text-gray-900">
+                        <td className="py-3.5 px-5 font-bold text-gray-900">
                           {item.ingredientName}
                         </td>
                         <td className="py-3.5 px-5 text-center">

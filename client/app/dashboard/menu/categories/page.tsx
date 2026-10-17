@@ -223,12 +223,9 @@ export default function CategoriesPage() {
                           <div className="w-10 h-10 rounded-xl bg-[#F5EBE6] text-[#6F4E37] flex items-center justify-center shrink-0">
                             <CategoryIcon className="w-5 h-5" />
                           </div>
-                          <div>
-                            <span className="font-semibold text-gray-900 group-hover:text-[#6F4E37] transition-colors block">
-                              {cat.name}
-                            </span>
-                            <span className="text-xs text-gray-400 font-mono">ID: #{cat.id}</span>
-                          </div>
+                          <span className="font-bold text-gray-900 group-hover:text-[#6F4E37] transition-colors">
+                            {cat.name}
+                          </span>
                         </div>
                       </td>
 

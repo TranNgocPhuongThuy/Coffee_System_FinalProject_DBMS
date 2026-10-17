@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   TrendingUp,
   ShoppingBag,
@@ -132,7 +133,7 @@ export default function DashboardOverviewPage() {
           Lối tắt nhanh
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <a
+          <Link
             href="/dashboard/menu/products"
             className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-[#6F4E37]/30 hover:bg-[#FAF6F0] transition-colors group"
           >
@@ -148,7 +149,7 @@ export default function DashboardOverviewPage() {
               </div>
             </div>
             <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-[#6F4E37]" />
-          </a>
+          </Link>
         </div>
       </div>
     </div>

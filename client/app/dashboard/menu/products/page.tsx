@@ -16,6 +16,7 @@ import {
   FlaskConical,
   RefreshCw,
   SlidersHorizontal,
+  Coffee,
 } from 'lucide-react';
 import { menuService } from '@/api/menu.service';
 import { Product, Category } from '@/types/menu';
@@ -123,6 +124,11 @@ export default function ProductsPage() {
     return matchSearch && matchCategory && matchStatus;
   });
 
+  const totalProducts = products.length;
+  const activeCount = products.filter((p) => p.status === 'ACTIVE').length;
+  const outOfStockCount = products.filter((p) => p.status === 'OUT_OF_STOCK').length;
+  const inactiveCount = products.filter((p) => p.status === 'INACTIVE').length;
+
   const formatCurrency = (val?: number) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -147,7 +153,7 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto p-4 sm:p-6 pb-16">
+    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 pb-16">
       {/* Toast Alert */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#6F4E37] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5">
@@ -156,17 +162,79 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* TẦNG 1: Thanh Điều Hướng (Tabs) */}
+      {/* 1. Header Title & Actions (Đồng bộ theo trang Khách hàng) */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Quản lý Thực đơn & Món ăn</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Danh mục đồ uống, giá bán theo kích thước và trạng thái phục vụ
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/dashboard/menu/products/new"
+            className="flex items-center gap-2 bg-[#6F4E37] hover:bg-[#5A3F2C] text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-all cursor-pointer active:scale-[0.99]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tạo món mới</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* 2. Thanh Điều Hướng Menu Tabs */}
       <MenuNavTabs />
 
-      {/* TẦNG 2: Thanh Công Cụ (Toolbar) */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 w-full">
-        {/* Bên trái: Nút làm mới + Search + Dropdown trạng thái */}
-        <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2.5 max-w-2xl">
+      {/* 3. Thẻ Metric Cards (Bố cục Icon bên trái - Thông số bên phải chuẩn) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-[#F5EBE6] text-[#6F4E37] flex items-center justify-center shrink-0 font-bold">
+            <Coffee className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Tổng số món ăn/uống</p>
+            <p className="text-xl font-bold text-gray-900 mt-0.5">{totalProducts.toLocaleString('vi-VN')}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Đang mở bán</p>
+            <p className="text-xl font-bold text-emerald-700 mt-0.5">{activeCount.toLocaleString('vi-VN')}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 font-bold">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Hết hàng tạm thời</p>
+            <p className="text-xl font-bold text-amber-800 mt-0.5">{outOfStockCount.toLocaleString('vi-VN')}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 font-bold">
+            <XCircle className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Tạm ngưng phục vụ</p>
+            <p className="text-xl font-bold text-rose-800 mt-0.5">{inactiveCount.toLocaleString('vi-VN')}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Toolbar (Card trắng độc lập chuẩn theo trang Khách hàng) */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <button
             type="button"
             onClick={fetchInitialData}
-            className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 shadow-sm transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
+            className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
             title="Làm mới"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -179,16 +247,16 @@ export default function ProductsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm kiếm theo tên món đồ uống..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm shadow-sm focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20"
+              className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20 transition-all"
             />
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <SlidersHorizontal className="w-4 h-4 text-gray-400 hidden sm:block" />
+          <div className="relative">
+            <Filter className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full sm:w-auto px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#6F4E37] cursor-pointer"
+              className="pl-10 pr-8 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20 cursor-pointer appearance-none"
             >
               <option value="ALL">Tất cả trạng thái</option>
               <option value="ACTIVE">Đang bán (ACTIVE)</option>
@@ -198,19 +266,10 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        {/* Bên phải: Nút hành động chính + Đếm số lượng */}
-        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-          <span className="text-xs text-gray-500 font-medium hidden lg:inline">
+        <div className="flex items-center justify-end shrink-0">
+          <span className="text-xs text-gray-500 font-medium">
             Hiển thị: <b className="text-gray-900 font-bold">{filteredProducts.length}</b>/{products.length} món
           </span>
-
-          <Link
-            href="/dashboard/menu/products/new"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white font-bold text-sm shadow-sm hover:shadow-md active:scale-95 transition-all cursor-pointer w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4" strokeWidth={2.5} />
-            <span>Tạo món mới</span>
-          </Link>
         </div>
       </div>
 
@@ -292,10 +351,19 @@ export default function ProductsPage() {
                               <img
                                 src={item.image}
                                 alt={item.name}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).src =
-                                    'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=100&auto=format&fit=crop&q=60';
+                                  const target = e.target as HTMLImageElement;
+                                  target.onerror = null;
+                                  target.style.display = 'none';
+                                  if (target.parentElement && !target.parentElement.querySelector('.fallback-icon')) {
+                                    const fallback = document.createElement('span');
+                                    fallback.className = 'fallback-icon text-[#6F4E37] text-base select-none';
+                                    fallback.textContent = '☕';
+                                    target.parentElement.appendChild(fallback);
+                                  }
                                 }}
                               />
                             ) : (
@@ -309,9 +377,6 @@ export default function ProductsPage() {
                             >
                               {item.name}
                             </Link>
-                            <span className="text-xs text-gray-400 font-mono block">
-                              Mã ID: #{item.id}
-                            </span>
                             {item.description && (
                               <span className="text-xs text-gray-500 line-clamp-1 mt-0.5 max-w-sm">
                                 {item.description}
