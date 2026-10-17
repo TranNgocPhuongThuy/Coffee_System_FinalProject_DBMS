@@ -118,46 +118,59 @@ export default function PosTerminalPage() {
 
   // 6. Xử lý Chốt đơn & Thanh toán
   const handleCheckout = async () => {
-    if (items.length === 0) {
-      setToastMessage({ type: 'error', message: 'Vui lòng chọn ít nhất 1 món vào đơn hàng' });
-      return;
-    }
+  if (items.length === 0) {
+    setToastMessage({ type: 'error', message: 'Vui lòng chọn ít nhất 1 món vào đơn hàng' });
+    return;
+  }
 
-    setIsSubmitting(true);
+  setIsSubmitting(true);
 
-    try {
-      // employeeId lấy từ auth user profile hoặc 1
-      const payload = buildPayload(user?.id || 1);
-      const res = await posService.createOrder(payload);
-      const createdOrder = res?.data || res;
-      const newOrderId = createdOrder.id || res.orderId;
+  try {
+    const payload = buildPayload(user?.id || 1);
+    const res = await posService.createOrder(payload);
+    const createdOrder = res?.data || res;
+    const newOrderId = createdOrder.id || res.orderId;
 
-      setToastMessage({
-        type: 'success',
-        message: `Tạo đơn #${createdOrder.orderCode || newOrderId} thành công!`,
-      });
-
-      // Mở modal in hóa đơn
-      if (newOrderId) {
-        setCreatedOrderIdForReceipt(newOrderId);
+    // BỔ SUNG: Nếu có đổi điểm giảm giá, gọi API để trừ điểm hội viên
+    if (newOrderId && pointsToRedeem > 0 && selectedCustomer) {
+      try {
+        await posService.applyLoyaltyPoints(
+          newOrderId,
+          selectedCustomer.id,
+          pointsToRedeem,
+          conversionRate
+        );
+      } catch (pointErr) {
+        console.error('Lỗi khi khấu trừ điểm hội viên:', pointErr);
       }
-
-      // Reset giỏ hàng và reload lại danh sách thẻ rung trống
-      clearCart();
-      const updatedPagers = await pagerService.getAvailablePagers().catch(() => []);
-      setAvailablePagers(updatedPagers);
-    } catch (err: any) {
-      setToastMessage({
-        type: 'error',
-        message: err.message || 'Không thể tạo đơn hàng. Vui lòng kiểm tra lại nguyên liệu hoặc thẻ rung.',
-      });
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+
+    setToastMessage({
+      type: 'success',
+      message: `Tạo đơn #${createdOrder.orderCode || newOrderId} thành công!`,
+    });
+
+    // Mở modal in hóa đơn
+    if (newOrderId) {
+      setCreatedOrderIdForReceipt(newOrderId);
+    }
+
+    // Reset giỏ hàng và reload lại danh sách thẻ rung trống
+    clearCart();
+    const updatedPagers = await pagerService.getAvailablePagers().catch(() => []);
+    setAvailablePagers(updatedPagers);
+  } catch (err: any) {
+    setToastMessage({
+      type: 'error',
+      message: err.message || 'Không thể tạo đơn hàng. Vui lòng kiểm tra lại nguyên liệu hoặc thẻ rung.',
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
-    <div className="flex h-screen w-full flex-col bg-[#FAF6F0] dark:bg-zinc-950 overflow-hidden select-none">
+    <div className="flex h-screen w-full flex-col bg-[#FAF6F0] dark:bg-zinc-950 overflow-hidden">
       {/* 1. Header Topbar POS */}
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-5 dark:border-zinc-800 dark:bg-zinc-900 shadow-2xs">
         <div className="flex items-center gap-3">
@@ -235,6 +248,8 @@ export default function PosTerminalPage() {
           </div>
         </div>
       )}
+
+      
 
       {/* 3. Khung làm việc chính: Chia 2 cột (Menu Grid 65% + Cart Sidebar 35%) */}
       <div className="flex flex-1 overflow-hidden">

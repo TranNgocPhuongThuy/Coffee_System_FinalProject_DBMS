@@ -29,8 +29,8 @@ apiClient.interceptors.response.use(
 
     // Chỉ redirect nếu bị 401 VÀ KHÔNG PHẢI đang ở trang /login
     if (status === 401 && !isLoginPage && typeof window !== 'undefined') {
-      Cookies.remove(STORAGE_KEYS.ACCESS_TOKEN);
-      Cookies.remove(STORAGE_KEYS.ROLE);
+      Cookies.remove(STORAGE_KEYS.ACCESS_TOKEN, { path: '/' });
+      Cookies.remove(STORAGE_KEYS.ROLE, { path: '/' });
       localStorage.removeItem(STORAGE_KEYS.USER_DATA);
       window.location.href = '/login';
     }

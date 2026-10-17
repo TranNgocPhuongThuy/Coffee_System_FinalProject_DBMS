@@ -8,6 +8,7 @@ import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 
 export default function SetupPasswordPage() {
+  const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -28,6 +29,7 @@ export default function SetupPasswordPage() {
 
     try {
       await authService.setupPassword({
+        fullName,
         phoneNumber,
         newPassword,
         confirmPassword,
@@ -74,6 +76,14 @@ export default function SetupPasswordPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Họ và tên của bạn"
+              placeholder="Nhập họ và tên khách hàng..."
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+            />
+
             <Input
               label="Số điện thoại đã tích điểm"
               type="tel"

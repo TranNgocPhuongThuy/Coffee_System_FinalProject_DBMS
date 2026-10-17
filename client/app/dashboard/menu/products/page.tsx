@@ -22,6 +22,7 @@ import { menuService } from '@/api/menu.service';
 import { Product, Category } from '@/types/menu';
 import { ConfirmModal } from '@/components/common/ConfirmModal';
 import MenuNavTabs from '@/components/menu/MenuNavTabs';
+import { SafeProductImage } from '@/components/common/SafeProductImage';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -347,28 +348,11 @@ export default function ProductsPage() {
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-3.5">
                           <div className="w-12 h-12 rounded-2xl bg-[#FAF6F0] border border-gray-200/60 overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
-                            {item.image ? (
-                              <img
-                                src={item.image}
-                                alt={item.name}
-                                loading="lazy"
-                                decoding="async"
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.onerror = null;
-                                  target.style.display = 'none';
-                                  if (target.parentElement && !target.parentElement.querySelector('.fallback-icon')) {
-                                    const fallback = document.createElement('span');
-                                    fallback.className = 'fallback-icon text-[#6F4E37] text-base select-none';
-                                    fallback.textContent = '☕';
-                                    target.parentElement.appendChild(fallback);
-                                  }
-                                }}
-                              />
-                            ) : (
-                              <CupSoda className="w-6 h-6 text-[#6F4E37]" />
-                            )}
+                            <SafeProductImage
+                              src={item.image}
+                              alt={item.name}
+                              fallbackIcon={<CupSoda className="w-6 h-6 text-[#6F4E37]" />}
+                            />
                           </div>
                           <div>
                             <Link

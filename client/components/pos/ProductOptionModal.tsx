@@ -74,7 +74,6 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
     });
   };
 
-  // Tính tổng giá món đang cấu hình
   const toppingTotal = useMemo(() => {
     return Object.values(selectedToppings).reduce(
       (sum, item) => sum + item.topping.price * item.quantity,
@@ -90,20 +89,24 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
   const handleAddToCart = () => {
     if (!selectedVariant) return;
 
-    const toppingPayload: CartToppingItem[] = Object.values(selectedToppings).map((item) => ({
-      toppingId: item.topping.id,
-      toppingSnapshotName: item.topping.name,
-      toppingPrice: item.topping.price,
-      quantity: item.quantity,
-    }));
+    const safeQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
+
+    const toppingPayload: CartToppingItem[] = Object.values(selectedToppings)
+      .filter((item) => (item.quantity || 0) > 0)
+      .map((item) => ({
+        toppingId: item.topping.id,
+        toppingSnapshotName: item.topping.name,
+        toppingPrice: Math.max(0, item.topping.price),
+        quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
+      }));
 
     onConfirm({
       productId: product.id,
       productName: product.name,
       variantId: selectedVariant.id,
       size: selectedVariant.size,
-      unitPrice: selectedVariant.price,
-      quantity,
+      unitPrice: Math.max(0, selectedVariant.price),
+      quantity: safeQuantity,
       note: note.trim() || undefined,
       toppings: toppingPayload,
     });
@@ -112,24 +115,24 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
-      <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-fade-in">
+      <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl text-zinc-100">
         {/* Header Modal */}
-        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
+        <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4 bg-zinc-900 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F5EBE6] text-[#6F4E37] dark:bg-[#6F4E37]/20 dark:text-[#D4A373]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#6F4E37]/30 text-[#D4A373]">
               <Coffee className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">{product.name}</h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <h3 className="font-bold text-lg text-zinc-100">{product.name}</h3>
+              <p className="text-xs text-zinc-400">
                 {product.categoryName || 'Tùy chọn kích cỡ & Topping'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -139,8 +142,8 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* 1. Chọn Kích cỡ (Size) */}
           <div>
-            <label className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">
-              1. Chọn kích cỡ <span className="text-red-500">*</span>
+            <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-2.5">
+              1. Chọn kích cỡ <span className="text-rose-500">*</span>
             </label>
             <div className="grid grid-cols-3 gap-3">
               {product.variants?.map((v) => {
@@ -152,12 +155,14 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
                     onClick={() => setSelectedVariant(v)}
                     className={`flex flex-col items-center justify-center rounded-xl border p-3.5 transition-all text-center cursor-pointer ${
                       isSelected
-                        ? 'border-[#6F4E37] bg-[#F5EBE6] text-[#6F4E37] ring-2 ring-[#6F4E37]/20 dark:border-[#D4A373] dark:bg-[#6F4E37]/30 dark:text-[#D4A373]'
-                        : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/60 dark:hover:bg-zinc-800'
+                        ? 'border-[#D4A373] bg-[#6F4E37]/30 text-[#D4A373] ring-2 ring-[#D4A373]/30 shadow-sm'
+                        : 'border-zinc-700 bg-zinc-800/80 text-zinc-200 hover:bg-zinc-750 hover:border-zinc-600'
                     }`}
                   >
-                    <span className="text-base font-bold">Size {v.size}</span>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-medium">
+                    <span className={`text-base font-extrabold ${isSelected ? 'text-[#D4A373]' : 'text-zinc-100'}`}>
+                      Size {v.size}
+                    </span>
+                    <span className="text-xs font-bold text-zinc-400 mt-1">
                       {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v.price)}
                     </span>
                   </button>
@@ -166,15 +171,15 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
             </div>
           </div>
 
-          {/* 2. Chọn Topping */}
+          {/* 2. Chọn Topping - SỬA LỖI MÀU CHỮ NỀN ĐEN KHÔNG BỊ TRẮNG TRÊN TRẮNG */}
           {toppings && toppings.length > 0 && (
             <div>
-              <label className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">
+              <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-2.5">
                 2. Thêm Topping
               </label>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                 {toppings
-                  .filter((t) => t.status === 'ACTIVE')
+                  .filter((t) => t.status === 'AVAILABLE' || t.status === 'ACTIVE')
                   .map((t) => {
                     const toppingSelected = selectedToppings[t.id];
                     const isChecked = Boolean(toppingSelected);
@@ -184,8 +189,8 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
                         key={t.id}
                         className={`flex items-center justify-between rounded-xl border p-3 transition-all ${
                           isChecked
-                            ? 'border-[#6F4E37]/80 bg-[#F5EBE6]/60 dark:border-[#6F4E37]/60 dark:bg-[#6F4E37]/20'
-                            : 'border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-850'
+                            ? 'border-[#D4A373]/80 bg-[#6F4E37]/25 text-zinc-100'
+                            : 'border-zinc-800 bg-zinc-800/60 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-200'
                         }`}
                       >
                         <div
@@ -195,34 +200,36 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
                           <div
                             className={`flex h-5 w-5 items-center justify-center rounded-md border transition-all ${
                               isChecked
-                                ? 'border-[#6F4E37] bg-[#6F4E37] text-white'
-                                : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800'
+                                ? 'border-[#D4A373] bg-[#6F4E37] text-white'
+                                : 'border-zinc-600 bg-zinc-900 text-transparent'
                             }`}
                           >
                             {isChecked && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t.name}</div>
-                            <div className="text-xs text-[#6F4E37] dark:text-[#D4A373] font-semibold">
+                            <div className="text-sm font-bold text-zinc-100 leading-snug">{t.name}</div>
+                            <div className="text-xs font-bold text-[#D4A373] mt-0.5">
                               +{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(t.price)}
                             </div>
                           </div>
                         </div>
 
                         {isChecked && (
-                          <div className="flex items-center gap-2 bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 px-2 py-1">
+                          <div className="flex items-center gap-2 bg-zinc-900 rounded-lg border border-zinc-700 px-2 py-1">
                             <button
                               type="button"
                               onClick={() => updateToppingQuantity(t.id, -1)}
-                              className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+                              className="text-zinc-400 hover:text-zinc-100 cursor-pointer p-0.5"
                             >
                               <Minus className="h-3.5 w-3.5" />
                             </button>
-                            <span className="text-xs font-bold w-4 text-center">{toppingSelected.quantity}</span>
+                            <span className="text-xs font-extrabold text-zinc-100 w-4 text-center">
+                              {toppingSelected.quantity}
+                            </span>
                             <button
                               type="button"
                               onClick={() => updateToppingQuantity(t.id, 1)}
-                              className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+                              className="text-zinc-400 hover:text-zinc-100 cursor-pointer p-0.5"
                             >
                               <Plus className="h-3.5 w-3.5" />
                             </button>
@@ -237,7 +244,7 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
 
           {/* 3. Ghi chú món */}
           <div>
-            <label className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2">
+            <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider mb-2">
               3. Ghi chú món (Đá, Đường, Yêu cầu khác)
             </label>
             <input
@@ -245,28 +252,37 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
               placeholder="VD: Ít đá, 50% đường, để đá riêng..."
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-[#6F4E37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6F4E37]/20 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:bg-zinc-900"
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-[#D4A373] focus:outline-none focus:ring-1 focus:ring-[#D4A373]"
             />
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="border-t border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/80 flex items-center justify-between gap-4">
+        <div className="border-t border-zinc-800 bg-zinc-900/90 p-4 flex items-center justify-between gap-4 shrink-0">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Số lượng:</span>
-            <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-800">
+            <span className="text-xs font-medium text-zinc-400">Số lượng:</span>
+            <div className="flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800 px-2 py-1">
               <button
                 type="button"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="rounded p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100 cursor-pointer"
+                className="rounded p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer"
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <span className="w-8 text-center text-sm font-bold text-zinc-900 dark:text-zinc-100">{quantity}</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={quantity}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                  setQuantity(isNaN(val) ? 1 : Math.min(999, Math.max(1, val)));
+                }}
+                className="w-10 text-center text-sm font-bold text-zinc-100 focus:outline-none bg-transparent"
+              />
               <button
                 type="button"
-                onClick={() => setQuantity((q) => q + 1)}
-                className="rounded p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100 cursor-pointer"
+                onClick={() => setQuantity((q) => Math.min(999, q + 1))}
+                className="rounded p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -276,7 +292,7 @@ export const ProductOptionModal: React.FC<ProductOptionModalProps> = ({
           <button
             type="button"
             onClick={handleAddToCart}
-            className="flex-1 rounded-xl bg-[#6F4E37] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-[#6F4E37]/30 hover:bg-[#5A3F2C] active:scale-[0.98] transition-all flex items-center justify-between cursor-pointer"
+            className="flex-1 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-[#6F4E37]/30 transition-all flex items-center justify-between cursor-pointer"
           >
             <span>Thêm vào đơn</span>
             <span>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(lineTotalPrice)}</span>

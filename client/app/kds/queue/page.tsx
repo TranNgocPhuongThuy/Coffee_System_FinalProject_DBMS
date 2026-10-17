@@ -17,7 +17,10 @@ import { QuickRecipeModal } from '@/components/kds/QuickRecipeModal';
 
 function LiveClock() {
   const [time, setTime] = useState<string>('');
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
+    setMounted(true);
     const updateTime = () => {
       setTime(
         new Date().toLocaleTimeString('vi-VN', {
@@ -32,10 +35,19 @@ function LiveClock() {
     return () => clearInterval(interval);
   }, []);
 
+  if (!mounted) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#F0E6DD] text-[#6F4E37] font-mono text-xs font-bold shrink-0">
+        <Clock className="w-3.5 h-3.5 text-[#6F4E37]/70" />
+        <span>--:--:--</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#F0E6DD] text-[#6F4E37] font-mono text-xs font-bold shrink-0">
       <Clock className="w-3.5 h-3.5 text-[#6F4E37]/70" />
-      <span>{time || '14:30:00'}</span>
+      <span>{time}</span>
     </div>
   );
 }
@@ -86,17 +98,22 @@ export default function KDSQueuePage() {
   ) => {
     setLoadingId(orderDetailId);
     try {
-      await kdsService.updateItemStatus(orderDetailId, { itemStatus: status });
+      const res: any = await kdsService.updateItemStatus(orderDetailId, { itemStatus: status });
       showToast(
-        status === 'PREPARING'
+        res?.data?.message ||
+        res?.message ||
+        (status === 'PREPARING'
           ? 'Đã bắt đầu pha chế món!'
           : status === 'DONE'
           ? 'Đã hoàn tất pha chế thành công!'
-          : 'Đã hủy món'
+          : 'Đã hủy món')
       );
       await fetchQueue();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Cập nhật trạng thái thất bại');
+      // Tự động xóa thẻ rác khỏi hàng đợi trên giao diện và fetch lại
+      setQueueItems((prev) => prev.filter((i) => i.orderDetailId !== orderDetailId));
+      await fetchQueue();
+      alert(err.response?.data?.message || 'Món này không còn tồn tại trên hệ thống, đã tự động làm mới hàng đợi.');
     } finally {
       setLoadingId(null);
     }

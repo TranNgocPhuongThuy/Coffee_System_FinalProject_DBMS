@@ -4,6 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Coffee, Sparkles } from 'lucide-react';
 import { Category, Product } from '@/types/menu';
+import { SafeProductImage } from '@/components/common/SafeProductImage';
 
 interface ProductGridProps {
   categories: Category[];
@@ -124,20 +125,12 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                 >
                   {/* Ảnh hoặc Placeholder Thumbnail */}
                   <div className="relative mb-3 aspect-4/3 w-full overflow-hidden rounded-xl bg-gradient-to-br from-[#F5EBE6] to-[#FAF6F0] dark:from-zinc-800 dark:to-zinc-850 flex items-center justify-center">
-                    <Coffee className="h-8 w-8 text-[#6F4E37]/60 dark:text-[#D4A373]/60 absolute" />
-                    {product.image && (
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="relative h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          const target = e.target as HTMLElement;
-                          target.style.display = 'none';
-                        }}
-                      />
-                    )}
+                    <SafeProductImage
+                      src={product.image}
+                      alt={product.name}
+                      className="relative h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      fallbackIcon={<Coffee className="h-8 w-8 text-[#6F4E37]/60 dark:text-[#D4A373]/60" />}
+                    />
 
                     {/* Tag size đếm */}
                     {product.variants && product.variants.length > 0 && (

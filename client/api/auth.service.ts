@@ -47,9 +47,9 @@ export const authService = {
     return res.data;
   },
 
-  setupPassword: async (payload: { phoneNumber: string; newPassword: string; confirmPassword: string }) => {
+  setupPassword: async (payload: { fullName?: string; phoneNumber: string; newPassword: string; confirmPassword: string }) => {
     const res = await apiClient.post(ENDPOINTS.AUTH.REGISTER, {
-      fullName: 'Khách hàng',
+      fullName: payload.fullName?.trim() || 'Khách hàng',
       phoneNumber: payload.phoneNumber,
       password: payload.newPassword,
       confirmPassword: payload.confirmPassword,

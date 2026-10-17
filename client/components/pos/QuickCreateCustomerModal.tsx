@@ -80,9 +80,9 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
           {errorMsg && (
-            <div className="rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-600 border border-red-200 dark:bg-red-950/40 dark:border-red-800 dark:text-red-300">
+            <div className="rounded-xl bg-red-50 dark:bg-red-950/40 p-3 text-xs font-semibold text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800">
               {errorMsg}
             </div>
           )}
@@ -99,7 +99,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 required
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 py-2.5 text-sm text-zinc-900 focus:border-[#6F4E37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6F4E37]/20 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-100"
+                className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 pl-10 pr-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:border-[#6F4E37] dark:focus:border-[#D4A373] focus:outline-none focus:ring-1 focus:ring-[#6F4E37] dark:focus:ring-[#D4A373]"
               />
             </div>
           </div>
@@ -116,7 +116,7 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 py-2.5 text-sm text-zinc-900 focus:border-[#6F4E37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6F4E37]/20 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-100"
+                className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 pl-10 pr-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:border-[#6F4E37] dark:focus:border-[#D4A373] focus:outline-none focus:ring-1 focus:ring-[#6F4E37] dark:focus:ring-[#D4A373]"
               />
             </div>
           </div>
@@ -125,14 +125,14 @@ export const QuickCreateCustomerModal: React.FC<QuickCreateCustomerModalProps> =
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 cursor-pointer"
+              className="rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2.5 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-750 cursor-pointer"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 rounded-xl bg-[#6F4E37] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-[#6F4E37]/30 hover:bg-[#5A3F2C] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-2 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-[#6F4E37]/30 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               <span>Đăng ký & Chọn ngay</span>

@@ -2,9 +2,9 @@
 
 **Root:** `C:\Programing\hqtcsdl\Coffee_System_FinalProject_DBMS\server\database`
 
-**Generated:** 2026-10-17 17:34:22.079486
+**Generated:** 2026-10-18 00:58:28.174525
 
-**Files:** 10 | **Total size:** 85,996 bytes
+**Files:** 10 | **Total size:** 88,563 bytes
 
 ---
 
@@ -390,9 +390,9 @@ GO
 | Property | Value |
 |----------|-------|
 | Path | `03_triggers.sql` |
-| Size | 8,396 bytes |
+| Size | 8,372 bytes |
 | Extension | `.sql` |
-| Modified | 2026-10-03 19:03:43.623499 |
+| Modified | 2026-10-18 00:57:13.570088 |
 
 ```sql
 -- USE CoffeeShopDB;
@@ -487,42 +487,41 @@ BEGIN
         RETURN;
     END
 
-    -- Chỉ kiểm tra những món chưa hoàn thành và chưa bị hủy
-    ;WITH RequiredList AS (
-        -- Tiêu hao từ ly nước
+    -- Tính tổng nguyên liệu ĐANG CHỜ (PENDING + PREPARING) của TOÀN BỘ HỆ THỐNG
+    ;WITH PendingList AS (
         SELECT 
             rb.ingredientId,
-            SUM(rb.consumedQuantity * ins.quantity) AS requiredQty
-        FROM inserted ins
-        INNER JOIN RecipeBOM rb ON ins.variantId = rb.variantId
-        WHERE ins.itemStatus NOT IN (N'DONE', N'CANCELLED')
+            SUM(rb.consumedQuantity * od.quantity) AS pendingQty
+        FROM OrderDetail od
+        INNER JOIN RecipeBOM rb ON od.variantId = rb.variantId
+        WHERE od.itemStatus IN (N'PENDING', N'PREPARING')
         GROUP BY rb.ingredientId
 
         UNION ALL
 
-        -- Tiêu hao từ Topping (nếu có cập nhật/thêm)
         SELECT 
             tb.ingredientId,
-            SUM(tb.consumedQuantity * odt.quantity * ins.quantity) AS requiredQty
-        FROM inserted ins
-        INNER JOIN OrderDetailTopping odt ON ins.id = odt.orderDetailId
+            SUM(tb.consumedQuantity * odt.quantity * od.quantity) AS pendingQty
+        FROM OrderDetail od
+        INNER JOIN OrderDetailTopping odt ON od.id = odt.orderDetailId
         INNER JOIN ToppingBOM tb ON odt.toppingId = tb.toppingId
-        WHERE ins.itemStatus NOT IN (N'DONE', N'CANCELLED')
+        WHERE od.itemStatus IN (N'PENDING', N'PREPARING')
         GROUP BY tb.ingredientId
     ),
-    TotalRequirement AS (
-        SELECT ingredientId, SUM(requiredQty) AS totalRequired
-        FROM RequiredList
+    TotalPending AS (
+        SELECT ingredientId, SUM(pendingQty) AS totalPending
+        FROM PendingList
         GROUP BY ingredientId
     )
+    -- So sánh trực tiếp Tổng cần với Tồn kho thực tế
     SELECT TOP 1 1
-    FROM TotalRequirement tr
-    INNER JOIN Ingredient ig ON tr.ingredientId = ig.id
-    WHERE ig.stockQuantity < tr.totalRequired;
+    FROM TotalPending tp
+    INNER JOIN Ingredient ig ON tp.ingredientId = ig.id
+    WHERE ig.stockQuantity < tp.totalPending;
 
     IF @@ROWCOUNT > 0
     BEGIN
-        RAISERROR(N'Tồn kho nguyên liệu (bao gồm cả topping) không đủ để đáp ứng yêu cầu!', 16, 1);
+        RAISERROR(N'Tồn kho nguyên liệu không đủ để đáp ứng yêu cầu các đơn hàng hiện tại!', 16, 1);
         ROLLBACK TRANSACTION;
         RETURN;
     END
@@ -781,9 +780,9 @@ GO
 | Property | Value |
 |----------|-------|
 | Path | `05_stored_procedures.sql` |
-| Size | 29,015 bytes |
+| Size | 31,606 bytes |
 | Extension | `.sql` |
-| Modified | 2026-10-16 23:23:56.824750 |
+| Modified | 2026-10-17 21:05:56.347293 |
 
 ```sql
 -- USE CoffeeShopDB;
@@ -848,6 +847,7 @@ GO
 
 -- Đơn vị danh sách món
 CREATE TYPE udt_OrderDetailList AS TABLE (
+    itemIndex INT NOT NULL,
     variantId INT NOT NULL,
     quantity INT NOT NULL,
     note NVARCHAR(255),
@@ -902,6 +902,7 @@ CREATE OR ALTER PROCEDURE sp_CreateCounterOrder
     @TotalAmount DECIMAL(18, 2),
     @PaymentMethod NVARCHAR(50),
     @OrderDetails udt_OrderDetailList READONLY,
+    @OrderToppings udt_OrderDetailToppingList READONLY, -- Tham số mới
     @NewOrderId INT OUTPUT
 AS
 BEGIN
@@ -912,7 +913,6 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- 1. Tạo Header Order
         INSERT INTO [Order] (
             orderCode, customerId, pagerId, employeeId, orderChannel,
             subTotal, discountAmount, totalAmount, paymentMethod,
@@ -926,16 +926,26 @@ BEGIN
 
         SET @NewOrderId = SCOPE_IDENTITY();
 
- INSERT INTO OrderDetail (
-            orderId, variantId, quantity, note, itemSnapshotName,
-            sizeSnapshot, unitPrice, totalToppingPriceSnapshot,
-            totalPrice, itemStatus, createdAt
-        )
-        SELECT 
-            @NewOrderId, src.variantId, src.quantity, src.note, src.itemSnapshotName,
-            src.sizeSnapshot, src.unitPrice, src.totalToppingPriceSnapshot,
-            src.totalPrice, N'PENDING', SYSDATETIME()
-        FROM @OrderDetails AS src;
+        -- Bảng tạm để bắt ID thực tế của từng món (tránh Map sai)
+        DECLARE @InsertedDetails TABLE (
+            itemIndex INT,
+            detailId INT
+        );
+
+        -- Insert Món ăn và lấy ID thực tế
+        MERGE OrderDetail AS target
+        USING @OrderDetails AS source
+        ON 1 = 0
+        WHEN NOT MATCHED THEN
+            INSERT (orderId, variantId, quantity, note, itemSnapshotName, sizeSnapshot, unitPrice, totalToppingPriceSnapshot, totalPrice, itemStatus, createdAt)
+            VALUES (@NewOrderId, source.variantId, source.quantity, source.note, source.itemSnapshotName, source.sizeSnapshot, source.unitPrice, source.totalToppingPriceSnapshot, source.totalPrice, N'PENDING', SYSDATETIME())
+        OUTPUT source.itemIndex, inserted.id INTO @InsertedDetails(itemIndex, detailId);
+
+        -- Insert Topping chuẩn xác 100% dựa vào ID vừa lấy được
+        INSERT INTO OrderDetailTopping (orderDetailId, toppingId, toppingSnapshotName, toppingPrice, quantity)
+        SELECT id.detailId, ot.toppingId, ot.toppingSnapshotName, ot.toppingPrice, ot.quantity
+        FROM @OrderToppings ot
+        INNER JOIN @InsertedDetails id ON ot.itemIndex = id.itemIndex;
 
         COMMIT TRANSACTION;
     END TRY
@@ -948,7 +958,7 @@ GO
 
 
 -- 1.2. sp_CompleteOrderPayment
-CREATE PROCEDURE sp_CompleteOrderPayment
+CREATE OR ALTER PROCEDURE sp_CompleteOrderPayment
     @OrderId INT,
     @PaymentMethod NVARCHAR(50)
 AS
@@ -1156,7 +1166,7 @@ GO
 
 
 -- 1.4. sp_ApplyLoyaltyPoints
-CREATE PROCEDURE sp_ApplyLoyaltyPoints
+CREATE OR ALTER PROCEDURE sp_ApplyLoyaltyPoints
     @OrderId INT,
     @CustomerId INT,
     @PointsToRedeem INT,
@@ -1175,26 +1185,55 @@ BEGIN
 
         IF @CurrentPoints IS NULL OR @CurrentPoints < @PointsToRedeem
         BEGIN
-            RAISERROR(N'Insufficient loyalty points balance!', 16, 1);
+            RAISERROR(N'Số dư điểm tích lũy không đủ!', 16, 1);
             ROLLBACK TRANSACTION;
             RETURN;
         END
 
-        DECLARE @DiscountAmount DECIMAL(18, 2) = @PointsToRedeem * @ConversionRate;
+        DECLARE @SubTotal DECIMAL(18, 2);
+        DECLARE @DiscountAmount DECIMAL(18, 2);
+        
+        -- Lấy thông tin giá trị đơn hàng
+        SELECT @SubTotal = subTotal, @DiscountAmount = discountAmount 
+        FROM [Order] 
+        WHERE id = @OrderId;
 
-      
+        -- Tính số tiền tối đa còn có thể giảm
+        DECLARE @MaxDiscount DECIMAL(18,2) = @SubTotal - @DiscountAmount;
+        IF @MaxDiscount <= 0 
+        BEGIN
+            RAISERROR(N'Đơn hàng có giá trị 0đ, không thể áp dụng thêm điểm thưởng.', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
 
+        -- Tính số điểm tối đa được phép sử dụng cho đơn này
+        DECLARE @MaxPoints INT = CEILING(@MaxDiscount / @ConversionRate);
+        
+        -- Nếu nhân viên nhập quá số điểm cần thiết -> Tự động ép về mức tối đa
+        IF @PointsToRedeem > @MaxPoints
+        BEGIN
+            SET @PointsToRedeem = @MaxPoints;
+        END
+
+        DECLARE @ActualDiscount DECIMAL(18, 2) = @PointsToRedeem * @ConversionRate;
+        IF @ActualDiscount > @MaxDiscount
+        BEGIN
+            SET @ActualDiscount = @MaxDiscount;
+        END
+
+        -- Cập nhật hóa đơn
         UPDATE [Order]
-        SET discountAmount = discountAmount + @DiscountAmount,
-            totalAmount = CASE WHEN (subTotal - (discountAmount + @DiscountAmount)) < 0 THEN 0 ELSE subTotal - (discountAmount + @DiscountAmount) END,
+        SET discountAmount = discountAmount + @ActualDiscount,
+            totalAmount = subTotal - (discountAmount + @ActualDiscount),
             updatedAt = GETDATE()
         WHERE id = @OrderId;
 
-        DECLARE @NewBalance INT;
-        SELECT @NewBalance = rewardPoints FROM Customer WHERE id = @CustomerId;
+        DECLARE @NewBalance INT = @CurrentPoints - @PointsToRedeem;
 
+        -- Ghi sổ cái
         INSERT INTO LoyaltyTransaction (customerId, orderId, transactionType, points, balanceAfter, description, createdAt)
-        VALUES (@CustomerId, @OrderId, N'REDEEM', -@PointsToRedeem, @NewBalance, N'Redeemed points for order #' + CAST(@OrderId AS NVARCHAR(20)), GETDATE());
+        VALUES (@CustomerId, @OrderId, N'REDEEM', -@PointsToRedeem, @NewBalance, N'Đổi điểm áp dụng cho hóa đơn #' + CAST(@OrderId AS NVARCHAR(20)), GETDATE());
 
         COMMIT TRANSACTION;
     END TRY
@@ -1207,7 +1246,7 @@ GO
 
 
 -- 1.5. sp_RemoveOrderItem
-CREATE PROCEDURE sp_RemoveOrderItem
+CREATE OR ALTER PROCEDURE sp_RemoveOrderItem
     @OrderDetailId INT
 AS
 BEGIN
@@ -1217,8 +1256,27 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        DECLARE @ItemStatus NVARCHAR(50);
         DECLARE @OrderId INT;
-        SELECT @OrderId = orderId FROM OrderDetail WHERE id = @OrderDetailId;
+
+        SELECT @OrderId = orderId, @ItemStatus = itemStatus 
+        FROM OrderDetail 
+        WHERE id = @OrderDetailId;
+
+        IF @ItemStatus IS NULL
+        BEGIN
+            RAISERROR(N'Chi tiết món không tồn tại!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        -- Chặn xóa món nếu đã bắt đầu pha chế
+        IF @ItemStatus IN ('PREPARING', 'DONE', 'DELIVERED')
+        BEGIN
+            RAISERROR(N'Không thể xóa món đang hoặc đã pha chế xong để bảo toàn dữ liệu tồn kho!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
 
         DELETE FROM OrderDetailTopping WHERE orderDetailId = @OrderDetailId;
         DELETE FROM OrderDetail WHERE id = @OrderDetailId;
@@ -1538,7 +1596,7 @@ BEGIN
             END
         END
 
-        COMMIT TRANSACTION;
+        COMMIT TRANSACTION
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
@@ -1590,7 +1648,7 @@ BEGIN
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
         THROW;
     END CATCH
-END;
+END
 GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_KDS_NotifyOrderReady

@@ -1,8 +1,8 @@
 // app/pos/pagers/page.tsx
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   BellRing,
   BatteryLow,
@@ -31,56 +31,74 @@ import {
   Check,
   LogOut,
   LayoutDashboard,
-} from 'lucide-react';
-import { useAuthContext } from '@/context/AuthContext';
-import { pagerService } from '@/api/pager.service';
-import { ActivePagerDashboardItem, PagerDevice, CreatePagerPayload } from '@/types/pager';
-import { PagerStatus } from '@/types/enums';
-import { PosUserDropdown } from '@/components/pos/PosUserDropdown';
+} from "lucide-react";
+import { useAuthContext } from "@/context/AuthContext";
+import { pagerService } from "@/api/pager.service";
+import {
+  ActivePagerDashboardItem,
+  PagerDevice,
+  CreatePagerPayload,
+} from "@/types/pager";
+import { PagerStatus } from "@/types/enums";
+import { PosUserDropdown } from "@/components/pos/PosUserDropdown";
 
-const PAGER_STATUS_TABS: { key: PagerStatus | 'ALL'; label: string }[] = [
-  { key: 'ALL', label: 'Tất cả trạng thái' },
-  { key: 'AVAILABLE', label: 'Sẵn sàng' },
-  { key: 'IN_USE', label: 'Đang phát' },
-  { key: 'CHARGING', label: 'Đang sạc' },
-  { key: 'MAINTENANCE', label: 'Bảo trì' },
+const PAGER_STATUS_TABS: { key: PagerStatus | "ALL"; label: string }[] = [
+  { key: "ALL", label: "Tất cả trạng thái" },
+  { key: "AVAILABLE", label: "Sẵn sàng" },
+  { key: "IN_USE", label: "Đang phát" },
+  { key: "CHARGING", label: "Đang sạc" },
+  { key: "MAINTENANCE", label: "Bảo trì" },
 ];
 
 export default function PagersManagementPage() {
   const { user, logout } = useAuthContext();
-  const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
-  const [activeTab, setActiveTab] = useState<'active_dashboard' | 'all_devices'>('active_dashboard');
+  const isManagerOrAdmin = user?.role === "ADMIN" || user?.role === "MANAGER";
+  const [activeTab, setActiveTab] = useState<
+    "active_dashboard" | "all_devices"
+  >("active_dashboard");
 
   // Tab 1: Dashboard Data
-  const [activePagers, setActivePagers] = useState<ActivePagerDashboardItem[]>([]);
+  const [activePagers, setActivePagers] = useState<ActivePagerDashboardItem[]>(
+    [],
+  );
   const [loadingDashboard, setLoadingDashboard] = useState(false);
 
   // Tab 2: Devices Data
   const [devices, setDevices] = useState<PagerDevice[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
-  const [meta, setMeta] = useState({ page: 1, limit: 12, totalItems: 0, totalPages: 1 });
-  const [statusFilter, setStatusFilter] = useState<PagerStatus | 'ALL'>('ALL');
+  const [meta, setMeta] = useState({
+    page: 1,
+    limit: 12,
+    totalItems: 0,
+    totalPages: 1,
+  });
+  const [statusFilter, setStatusFilter] = useState<PagerStatus | "ALL">("ALL");
 
   // Search
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Toast
-  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // Modal: Thêm Thẻ Mới
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newBatteryLevel, setNewBatteryLevel] = useState(100);
-  const [newStatus, setNewStatus] = useState<PagerStatus>('AVAILABLE');
+  const [newStatus, setNewStatus] = useState<PagerStatus>("AVAILABLE");
   const [isSubmittingAdd, setIsSubmittingAdd] = useState(false);
 
   // Modal: Sửa Trạng Thái / Pin Thẻ
   const [editingDevice, setEditingDevice] = useState<PagerDevice | null>(null);
-  const [editStatus, setEditStatus] = useState<PagerStatus>('AVAILABLE');
+  const [editStatus, setEditStatus] = useState<PagerStatus>("AVAILABLE");
   const [editBattery, setEditBattery] = useState<number>(100);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
   // Modal: Xác nhận Xóa
-  const [deletingDevice, setDeletingDevice] = useState<PagerDevice | null>(null);
+  const [deletingDevice, setDeletingDevice] = useState<PagerDevice | null>(
+    null,
+  );
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
 
   // 1. Tải dữ liệu Dashboard (Tab 1)
@@ -91,8 +109,8 @@ export default function PagersManagementPage() {
       setActivePagers(Array.isArray(data) ? data : []);
     } catch (err: any) {
       setToastMessage({
-        type: 'error',
-        message: err.message || 'Không thể tải bảng điều phối thẻ rung',
+        type: "error",
+        message: err.message || "Không thể tải bảng điều phối thẻ rung",
       });
     } finally {
       setLoadingDashboard(false);
@@ -109,7 +127,7 @@ export default function PagersManagementPage() {
           limit: 12,
         };
         if (searchQuery.trim()) params.search = searchQuery.trim();
-        if (statusFilter !== 'ALL') params.status = statusFilter;
+        if (statusFilter !== "ALL") params.status = statusFilter;
 
         const res = await pagerService.getPagers(params);
         setDevices(res.items || res.data || []);
@@ -118,19 +136,19 @@ export default function PagersManagementPage() {
         }
       } catch (err: any) {
         setToastMessage({
-          type: 'error',
-          message: err.message || 'Không thể tải danh sách thiết bị thẻ rung',
+          type: "error",
+          message: err.message || "Không thể tải danh sách thiết bị thẻ rung",
         });
       } finally {
         setLoadingDevices(false);
       }
     },
-    [searchQuery, statusFilter]
+    [searchQuery, statusFilter],
   );
 
   // Effect load ban đầu hoặc khi đổi tab
   useEffect(() => {
-    if (activeTab === 'active_dashboard') {
+    if (activeTab === "active_dashboard") {
       fetchDashboard();
     } else {
       fetchDevices(1);
@@ -148,7 +166,7 @@ export default function PagersManagementPage() {
   // 3. Xử lý rung chuông gọi khách
   const handleBuzzPager = (pagerCode: string, orderCode: string) => {
     setToastMessage({
-      type: 'success',
+      type: "success",
       message: `Đang gửi tín hiệu RUNG & PHÁT ÂM THANH đến thẻ ${pagerCode} (Đơn #${orderCode})!`,
     });
   };
@@ -163,7 +181,10 @@ export default function PagersManagementPage() {
         targetId = foundInDevices.id;
       } else {
         // Fetch trực tiếp để lấy id
-        const res = await pagerService.getPagers({ search: pagerCode, limit: 1 });
+        const res = await pagerService.getPagers({
+          search: pagerCode,
+          limit: 1,
+        });
         if (res.items && res.items.length > 0) {
           targetId = res.items[0].id;
         }
@@ -175,18 +196,18 @@ export default function PagersManagementPage() {
 
       await pagerService.releasePager(targetId);
       setToastMessage({
-        type: 'success',
+        type: "success",
         message: `Đã thu hồi thẻ ${pagerCode} về trạng thái Sẵn sàng thành công!`,
       });
 
       // Reload
       fetchDashboard();
-      if (activeTab === 'all_devices') {
+      if (activeTab === "all_devices") {
         fetchDevices(meta.page);
       }
     } catch (err: any) {
       setToastMessage({
-        type: 'error',
+        type: "error",
         message: err.message || `Không thể thu hồi thẻ ${pagerCode}`,
       });
     }
@@ -204,23 +225,23 @@ export default function PagersManagementPage() {
       };
 
       const res = await pagerService.createPager(payload);
-      const createdCode = res?.data?.pagerCode || '';
+      const createdCode = res?.data?.pagerCode || "";
       setToastMessage({
-        type: 'success',
+        type: "success",
         message: createdCode
           ? `Thêm thiết bị thẻ rung ${createdCode} thành công!`
-          : 'Thêm thiết bị thẻ rung thành công!',
+          : "Thêm thiết bị thẻ rung thành công!",
       });
 
       setIsAddModalOpen(false);
       setNewBatteryLevel(100);
-      setNewStatus('AVAILABLE');
+      setNewStatus("AVAILABLE");
 
       fetchDevices(1);
     } catch (err: any) {
       setToastMessage({
-        type: 'error',
-        message: err.message || 'Thêm thiết bị thất bại',
+        type: "error",
+        message: err.message || "Thêm thiết bị thất bại",
       });
     } finally {
       setIsSubmittingAdd(false);
@@ -242,19 +263,19 @@ export default function PagersManagementPage() {
       }
 
       setToastMessage({
-        type: 'success',
+        type: "success",
         message: `Cập nhật thẻ ${editingDevice.pagerCode} thành công!`,
       });
 
       setEditingDevice(null);
       fetchDevices(meta.page);
-      if (activeTab === 'active_dashboard') {
+      if (activeTab === "active_dashboard") {
         fetchDashboard();
       }
     } catch (err: any) {
       setToastMessage({
-        type: 'error',
-        message: err.message || 'Cập nhật thiết bị thất bại',
+        type: "error",
+        message: err.message || "Cập nhật thiết bị thất bại",
       });
     } finally {
       setIsSubmittingEdit(false);
@@ -269,7 +290,7 @@ export default function PagersManagementPage() {
     try {
       await pagerService.deletePager(deletingDevice.id);
       setToastMessage({
-        type: 'success',
+        type: "success",
         message: `Đã xóa thiết bị thẻ ${deletingDevice.pagerCode}!`,
       });
 
@@ -277,8 +298,8 @@ export default function PagersManagementPage() {
       fetchDevices(meta.page);
     } catch (err: any) {
       setToastMessage({
-        type: 'error',
-        message: err.message || 'Xóa thiết bị thất bại',
+        type: "error",
+        message: err.message || "Xóa thiết bị thất bại",
       });
     } finally {
       setIsSubmittingDelete(false);
@@ -290,8 +311,9 @@ export default function PagersManagementPage() {
     (p) =>
       p.pagerCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.customerName && p.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (p.customerPhone && p.customerPhone.includes(searchQuery))
+      (p.customerName &&
+        p.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (p.customerPhone && p.customerPhone.includes(searchQuery)),
   );
 
   // Helper render mức pin
@@ -323,28 +345,28 @@ export default function PagersManagementPage() {
   // Helper render Badge trạng thái
   const getDeviceStatusBadge = (status: PagerStatus) => {
     switch (status) {
-      case 'AVAILABLE':
+      case "AVAILABLE":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
             <CheckCircle2 className="w-3.5 h-3.5" />
             Sẵn sàng
           </span>
         );
-      case 'IN_USE':
+      case "IN_USE":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">
             <Radio className="w-3.5 h-3.5 animate-pulse" />
             Đang phát cho khách
           </span>
         );
-      case 'CHARGING':
+      case "CHARGING":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300">
             <BatteryCharging className="w-3.5 h-3.5 text-blue-600" />
             Đang sạc
           </span>
         );
-      case 'MAINTENANCE':
+      case "MAINTENANCE":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-300">
             <Wrench className="w-3.5 h-3.5 text-zinc-500" />
@@ -376,7 +398,8 @@ export default function PagersManagementPage() {
                   Bảng Điều Phối & Thu Hồi Thẻ Rung
                 </h1>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Giám sát thẻ đang phục vụ, thời gian chờ khách và quản lý phần cứng Pager
+                  Giám sát thẻ đang phục vụ, thời gian chờ khách và quản lý phần
+                  cứng Pager
                 </p>
               </div>
             </div>
@@ -396,7 +419,7 @@ export default function PagersManagementPage() {
             <button
               type="button"
               onClick={() => {
-                if (activeTab === 'active_dashboard') fetchDashboard();
+                if (activeTab === "active_dashboard") fetchDashboard();
                 else fetchDevices(meta.page);
               }}
               className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
@@ -424,10 +447,12 @@ export default function PagersManagementPage() {
         <div className="fixed top-20 right-6 z-50 animate-bounce">
           <div
             className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold shadow-xl ${
-              toastMessage.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+              toastMessage.type === "success"
+                ? "bg-emerald-600 text-white"
+                : "bg-rose-600 text-white"
             }`}
           >
-            {toastMessage.type === 'success' ? (
+            {toastMessage.type === "success" ? (
               <CheckCircle2 className="h-4 w-4" />
             ) : (
               <AlertCircle className="h-4 w-4" />
@@ -444,20 +469,20 @@ export default function PagersManagementPage() {
           <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xs w-fit">
             <button
               type="button"
-              onClick={() => setActiveTab('active_dashboard')}
+              onClick={() => setActiveTab("active_dashboard")}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'active_dashboard'
-                  ? 'bg-[#6F4E37] text-white shadow-xs'
-                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
+                activeTab === "active_dashboard"
+                  ? "bg-[#6F4E37] text-white shadow-xs"
+                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               }`}
             >
               <Radio className="w-4 h-4" />
               <span>Điều phối thẻ đang phát</span>
               <span
                 className={`px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${
-                  activeTab === 'active_dashboard'
-                    ? 'bg-[#F5EBE6] text-[#6F4E37]'
-                    : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+                  activeTab === "active_dashboard"
+                    ? "bg-[#F5EBE6] text-[#6F4E37]"
+                    : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                 }`}
               >
                 {activePagers.length}
@@ -466,20 +491,20 @@ export default function PagersManagementPage() {
 
             <button
               type="button"
-              onClick={() => setActiveTab('all_devices')}
+              onClick={() => setActiveTab("all_devices")}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'all_devices'
-                  ? 'bg-[#6F4E37] text-white shadow-xs'
-                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
+                activeTab === "all_devices"
+                  ? "bg-[#6F4E37] text-white shadow-xs"
+                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               }`}
             >
               <SlidersHorizontal className="w-4 h-4" />
               <span>Quản lý thiết bị phần cứng</span>
               <span
                 className={`px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${
-                  activeTab === 'all_devices'
-                    ? 'bg-[#F5EBE6] text-[#6F4E37]'
-                    : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+                  activeTab === "all_devices"
+                    ? "bg-[#F5EBE6] text-[#6F4E37]"
+                    : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                 }`}
               >
                 {meta.totalItems || devices.length}
@@ -488,18 +513,22 @@ export default function PagersManagementPage() {
           </div>
 
           {/* Action button in Tab 2 */}
-          {activeTab === 'all_devices' && (
+          {activeTab === "all_devices" && (
             <button
               type="button"
               disabled={!isManagerOrAdmin}
               onClick={() => {
                 if (isManagerOrAdmin) setIsAddModalOpen(true);
               }}
-              title={isManagerOrAdmin ? 'Thêm thiết bị thẻ rung mới' : 'Chỉ Quản lý mới có quyền thêm thiết bị'}
+              title={
+                isManagerOrAdmin
+                  ? "Thêm thiết bị thẻ rung mới"
+                  : "Chỉ Quản lý mới có quyền thêm thiết bị"
+              }
               className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold shadow-xs transition-colors ${
                 isManagerOrAdmin
-                  ? 'bg-[#6F4E37] hover:bg-[#5A3F2C] cursor-pointer'
-                  : 'bg-zinc-400 dark:bg-zinc-700 opacity-50 cursor-not-allowed'
+                  ? "bg-[#6F4E37] hover:bg-[#5A3F2C] cursor-pointer"
+                  : "bg-zinc-400 dark:bg-zinc-700 opacity-50 cursor-not-allowed"
               }`}
             >
               <Plus className="w-4 h-4" />
@@ -523,14 +552,14 @@ export default function PagersManagementPage() {
             </div>
 
             <div className="text-xs text-zinc-500 font-medium">
-              {activeTab === 'active_dashboard'
+              {activeTab === "active_dashboard"
                 ? `Đang có ${filteredActivePagers.length} thẻ rung đang cấp phát cho khách`
                 : `Tổng cộng ${meta.totalItems || devices.length} thiết bị trong kho`}
             </div>
           </div>
 
           {/* Status Filter Pills for Tab 2 */}
-          {activeTab === 'all_devices' && (
+          {activeTab === "all_devices" && (
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pt-1 border-t border-zinc-100 dark:border-zinc-800">
               {PAGER_STATUS_TABS.map((tab) => (
                 <button
@@ -539,8 +568,8 @@ export default function PagersManagementPage() {
                   onClick={() => setStatusFilter(tab.key)}
                   className={`rounded-xl px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-all ${
                     statusFilter === tab.key
-                      ? 'bg-[#6F4E37] text-white shadow-xs'
-                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
+                      ? "bg-[#6F4E37] text-white shadow-xs"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400"
                   }`}
                 >
                   {tab.label}
@@ -553,7 +582,7 @@ export default function PagersManagementPage() {
         {/* ========================================================
             5. TAB 1: BẢNG ĐIỀU PHỐI (Active Pagers Dashboard)
             ======================================================== */}
-        {activeTab === 'active_dashboard' && (
+        {activeTab === "active_dashboard" && (
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xs border border-zinc-200 dark:border-zinc-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
@@ -582,7 +611,10 @@ export default function PagersManagementPage() {
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                   {loadingDashboard ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-zinc-400 font-medium">
+                      <td
+                        colSpan={6}
+                        className="py-12 text-center text-zinc-400 font-medium"
+                      >
                         Đang tải dữ liệu điều phối thẻ rung...
                       </td>
                     </tr>
@@ -608,7 +640,9 @@ export default function PagersManagementPage() {
                           </td>
 
                           {/* Mức pin */}
-                          <td className="py-3.5 px-5">{renderBatteryIndicator(pager.batteryLevel)}</td>
+                          <td className="py-3.5 px-5">
+                            {renderBatteryIndicator(pager.batteryLevel)}
+                          </td>
 
                           {/* Mã đơn liên kết */}
                           <td className="py-3.5 px-5">
@@ -626,7 +660,7 @@ export default function PagersManagementPage() {
                           <td className="py-3.5 px-5">
                             <div>
                               <span className="font-bold text-zinc-900 dark:text-zinc-100 block">
-                                {pager.customerName || 'Khách vãng lai'}
+                                {pager.customerName || "Khách vãng lai"}
                               </span>
                               {pager.customerPhone && (
                                 <span className="text-[11px] text-zinc-400 font-mono">
@@ -643,12 +677,12 @@ export default function PagersManagementPage() {
                               <span
                                 className={`font-bold px-2 py-0.5 rounded-md ${
                                   isOverdue
-                                    ? 'text-rose-600 bg-rose-50 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-800'
-                                    : 'text-zinc-700 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300'
+                                    ? "text-rose-600 bg-rose-50 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-800"
+                                    : "text-zinc-700 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300"
                                 }`}
                               >
                                 {pager.waitingMinutes} phút
-                                {isOverdue && ' (Chờ lâu)'}
+                                {isOverdue && " (Chờ lâu)"}
                               </span>
                             </div>
                           </td>
@@ -659,7 +693,12 @@ export default function PagersManagementPage() {
                               {/* Rung chuông */}
                               <button
                                 type="button"
-                                onClick={() => handleBuzzPager(pager.pagerCode, pager.orderCode)}
+                                onClick={() =>
+                                  handleBuzzPager(
+                                    pager.pagerCode,
+                                    pager.orderCode,
+                                  )
+                                }
                                 className="px-2.5 py-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
                                 title="Rung chuông & Nhấp nháy gọi khách đến quầy nhận món"
                               >
@@ -670,7 +709,9 @@ export default function PagersManagementPage() {
                               {/* Thu hồi thẻ */}
                               <button
                                 type="button"
-                                onClick={() => handleReleasePager(pager.pagerCode)}
+                                onClick={() =>
+                                  handleReleasePager(pager.pagerCode)
+                                }
                                 className="px-3 py-1.5 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
                                 title="Thu hồi thẻ về khay sạc"
                               >
@@ -684,7 +725,10 @@ export default function PagersManagementPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-zinc-400 font-medium">
+                      <td
+                        colSpan={6}
+                        className="py-12 text-center text-zinc-400 font-medium"
+                      >
                         Không có thẻ rung nào đang được phát cho khách.
                       </td>
                     </tr>
@@ -698,7 +742,7 @@ export default function PagersManagementPage() {
         {/* ========================================================
             6. TAB 2: QUẢN LÝ THIẾT BỊ PHẦN CỨNG (All Devices)
             ======================================================== */}
-        {activeTab === 'all_devices' && (
+        {activeTab === "all_devices" && (
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xs border border-zinc-200 dark:border-zinc-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
@@ -724,7 +768,10 @@ export default function PagersManagementPage() {
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                   {loadingDevices ? (
                     <tr>
-                      <td colSpan={5} className="py-12 text-center text-zinc-400 font-medium">
+                      <td
+                        colSpan={5}
+                        className="py-12 text-center text-zinc-400 font-medium"
+                      >
                         Đang tải danh sách thiết bị thẻ rung...
                       </td>
                     </tr>
@@ -740,17 +787,21 @@ export default function PagersManagementPage() {
                           </span>
                         </td>
 
-                        <td className="py-3.5 px-5">{renderBatteryIndicator(dev.batteryLevel)}</td>
+                        <td className="py-3.5 px-5">
+                          {renderBatteryIndicator(dev.batteryLevel)}
+                        </td>
 
-                        <td className="py-3.5 px-5">{getDeviceStatusBadge(dev.status)}</td>
+                        <td className="py-3.5 px-5">
+                          {getDeviceStatusBadge(dev.status)}
+                        </td>
 
                         <td className="py-3.5 px-5 text-zinc-500 font-mono">
-                          {new Date(dev.createdAt).toLocaleDateString('vi-VN')}
+                          {new Date(dev.createdAt).toLocaleDateString("vi-VN")}
                         </td>
 
                         <td className="py-3.5 px-5 text-right space-x-1.5 whitespace-nowrap">
                           {/* Nút thu hồi nhanh nếu đang IN_USE */}
-                          {dev.status === 'IN_USE' && (
+                          {dev.status === "IN_USE" && (
                             <button
                               type="button"
                               onClick={() => handleReleasePager(dev.pagerCode)}
@@ -778,13 +829,13 @@ export default function PagersManagementPage() {
                           {/* Nút xóa */}
                           <button
                             type="button"
-                            disabled={dev.status === 'IN_USE'}
+                            disabled={dev.status === "IN_USE"}
                             onClick={() => setDeletingDevice(dev)}
                             className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-30 disabled:cursor-not-allowed"
                             title={
-                              dev.status === 'IN_USE'
-                                ? 'Không thể xóa thẻ đang phát cho khách'
-                                : 'Xóa thiết bị'
+                              dev.status === "IN_USE"
+                                ? "Không thể xóa thẻ đang phát cho khách"
+                                : "Xóa thiết bị"
                             }
                           >
                             <Trash2 className="w-4 h-4" />
@@ -794,7 +845,10 @@ export default function PagersManagementPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="py-12 text-center text-zinc-400 font-medium">
+                      <td
+                        colSpan={5}
+                        className="py-12 text-center text-zinc-400 font-medium"
+                      >
                         Không tìm thấy thiết bị thẻ rung nào phù hợp.
                       </td>
                     </tr>
@@ -807,8 +861,11 @@ export default function PagersManagementPage() {
             {meta.totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-zinc-200 dark:border-zinc-800 px-4 py-3">
                 <div className="text-xs text-zinc-500">
-                  Trang <strong className="text-zinc-800 dark:text-zinc-200">{meta.page}</strong> /{' '}
-                  {meta.totalPages} ({meta.totalItems} thiết bị)
+                  Trang{" "}
+                  <strong className="text-zinc-800 dark:text-zinc-200">
+                    {meta.page}
+                  </strong>{" "}
+                  / {meta.totalPages} ({meta.totalItems} thiết bị)
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -859,25 +916,42 @@ export default function PagersManagementPage() {
             </div>
 
             <form onSubmit={handleAddDevice} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300">
+              <div>
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
                   Trạng thái thiết bị
                 </label>
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value as PagerStatus)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-[#6F4E37] cursor-pointer"
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-[#6F4E37] cursor-pointer"
                 >
-                  <option value="AVAILABLE">Sẵn sàng</option>
-                  <option value="CHARGING">Đang sạc</option>
-                  <option value="MAINTENANCE">Bảo trì</option>
+                  <option
+                    value="AVAILABLE"
+                    className="bg-zinc-800 text-white py-1"
+                  >
+                    Sẵn sàng
+                  </option>
+                  <option
+                    value="CHARGING"
+                    className="bg-zinc-800 text-white py-1"
+                  >
+                    Đang sạc
+                  </option>
+                  <option
+                    value="MAINTENANCE"
+                    className="bg-zinc-800 text-white py-1"
+                  >
+                    Bảo trì
+                  </option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center text-xs font-bold text-zinc-700 dark:text-zinc-300">
                   <span>Mức pin ban đầu</span>
-                  <span className="text-[#6F4E37] dark:text-[#D4A373] font-mono font-bold">{newBatteryLevel}%</span>
+                  <span className="text-[#6F4E37] dark:text-[#D4A373] font-mono font-bold">
+                    {newBatteryLevel}%
+                  </span>
                 </div>
                 <input
                   type="range"
@@ -902,7 +976,7 @@ export default function PagersManagementPage() {
                   disabled={isSubmittingAdd}
                   className="px-4 py-2 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmittingAdd ? 'Đang lưu...' : 'Xác nhận thêm'}
+                  {isSubmittingAdd ? "Đang lưu..." : "Xác nhận thêm"}
                 </button>
               </div>
             </form>
@@ -954,7 +1028,9 @@ export default function PagersManagementPage() {
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center text-xs font-bold text-zinc-700 dark:text-zinc-300">
                   <span>Mức pin (%)</span>
-                  <span className="text-[#6F4E37] dark:text-[#D4A373] font-mono font-bold">{editBattery}%</span>
+                  <span className="text-[#6F4E37] dark:text-[#D4A373] font-mono font-bold">
+                    {editBattery}%
+                  </span>
                 </div>
                 <input
                   type="range"
@@ -979,7 +1055,7 @@ export default function PagersManagementPage() {
                   disabled={isSubmittingEdit}
                   className="px-4 py-2 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmittingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  {isSubmittingEdit ? "Đang lưu..." : "Lưu thay đổi"}
                 </button>
               </div>
             </form>
@@ -1001,13 +1077,17 @@ export default function PagersManagementPage() {
                 <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
                   Xác nhận xóa thiết bị
                 </h3>
-                <p className="text-xs text-zinc-500">Mã thẻ: {deletingDevice.pagerCode}</p>
+                <p className="text-xs text-zinc-500">
+                  Mã thẻ: {deletingDevice.pagerCode}
+                </p>
               </div>
             </div>
 
             <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
-              Bạn có chắc chắn muốn xóa thiết bị thẻ rung{' '}
-              <strong className="text-zinc-900 dark:text-zinc-100">{deletingDevice.pagerCode}</strong>{' '}
+              Bạn có chắc chắn muốn xóa thiết bị thẻ rung{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100">
+                {deletingDevice.pagerCode}
+              </strong>{" "}
               khỏi danh sách quản lý không?
             </p>
 
@@ -1025,7 +1105,7 @@ export default function PagersManagementPage() {
                 onClick={handleDeleteDevice}
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
               >
-                {isSubmittingDelete ? 'Đang xóa...' : 'Xóa thiết bị'}
+                {isSubmittingDelete ? "Đang xóa..." : "Xóa thiết bị"}
               </button>
             </div>
           </div>

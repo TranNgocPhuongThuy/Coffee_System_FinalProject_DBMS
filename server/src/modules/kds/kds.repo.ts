@@ -93,6 +93,10 @@ export class KDSRepo {
     req.input("itemStatus", sql.NVarChar(50), data.itemStatus);
 
     const result = await req.query(`
+    SET XACT_ABORT ON;
+    BEGIN TRY
+      BEGIN TRANSACTION;
+
       DECLARE @updatedItems TABLE (
         id INT,
         orderId INT,
@@ -113,17 +117,30 @@ export class KDSRepo {
         INSERTED.itemStatus,
         INSERTED.updatedAt
       INTO @updatedItems
-      WHERE id = @orderDetailId
+      WHERE id = @orderDetailId;
+
+      COMMIT TRANSACTION;
 
       SELECT id, orderId, itemSnapshotName, sizeSnapshot, itemStatus, updatedAt
-      FROM @updatedItems
-    `);
+      FROM @updatedItems;
+    END TRY
+    BEGIN CATCH
+      IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+      THROW;
+    END CATCH
+  `);
 
-    return result.recordset[0] || null;
+    const sets = Array.isArray(result.recordsets) ? result.recordsets : [];
+    const targetRecordset =
+      sets.length > 0 ? sets[sets.length - 1] : result.recordset;
+
+    return targetRecordset && targetRecordset.length > 0
+      ? targetRecordset[0]
+      : null;
   }
 
   // 3. Rung chuông thẻ rung & Chuyển trạng thái Order sang READY_FOR_PICKUP (UC18, UC19)
- // modules/kds/kds.repo.ts
+  // modules/kds/kds.repo.ts
 
   async triggerReadyAlarm(orderId: number) {
     const pool = await getPool();
@@ -145,15 +162,14 @@ export class KDSRepo {
       pagerId,
       itemsCompleted: pendingCount,
       alarmTriggered: true,
-      message: "Đã kích hoạt thẻ rung và cập nhật đơn hàng sẵn sàng nhận đồ uống.",
+      message:
+        "Đã kích hoạt thẻ rung và cập nhật đơn hàng sẵn sàng nhận đồ uống.",
     };
   }
 
   async countRemainingItemsInOrder(orderId: number): Promise<number> {
     const pool = await getPool();
-    const result = await pool
-      .request()
-      .input("OrderId", sql.Int, orderId)
+    const result = await pool.request().input("OrderId", sql.Int, orderId)
       .query(`
         SELECT COUNT(1) AS pendingCount
         FROM OrderDetail

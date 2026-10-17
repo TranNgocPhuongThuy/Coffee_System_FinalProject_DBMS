@@ -195,7 +195,9 @@ export function printReceipt(invoice: InvoiceData) {
           window.onload = function() {
             window.focus();
             window.print();
-            setTimeout(function() { window.close(); }, 500);
+          };
+          window.onafterprint = function() {
+            window.close();
           };
         </script>
       </body>

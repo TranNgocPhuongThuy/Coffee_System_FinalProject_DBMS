@@ -2,15 +2,13 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Coffee, ShieldCheck, User } from 'lucide-react';
+import { Coffee } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
-import { UserType } from '@/types/auth';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 
 export default function LoginPage() {
   const { login } = useAuthContext();
-  const [userType, setUserType] = useState<UserType>('EMPLOYEE');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -40,28 +38,6 @@ export default function LoginPage() {
         <p className="text-sm text-gray-500 mt-1">Hệ thống quản lý quán cà phê MePhaPhin</p>
       </div>
 
-      {/* UserType Switcher */}
-      <div className="grid grid-cols-2 gap-2 p-1 bg-[#FAF6F0] rounded-xl mb-6">
-        <button
-          type="button"
-          onClick={() => { setUserType('EMPLOYEE'); setError(null); }}
-          className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${userType === 'EMPLOYEE' ? 'bg-white text-[#6F4E37] shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-        >
-          <ShieldCheck className="w-4 h-4" />
-          <span>Nhân viên</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => { setUserType('CUSTOMER'); setError(null); }}
-          className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${userType === 'CUSTOMER' ? 'bg-white text-[#6F4E37] shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-        >
-          <User className="w-4 h-4" />
-          <span>Khách hàng</span>
-        </button>
-      </div>
-
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-medium text-center animate-in fade-in">
           {error}
@@ -70,8 +46,8 @@ export default function LoginPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
-          label={userType === 'EMPLOYEE' ? 'Tên đăng nhập (Username)' : 'Số điện thoại'}
-          placeholder={userType === 'EMPLOYEE' ? 'Nhập tên đăng nhập...' : 'Nhập số điện thoại...'}
+          label="Tên đăng nhập hoặc Số điện thoại"
+          placeholder="Nhập username hoặc số điện thoại..."
           value={identifier}
           onChange={(e) => setIdentifier(e.target.value)}
           required
@@ -104,3 +80,4 @@ export default function LoginPage() {
     </>
   );
 }
+

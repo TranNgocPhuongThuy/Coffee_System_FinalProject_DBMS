@@ -73,10 +73,6 @@ END;
 GO
 
 -- 1.3. Chặn đặt món nếu nguyên liệu trong kho không đủ định mức BOM
-IF OBJECT_ID('trg_OrderDetail_CheckInventory', 'TR') IS NOT NULL 
-    DROP TRIGGER trg_OrderDetail_CheckInventory;
-GO
-
 CREATE OR ALTER TRIGGER trg_OrderDetail_CheckInventory
 ON OrderDetail 
 AFTER INSERT, UPDATE
@@ -84,16 +80,27 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    -- 1. Nếu là UPDATE nhưng không đổi món, không đổi số lượng và không đổi itemStatus -> BỎ QUA
     IF (EXISTS (SELECT 1 FROM deleted)) 
        AND (NOT UPDATE(variantId) AND NOT UPDATE(quantity) AND NOT UPDATE(itemStatus))
     BEGIN
         RETURN;
     END
 
-    -- Tính tổng nguyên liệu ĐANG CHỜ (PENDING + PREPARING) của TOÀN BỘ HỆ THỐNG
+    -- 2. ĐẶC BIỆT QUAN TRỌNG: Nếu tất cả các dòng được cập nhật đều chuyển sang 'DONE' hoặc 'CANCELLED'
+    -- thì số lượng cần chờ chỉ giảm đi chứ không tăng -> BỎ QUA KIỂM TRA ĐỂ TRÁNH CONFLICT VỚI TRIGGER TRỪ KHO
+    IF NOT EXISTS (
+        SELECT 1 FROM inserted 
+        WHERE itemStatus IN (N'PENDING', N'PREPARING')
+    )
+    BEGIN
+        RETURN;
+    END
+
+    -- 3. Tính tổng nguyên liệu ĐANG CHỜ (PENDING + PREPARING) của TOÀN BỘ HỆ THỐNG
     ;WITH PendingList AS (
         SELECT 
-            rb.ingredientId,
+            rb.ingredientId, 
             SUM(rb.consumedQuantity * od.quantity) AS pendingQty
         FROM OrderDetail od
         INNER JOIN RecipeBOM rb ON od.variantId = rb.variantId
@@ -116,7 +123,7 @@ BEGIN
         FROM PendingList
         GROUP BY ingredientId
     )
-    -- So sánh trực tiếp Tổng cần với Tồn kho thực tế
+    -- So sánh với tồn kho thực tế
     SELECT TOP 1 1
     FROM TotalPending tp
     INNER JOIN Ingredient ig ON tp.ingredientId = ig.id
@@ -124,7 +131,7 @@ BEGIN
 
     IF @@ROWCOUNT > 0
     BEGIN
-        RAISERROR(N'Tồn kho nguyên liệu không đủ để đáp ứng yêu cầu các đơn hàng hiện tại!', 16, 1);
+        RAISERROR(N'Tồn kho nguyên liệu không đủ để đáp ứng yêu cầu các đơn hàng đang chờ!', 16, 1);
         ROLLBACK TRANSACTION;
         RETURN;
     END

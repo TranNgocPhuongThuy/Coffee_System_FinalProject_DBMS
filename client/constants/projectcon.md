@@ -2,9 +2,9 @@
 
 **Root:** `C:\Programing\hqtcsdl\Coffee_System_FinalProject_DBMS\client\constants`
 
-**Generated:** 2026-10-17 21:38:54.255064
+**Generated:** 2026-10-18 01:03:29.243296
 
-**Files:** 5 | **Total size:** 19,268 bytes
+**Files:** 5 | **Total size:** 19,547 bytes
 
 ---
 
@@ -37,9 +37,9 @@
 | Property | Value |
 |----------|-------|
 | Path | `roles.ts` |
-| Size | 2,333 bytes |
+| Size | 2,612 bytes |
 | Extension | `.ts` |
-| Modified | 2026-10-17 21:23:55.036131 |
+| Modified | 2026-10-17 22:07:16.449358 |
 
 ```typescript
 import { UserRole } from '@/types/auth';
@@ -50,7 +50,7 @@ export const ROLE_DEFAULT_ROUTES: Record<UserRole, string> = {
   CASHIER: '/pos/terminal',
   BARISTA: '/kds/queue',
   STOREKEEPER: '/dashboard/inventory/ingredients',
-  CUSTOMER: '/dashboard/customers',
+  CUSTOMER: '/menu',
 };
 
 export interface RoutePermissionRule {
@@ -60,6 +60,10 @@ export interface RoutePermissionRule {
 }
 
 export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
+  // CUSTOMER STOREFRONT
+  { path: '/menu', allowedRoles: ['CUSTOMER', 'CASHIER', 'BARISTA', 'STOREKEEPER', 'MANAGER', 'ADMIN'] },
+  { path: '/customer', allowedRoles: ['CUSTOMER', 'CASHIER', 'MANAGER', 'ADMIN'] },
+
   // POS
   { path: '/pos/terminal', allowedRoles: ['MANAGER', 'CASHIER', 'ADMIN'] },
   { path: '/pos/orders', allowedRoles: ['MANAGER', 'CASHIER', 'ADMIN'] },
@@ -74,7 +78,7 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
   { path: '/dashboard/inventory/boms', allowedRoles: ['MANAGER', 'BARISTA', 'ADMIN'] },
   { path: '/dashboard/inventory/imports', allowedRoles: ['MANAGER', 'STOREKEEPER', 'ADMIN'] },
   { path: '/dashboard/inventory/adjustments', allowedRoles: ['MANAGER', 'STOREKEEPER', 'ADMIN'] },
-  { path: '/dashboard/customers', allowedRoles: ['MANAGER', 'CASHIER', 'CUSTOMER', 'ADMIN'] },
+  { path: '/dashboard/customers', allowedRoles: ['MANAGER', 'CASHIER', 'ADMIN'] },
   { path: '/dashboard/reports', allowedRoles: ['MANAGER', 'ADMIN'] },
   { path: '/dashboard/pagers', allowedRoles: ['MANAGER', 'CASHIER', 'BARISTA', 'ADMIN'] },
   { path: '/dashboard', exact: true, allowedRoles: ['MANAGER', 'ADMIN'] },
@@ -82,6 +86,7 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
 
 export function isRouteAllowed(pathname: string, role: UserRole): boolean {
   if (pathname.startsWith('/change-password')) return true;
+  if (pathname.startsWith('/menu') || pathname.startsWith('/customer')) return true;
 
   const rule = ROUTE_PERMISSION_RULES.find((r) =>
     r.exact ? pathname === r.path : pathname.startsWith(r.path)

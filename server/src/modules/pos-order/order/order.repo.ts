@@ -13,6 +13,7 @@ export class OrderRepo {
    */
   private buildOrderDetailTVP(items: OrderItemType[]): sql.Table {
     const tvp = new sql.Table("udt_OrderDetailList");
+    tvp.columns.add("itemIndex", sql.Int, { nullable: false });
     tvp.columns.add("variantId", sql.Int, { nullable: false });
     tvp.columns.add("quantity", sql.Int, { nullable: false });
     tvp.columns.add("note", sql.NVarChar(255), { nullable: true });
@@ -24,8 +25,9 @@ export class OrderRepo {
     });
     tvp.columns.add("totalPrice", sql.Decimal(18, 2), { nullable: false });
 
-    items.forEach((item) => {
+    items.forEach((item, index) => {
       tvp.rows.add(
+        index,
         item.variantId,
         item.quantity,
         item.note || null,

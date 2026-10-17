@@ -17,6 +17,7 @@ import {
 import { menuService } from '@/api/menu.service';
 import { Category, ProductSize } from '@/types/menu';
 import { ProductStatus } from '@/types/enums';
+import { SafeProductImage } from '@/components/common/SafeProductImage';
 
 interface VariantFormItem {
   size: 'S' | 'M' | 'L' | 'XL';
@@ -289,28 +290,11 @@ export default function NewProductPage() {
                 </div>
 
                 <div className="w-20 h-20 rounded-2xl bg-[#FAF6F0] border border-gray-200 overflow-hidden flex items-center justify-center shrink-0">
-                  {image ? (
-                    <img
-                      src={image}
-                      alt="Preview"
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.onerror = null;
-                        target.style.display = 'none';
-                        if (target.parentElement && !target.parentElement.querySelector('.fallback-icon')) {
-                          const fallback = document.createElement('span');
-                          fallback.className = 'fallback-icon text-[#6F4E37] text-2xl select-none';
-                          fallback.textContent = '☕';
-                          target.parentElement.appendChild(fallback);
-                        }
-                      }}
-                    />
-                  ) : (
-                    <ImageIcon className="w-6 h-6 text-gray-400" />
-                  )}
+                  <SafeProductImage
+                    src={image}
+                    alt="Preview"
+                    fallbackIcon={<ImageIcon className="w-6 h-6 text-gray-400" />}
+                  />
                 </div>
               </div>
             </div>

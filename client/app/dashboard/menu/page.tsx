@@ -19,6 +19,7 @@ import {
 import { menuService } from '@/api/menu.service';
 import { Product, Category, Topping } from '@/types/menu';
 import MenuNavTabs from '@/components/menu/MenuNavTabs';
+import { SafeProductImage } from '@/components/common/SafeProductImage';
 
 export default function MenuHubPage() {
   const [loading, setLoading] = useState(true);
@@ -51,7 +52,7 @@ export default function MenuHubPage() {
 
   const activeProductsCount = products.filter((p) => p.status === 'ACTIVE').length;
   const activeCategoriesCount = categories.filter((c) => c.displayStatus === 'SHOW').length;
-  const activeToppingsCount = toppings.filter((t) => (t.status as string) !== 'INACTIVE').length;
+  const activeToppingsCount = toppings.filter((t) => t.status === 'AVAILABLE').length;
 
   const filteredPreviewProducts = products
     .filter((p) => p.name.toLowerCase().includes(searchPreview.toLowerCase()))
@@ -330,28 +331,11 @@ export default function MenuHubPage() {
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-[#FAF6F0] border border-gray-200/60 overflow-hidden flex items-center justify-center shrink-0">
-                            {p.image ? (
-                              <img
-                                src={p.image}
-                                alt={p.name}
-                                loading="lazy"
-                                decoding="async"
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.onerror = null;
-                                  target.style.display = 'none';
-                                  if (target.parentElement && !target.parentElement.querySelector('.fallback-icon')) {
-                                    const fallback = document.createElement('span');
-                                    fallback.className = 'fallback-icon text-[#6F4E37] text-sm select-none';
-                                    fallback.textContent = '☕';
-                                    target.parentElement.appendChild(fallback);
-                                  }
-                                }}
-                              />
-                            ) : (
-                              <CupSoda className="w-5 h-5 text-[#6F4E37]" />
-                            )}
+                            <SafeProductImage
+                              src={p.image}
+                              alt={p.name}
+                              fallbackIcon={<CupSoda className="w-5 h-5 text-[#6F4E37]" />}
+                            />
                           </div>
                           <div>
                             <div className="font-bold text-gray-900">{p.name}</div>

@@ -30,15 +30,21 @@ export default function DashboardOverviewPage() {
       ]);
 
       const revList = Array.isArray(revRes) ? revRes : [];
-      const totalRev = revList.reduce((sum: number, item: any) => sum + (Number(item.revenue) || 0), 0);
-      const totalOrders = revList.reduce((sum: number, item: any) => sum + (Number(item.orders) || 0), 0);
+      const totalRev = revList.reduce(
+        (sum: number, item: any) => sum + (Number(item.totalNetRevenue) || Number(item.revenue) || 0),
+        0
+      );
+      const totalOrders = revList.reduce(
+        (sum: number, item: any) => sum + (Number(item.totalOrders) || Number(item.orders) || 0),
+        0
+      );
       setRevenue(totalRev);
       setTotalOrdersCount(totalOrders);
 
       const topList = Array.isArray(topRes) ? topRes : [];
       if (topList.length > 0) {
         setTopProductName(topList[0].productName || topList[0].name || "—");
-        setTopProductQty(topList[0].totalQuantity || 0);
+        setTopProductQty(topList[0].totalQuantitySold || topList[0].totalQuantity || 0);
       }
     } catch (err) {
       console.error("Error fetching overview:", err);

@@ -97,13 +97,20 @@ SELECT
     o.orderCode,
     c.fullName AS customerName,
     c.phoneNumber AS customerPhone,
-    DATEDIFF(MINUTE, o.paidAt, GETDATE()) AS waitingMinutes
+    DATEDIFF(MINUTE, ISNULL(o.paidAt, o.createdAt), GETDATE()) AS waitingMinutes
 FROM PagerDevice p
-JOIN [Order] o ON p.id = o.pagerId
+-- Dùng CROSS APPLY lấy đúng 1 đơn hàng mới nhất đang chờ của thẻ đó để không bao giờ bị nhân đôi dòng (như 2 thẻ P02)
+CROSS APPLY (
+    SELECT TOP 1 * 
+    FROM [Order] ord 
+    WHERE ord.pagerId = p.id 
+      AND ord.status IN ('PENDING_PREP', 'READY_FOR_PICKUP')
+      AND ord.deletedAt IS NULL
+    ORDER BY ord.id DESC
+) o
 LEFT JOIN Customer c ON o.customerId = c.id
-WHERE o.status IN ('PENDING_PREP', 'READY_FOR_PICKUP')
-  AND p.deletedAt IS NULL
-  AND o.deletedAt IS NULL;
+WHERE p.status = 'IN_USE'
+  AND p.deletedAt IS NULL;
 GO
 --7. Tổng hợp lịch sử tích/ đổi điểm và đối soát số dư từng hội viên
 CREATE OR ALTER VIEW v_CustomerLoyaltySummary AS
