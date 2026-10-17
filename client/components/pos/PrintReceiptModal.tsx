@@ -88,7 +88,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
           ) : invoice ? (
             <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-5 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-950/80 shadow-inner">
               {/* Receipt Header */}
-              <div className="text-center font-bold text-sm uppercase">COFFEE SHOP SYSTEM</div>
+              <div className="text-center font-bold text-sm uppercase">HỆ THỐNG CÀ PHÊ MEPHAPHIN</div>
               <div className="text-center text-[10px] text-zinc-500">Số 01 Võ Văn Ngân, TP. Thủ Đức, TP. HCM</div>
               <div className="my-2 border-t border-dashed border-zinc-400" />
 

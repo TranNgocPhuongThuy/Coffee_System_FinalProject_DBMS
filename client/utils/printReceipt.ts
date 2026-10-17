@@ -121,7 +121,7 @@ export function printReceipt(invoice: InvoiceData) {
       </head>
       <body>
         <div class="text-center font-bold" style="font-size: 17px; text-transform: uppercase;">
-          COFFEE SHOP SYSTEM
+          MEPHAPHIN COFFEE
         </div>
         <div class="text-center" style="font-size: 11px; margin-top: 2px;">
           Số 01 Võ Văn Ngân, TP. Thủ Đức, TP. HCM<br />
@@ -188,7 +188,7 @@ export function printReceipt(invoice: InvoiceData) {
 
         <div class="footer">
           <div>* Cảm ơn Quý khách và Hẹn gặp lại! *</div>
-          <div style="margin-top: 4px;">Wifi: CoffeeShop_Free / Pass: 88888888</div>
+          <div style="margin-top: 4px;">Wifi: MePhaPhin_Free / Pass: 88888888</div>
         </div>
 
         <script>

@@ -128,7 +128,7 @@ export default function KDSQueuePage() {
         </div>
       )}
 
-      {/* 1. Thẻ Metric Cards (Bố cục 'Icon bên trái - Thông số bên phải' chuẩn DineDesk) */}
+      {/* 1. Thẻ Metric Cards (Bố cục 'Icon bên trái - Thông số bên phải' chuẩn MePhaPhin) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Tổng số món chờ pha chế */}
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
@@ -183,7 +183,7 @@ export default function KDSQueuePage() {
         </div>
       </div>
 
-      {/* 2. Toolbar & Controls (Đóng gói trong Card trắng độc lập chuẩn DineDesk) */}
+      {/* 2. Toolbar & Controls (Đóng gói trong Card trắng độc lập chuẩn MePhaPhin) */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           <button

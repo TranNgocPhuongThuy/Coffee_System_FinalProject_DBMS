@@ -6,8 +6,8 @@ import { CartProvider } from '@/context/CartContext';
 import { ToastProvider } from '@/context/ToastContext';
 
 export const metadata: Metadata = {
-  title: 'Coffee Management System',
-  description: 'Hệ thống quản lý chuỗi cà phê POS & Inventory',
+  title: 'MePhaPhin - Quản lý quán cà phê',
+  description: 'Hệ thống quản lý chuỗi cà phê MePhaPhin - POS & Inventory',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
