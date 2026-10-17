@@ -60,6 +60,7 @@ GO
 
 -- Đơn vị danh sách món
 CREATE TYPE udt_OrderDetailList AS TABLE (
+    itemIndex INT NOT NULL,
     variantId INT NOT NULL,
     quantity INT NOT NULL,
     note NVARCHAR(255),
@@ -114,6 +115,7 @@ CREATE OR ALTER PROCEDURE sp_CreateCounterOrder
     @TotalAmount DECIMAL(18, 2),
     @PaymentMethod NVARCHAR(50),
     @OrderDetails udt_OrderDetailList READONLY,
+    @OrderToppings udt_OrderDetailToppingList READONLY, -- Tham số mới
     @NewOrderId INT OUTPUT
 AS
 BEGIN
@@ -124,7 +126,6 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- 1. Tạo Header Order
         INSERT INTO [Order] (
             orderCode, customerId, pagerId, employeeId, orderChannel,
             subTotal, discountAmount, totalAmount, paymentMethod,
@@ -138,16 +139,26 @@ BEGIN
 
         SET @NewOrderId = SCOPE_IDENTITY();
 
- INSERT INTO OrderDetail (
-            orderId, variantId, quantity, note, itemSnapshotName,
-            sizeSnapshot, unitPrice, totalToppingPriceSnapshot,
-            totalPrice, itemStatus, createdAt
-        )
-        SELECT 
-            @NewOrderId, src.variantId, src.quantity, src.note, src.itemSnapshotName,
-            src.sizeSnapshot, src.unitPrice, src.totalToppingPriceSnapshot,
-            src.totalPrice, N'PENDING', SYSDATETIME()
-        FROM @OrderDetails AS src;
+        -- Bảng tạm để bắt ID thực tế của từng món (tránh Map sai)
+        DECLARE @InsertedDetails TABLE (
+            itemIndex INT,
+            detailId INT
+        );
+
+        -- Insert Món ăn và lấy ID thực tế
+        MERGE OrderDetail AS target
+        USING @OrderDetails AS source
+        ON 1 = 0
+        WHEN NOT MATCHED THEN
+            INSERT (orderId, variantId, quantity, note, itemSnapshotName, sizeSnapshot, unitPrice, totalToppingPriceSnapshot, totalPrice, itemStatus, createdAt)
+            VALUES (@NewOrderId, source.variantId, source.quantity, source.note, source.itemSnapshotName, source.sizeSnapshot, source.unitPrice, source.totalToppingPriceSnapshot, source.totalPrice, N'PENDING', SYSDATETIME())
+        OUTPUT source.itemIndex, inserted.id INTO @InsertedDetails(itemIndex, detailId);
+
+        -- Insert Topping chuẩn xác 100% dựa vào ID vừa lấy được
+        INSERT INTO OrderDetailTopping (orderDetailId, toppingId, toppingSnapshotName, toppingPrice, quantity)
+        SELECT id.detailId, ot.toppingId, ot.toppingSnapshotName, ot.toppingPrice, ot.quantity
+        FROM @OrderToppings ot
+        INNER JOIN @InsertedDetails id ON ot.itemIndex = id.itemIndex;
 
         COMMIT TRANSACTION;
     END TRY
@@ -368,7 +379,7 @@ GO
 
 
 -- 1.4. sp_ApplyLoyaltyPoints
-CREATE PROCEDURE sp_ApplyLoyaltyPoints
+CREATE OR ALTER PROCEDURE sp_ApplyLoyaltyPoints
     @OrderId INT,
     @CustomerId INT,
     @PointsToRedeem INT,
@@ -387,26 +398,55 @@ BEGIN
 
         IF @CurrentPoints IS NULL OR @CurrentPoints < @PointsToRedeem
         BEGIN
-            RAISERROR(N'Insufficient loyalty points balance!', 16, 1);
+            RAISERROR(N'Số dư điểm tích lũy không đủ!', 16, 1);
             ROLLBACK TRANSACTION;
             RETURN;
         END
 
-        DECLARE @DiscountAmount DECIMAL(18, 2) = @PointsToRedeem * @ConversionRate;
+        DECLARE @SubTotal DECIMAL(18, 2);
+        DECLARE @DiscountAmount DECIMAL(18, 2);
+        
+        -- Lấy thông tin giá trị đơn hàng
+        SELECT @SubTotal = subTotal, @DiscountAmount = discountAmount 
+        FROM [Order] 
+        WHERE id = @OrderId;
 
-      
+        -- Tính số tiền tối đa còn có thể giảm
+        DECLARE @MaxDiscount DECIMAL(18,2) = @SubTotal - @DiscountAmount;
+        IF @MaxDiscount <= 0 
+        BEGIN
+            RAISERROR(N'Đơn hàng có giá trị 0đ, không thể áp dụng thêm điểm thưởng.', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
 
+        -- Tính số điểm tối đa được phép sử dụng cho đơn này
+        DECLARE @MaxPoints INT = CEILING(@MaxDiscount / @ConversionRate);
+        
+        -- Nếu nhân viên nhập quá số điểm cần thiết -> Tự động ép về mức tối đa
+        IF @PointsToRedeem > @MaxPoints
+        BEGIN
+            SET @PointsToRedeem = @MaxPoints;
+        END
+
+        DECLARE @ActualDiscount DECIMAL(18, 2) = @PointsToRedeem * @ConversionRate;
+        IF @ActualDiscount > @MaxDiscount
+        BEGIN
+            SET @ActualDiscount = @MaxDiscount;
+        END
+
+        -- Cập nhật hóa đơn
         UPDATE [Order]
-        SET discountAmount = discountAmount + @DiscountAmount,
-            totalAmount = CASE WHEN (subTotal - (discountAmount + @DiscountAmount)) < 0 THEN 0 ELSE subTotal - (discountAmount + @DiscountAmount) END,
+        SET discountAmount = discountAmount + @ActualDiscount,
+            totalAmount = subTotal - (discountAmount + @ActualDiscount),
             updatedAt = GETDATE()
         WHERE id = @OrderId;
 
-        DECLARE @NewBalance INT;
-        SELECT @NewBalance = rewardPoints FROM Customer WHERE id = @CustomerId;
+        DECLARE @NewBalance INT = @CurrentPoints - @PointsToRedeem;
 
+        -- Ghi sổ cái
         INSERT INTO LoyaltyTransaction (customerId, orderId, transactionType, points, balanceAfter, description, createdAt)
-        VALUES (@CustomerId, @OrderId, N'REDEEM', -@PointsToRedeem, @NewBalance, N'Redeemed points for order #' + CAST(@OrderId AS NVARCHAR(20)), GETDATE());
+        VALUES (@CustomerId, @OrderId, N'REDEEM', -@PointsToRedeem, @NewBalance, N'Đổi điểm áp dụng cho hóa đơn #' + CAST(@OrderId AS NVARCHAR(20)), GETDATE());
 
         COMMIT TRANSACTION;
     END TRY
@@ -419,7 +459,7 @@ GO
 
 
 -- 1.5. sp_RemoveOrderItem
-CREATE PROCEDURE sp_RemoveOrderItem
+CREATE OR ALTER PROCEDURE sp_RemoveOrderItem
     @OrderDetailId INT
 AS
 BEGIN
@@ -429,8 +469,27 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        DECLARE @ItemStatus NVARCHAR(50);
         DECLARE @OrderId INT;
-        SELECT @OrderId = orderId FROM OrderDetail WHERE id = @OrderDetailId;
+
+        SELECT @OrderId = orderId, @ItemStatus = itemStatus 
+        FROM OrderDetail 
+        WHERE id = @OrderDetailId;
+
+        IF @ItemStatus IS NULL
+        BEGIN
+            RAISERROR(N'Chi tiết món không tồn tại!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        -- Chặn xóa món nếu đã bắt đầu pha chế
+        IF @ItemStatus IN ('PREPARING', 'DONE', 'DELIVERED')
+        BEGIN
+            RAISERROR(N'Không thể xóa món đang hoặc đã pha chế xong để bảo toàn dữ liệu tồn kho!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
 
         DELETE FROM OrderDetailTopping WHERE orderDetailId = @OrderDetailId;
         DELETE FROM OrderDetail WHERE id = @OrderDetailId;

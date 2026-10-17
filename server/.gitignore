@@ -47,3 +47,6 @@ database/.vs/
 # 8. File test
 test-pos.http
 /test
+
+*project.md
+!README.md

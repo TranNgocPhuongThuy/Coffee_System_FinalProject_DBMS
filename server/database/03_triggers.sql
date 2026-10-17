@@ -90,42 +90,41 @@ BEGIN
         RETURN;
     END
 
-    -- Chỉ kiểm tra những món chưa hoàn thành và chưa bị hủy
-    ;WITH RequiredList AS (
-        -- Tiêu hao từ ly nước
+    -- Tính tổng nguyên liệu ĐANG CHỜ (PENDING + PREPARING) của TOÀN BỘ HỆ THỐNG
+    ;WITH PendingList AS (
         SELECT 
             rb.ingredientId,
-            SUM(rb.consumedQuantity * ins.quantity) AS requiredQty
-        FROM inserted ins
-        INNER JOIN RecipeBOM rb ON ins.variantId = rb.variantId
-        WHERE ins.itemStatus NOT IN (N'DONE', N'CANCELLED')
+            SUM(rb.consumedQuantity * od.quantity) AS pendingQty
+        FROM OrderDetail od
+        INNER JOIN RecipeBOM rb ON od.variantId = rb.variantId
+        WHERE od.itemStatus IN (N'PENDING', N'PREPARING')
         GROUP BY rb.ingredientId
 
         UNION ALL
 
-        -- Tiêu hao từ Topping (nếu có cập nhật/thêm)
         SELECT 
             tb.ingredientId,
-            SUM(tb.consumedQuantity * odt.quantity * ins.quantity) AS requiredQty
-        FROM inserted ins
-        INNER JOIN OrderDetailTopping odt ON ins.id = odt.orderDetailId
+            SUM(tb.consumedQuantity * odt.quantity * od.quantity) AS pendingQty
+        FROM OrderDetail od
+        INNER JOIN OrderDetailTopping odt ON od.id = odt.orderDetailId
         INNER JOIN ToppingBOM tb ON odt.toppingId = tb.toppingId
-        WHERE ins.itemStatus NOT IN (N'DONE', N'CANCELLED')
+        WHERE od.itemStatus IN (N'PENDING', N'PREPARING')
         GROUP BY tb.ingredientId
     ),
-    TotalRequirement AS (
-        SELECT ingredientId, SUM(requiredQty) AS totalRequired
-        FROM RequiredList
+    TotalPending AS (
+        SELECT ingredientId, SUM(pendingQty) AS totalPending
+        FROM PendingList
         GROUP BY ingredientId
     )
+    -- So sánh trực tiếp Tổng cần với Tồn kho thực tế
     SELECT TOP 1 1
-    FROM TotalRequirement tr
-    INNER JOIN Ingredient ig ON tr.ingredientId = ig.id
-    WHERE ig.stockQuantity < tr.totalRequired;
+    FROM TotalPending tp
+    INNER JOIN Ingredient ig ON tp.ingredientId = ig.id
+    WHERE ig.stockQuantity < tp.totalPending;
 
     IF @@ROWCOUNT > 0
     BEGIN
-        RAISERROR(N'Tồn kho nguyên liệu (bao gồm cả topping) không đủ để đáp ứng yêu cầu!', 16, 1);
+        RAISERROR(N'Tồn kho nguyên liệu không đủ để đáp ứng yêu cầu các đơn hàng hiện tại!', 16, 1);
         ROLLBACK TRANSACTION;
         RETURN;
     END

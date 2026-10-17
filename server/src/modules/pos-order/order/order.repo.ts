@@ -13,6 +13,7 @@ export class OrderRepo {
    */
   private buildOrderDetailTVP(items: OrderItemType[]): sql.Table {
     const tvp = new sql.Table('udt_OrderDetailList')
+    tvp.columns.add('itemIndex', sql.Int, { nullable: false }) // Cập nhật
     tvp.columns.add('variantId', sql.Int, { nullable: false })
     tvp.columns.add('quantity', sql.Int, { nullable: false })
     tvp.columns.add('note', sql.NVarChar(255), { nullable: true })
@@ -22,17 +23,32 @@ export class OrderRepo {
     tvp.columns.add('totalToppingPriceSnapshot', sql.Decimal(18, 2), { nullable: false })
     tvp.columns.add('totalPrice', sql.Decimal(18, 2), { nullable: false })
 
-    items.forEach((item) => {
+    items.forEach((item, index) => {
       tvp.rows.add(
-        item.variantId,
-        item.quantity,
-        item.note || null,
-        item.itemSnapshotName,
-        item.sizeSnapshot,
-        item.unitPrice,
-        item.totalToppingPriceSnapshot ?? 0,
-        item.totalPrice
+        index, // Map đúng index
+        item.variantId, item.quantity, item.note || null,
+        item.itemSnapshotName, item.sizeSnapshot, item.unitPrice,
+        item.totalToppingPriceSnapshot ?? 0, item.totalPrice
       )
+    })
+    return tvp
+  }
+
+  // Hàm tạo TVP cho Topping
+  private buildOrderDetailToppingTVP(items: OrderItemType[]): sql.Table {
+    const tvp = new sql.Table('udt_OrderDetailToppingList')
+    tvp.columns.add('itemIndex', sql.Int, { nullable: false })       
+    tvp.columns.add('toppingId', sql.Int, { nullable: true })
+    tvp.columns.add('toppingSnapshotName', sql.NVarChar(150), { nullable: false })
+    tvp.columns.add('toppingPrice', sql.Decimal(18, 2), { nullable: false })
+    tvp.columns.add('quantity', sql.Int, { nullable: false })
+
+    items.forEach((item, index) => {
+      if (item.toppings && item.toppings.length > 0) {
+        item.toppings.forEach(topping => {
+          tvp.rows.add(index, topping.toppingId || null, topping.toppingSnapshotName, topping.toppingPrice, topping.quantity || 1)
+        })
+      }
     })
     return tvp
   }
