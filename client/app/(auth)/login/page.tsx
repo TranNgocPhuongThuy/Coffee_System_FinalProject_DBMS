@@ -37,7 +37,7 @@ export default function LoginPage() {
           <Coffee className="w-7 h-7" strokeWidth={2} />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Đăng nhập hệ thống</h1>
-        <p className="text-sm text-gray-500 mt-1">Coffee Shop Management System</p>
+        <p className="text-sm text-gray-500 mt-1">Hệ thống quản lý quán cà phê MePhaPhin</p>
       </div>
 
       {/* UserType Switcher */}

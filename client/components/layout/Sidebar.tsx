@@ -72,10 +72,10 @@ export default function Sidebar() {
         </div>
         <div className="flex flex-col">
           <span className="text-xl font-bold text-gray-900 tracking-tight leading-none">
-            DineDesk
+            MePhaPhin
           </span>
           <span className="text-[11px] text-gray-400 font-medium mt-1">
-            Coffee Management
+            Coffee & Operations Management
           </span>
         </div>
       </div>
