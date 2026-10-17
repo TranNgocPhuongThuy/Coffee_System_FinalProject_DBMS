@@ -338,7 +338,7 @@ export default function InventoryImportsPage() {
                       </span>
                     </td>
                     <td className="py-3.5 px-5">
-                      <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                      <div className="font-bold text-gray-900 flex items-center gap-1.5">
                         <Building2 className="w-3.5 h-3.5 text-gray-400" />
                         <span>{ticket.supplierName || "Nhà cung cấp tự do"}</span>
                       </div>

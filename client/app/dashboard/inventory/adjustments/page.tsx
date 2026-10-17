@@ -331,7 +331,7 @@ export default function InventoryAdjustmentsPage() {
                           #ADJ-{String(adj.id).padStart(3, "0")}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 font-semibold text-gray-900">
+                      <td className="py-3.5 px-5 font-bold text-gray-900">
                         {adj.ingredientName || `Nguyên liệu #${adj.ingredientId}`}
                       </td>
                       <td className="py-3.5 px-4 text-center font-medium text-gray-600">

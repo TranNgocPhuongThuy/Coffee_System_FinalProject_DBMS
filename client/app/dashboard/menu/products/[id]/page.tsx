@@ -359,10 +359,19 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     <img
                       src={image}
                       alt="Preview"
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=100&auto=format&fit=crop&q=60';
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.style.display = 'none';
+                        if (target.parentElement && !target.parentElement.querySelector('.fallback-icon')) {
+                          const fallback = document.createElement('span');
+                          fallback.className = 'fallback-icon text-[#6F4E37] text-2xl select-none';
+                          fallback.textContent = '☕';
+                          target.parentElement.appendChild(fallback);
+                        }
                       }}
                     />
                   ) : (

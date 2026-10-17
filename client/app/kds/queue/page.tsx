@@ -1,24 +1,49 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import {
   ChefHat,
   Clock,
-  ArrowLeft,
   RefreshCw,
-  BellRing,
+  Play,
+  CheckCircle2,
+  CookingPot,
+  Sparkles,
 } from 'lucide-react';
 import { kdsService } from '@/api/kds.service';
 import { KdsQueueItem } from '@/types/kds';
 import { KDSTicketCard } from '@/components/kds/KDSTicketCard';
 import { QuickRecipeModal } from '@/components/kds/QuickRecipeModal';
 
+function LiveClock() {
+  const [time, setTime] = useState<string>('');
+  useEffect(() => {
+    const updateTime = () => {
+      setTime(
+        new Date().toLocaleTimeString('vi-VN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        })
+      );
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#F0E6DD] text-[#6F4E37] font-mono text-xs font-bold shrink-0">
+      <Clock className="w-3.5 h-3.5 text-[#6F4E37]/70" />
+      <span>{time || '14:30:00'}</span>
+    </div>
+  );
+}
+
 export default function KDSQueuePage() {
   const [queueItems, setQueueItems] = useState<KdsQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'PREPARING'>('ALL');
-  const [currentTime, setCurrentTime] = useState<string>('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
 
   // Recipe Modal
@@ -32,23 +57,6 @@ export default function KDSQueuePage() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
-
-  // Clock widget update
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(
-        now.toLocaleTimeString('vi-VN', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        })
-      );
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Fetch KDS Queue from Backend
   const fetchQueue = useCallback(async () => {
@@ -81,9 +89,9 @@ export default function KDSQueuePage() {
       await kdsService.updateItemStatus(orderDetailId, { itemStatus: status });
       showToast(
         status === 'PREPARING'
-          ? 'Đã bắt đầu pha chế!'
+          ? 'Đã bắt đầu pha chế món!'
           : status === 'DONE'
-          ? 'Hoàn tất pha chế thành công!'
+          ? 'Đã hoàn tất pha chế thành công!'
           : 'Đã hủy món'
       );
       await fetchQueue();
@@ -111,127 +119,157 @@ export default function KDSQueuePage() {
   const doneCount = queueItems.filter((i) => i.itemStatus === 'DONE').length;
 
   return (
-    <div className="min-h-screen bg-[#FAF6F0] text-gray-800 flex flex-col font-sans antialiased">
-      {/* Toast Notification */}
+    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 pb-16">
+      {/* Toast Alert */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg text-sm font-semibold z-50 animate-in fade-in">
-          {toastMessage}
+        <div className="fixed bottom-6 right-6 z-50 bg-[#6F4E37] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5">
+          <CheckCircle2 className="w-5 h-5 text-emerald-300" />
+          <span className="font-semibold text-sm">{toastMessage}</span>
         </div>
       )}
 
-      {/* Header Bar */}
-      <header className="bg-white border-b border-gray-200/80 px-6 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sticky top-0 z-30 shadow-xs">
-        {/* Left: Logo & Time */}
-        <div className="flex items-center gap-4">
-          <Link
-            href="/dashboard"
-            className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
-            title="Quay về Dashboard"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#F5EBE6] text-[#6F4E37] flex items-center justify-center font-bold shadow-xs">
-              <ChefHat className="w-6 h-6" strokeWidth={2.2} />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 tracking-tight leading-none">
-                Màn hình Bếp / Quầy Bar (KDS)
-              </h1>
-              <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5 font-medium">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                Real-time Sync (5s) • Quầy pha chế
-              </p>
-            </div>
+      {/* 1. Thẻ Metric Cards (Bố cục 'Icon bên trái - Thông số bên phải' chuẩn DineDesk) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Tổng số món chờ pha chế */}
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-[#F5EBE6] text-[#6F4E37] flex items-center justify-center shrink-0 font-bold">
+            <CookingPot className="w-6 h-6" />
           </div>
-
-          {/* Clock Widget */}
-          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#FAF6F0] border border-[#F0E6DD] text-[#6F4E37] font-mono text-sm font-bold ml-3">
-            <Clock className="w-4 h-4 text-[#6F4E37]/70" />
-            <span>{currentTime || '14:30:00'}</span>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Hàng đợi hiện tại</p>
+            <p className="text-xl font-bold text-gray-900 mt-0.5">
+              {queueItems.length.toLocaleString('vi-VN')} <span className="text-xs font-normal text-gray-500">món</span>
+            </p>
           </div>
         </div>
 
-        {/* Right: Controls & Tabs */}
+        {/* Card 2: Chờ pha chế (PENDING) */}
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 font-bold">
+            <Clock className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Chờ pha chế</p>
+            <p className="text-xl font-bold text-amber-800 mt-0.5">
+              {pendingCount.toLocaleString('vi-VN')} <span className="text-xs font-normal text-amber-700/80">món</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Card 3: Đang pha chế (PREPARING) */}
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 font-bold">
+            <Play className="w-6 h-6 fill-blue-600/20" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Đang thực hiện</p>
+            <p className="text-xl font-bold text-blue-700 mt-0.5">
+              {preparingCount.toLocaleString('vi-VN')} <span className="text-xs font-normal text-blue-600/80">món</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Card 4: Đã hoàn tất */}
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Đã xong ca làm việc</p>
+            <p className="text-xl font-bold text-emerald-700 mt-0.5">
+              {doneCount.toLocaleString('vi-VN')} <span className="text-xs font-normal text-emerald-600/80">món</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Toolbar & Controls (Đóng gói trong Card trắng độc lập chuẩn DineDesk) */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
+            onClick={() => setActiveTab('ALL')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'ALL'
+                ? 'bg-[#6F4E37] text-white shadow-sm'
+                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            Tất cả ({queueItems.length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('PENDING')}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'PENDING'
+                ? 'bg-[#6F4E37] text-white shadow-sm'
+                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            <span>Chờ pha chế</span>
+            {pendingCount > 0 && (
+              <span
+                className={`w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center ${
+                  activeTab === 'PENDING'
+                    ? 'bg-[#F5EBE6] text-[#6F4E37]'
+                    : 'bg-amber-100 text-amber-800'
+                }`}
+              >
+                {pendingCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('PREPARING')}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'PREPARING'
+                ? 'bg-[#6F4E37] text-white shadow-sm'
+                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            <span>Đang pha chế</span>
+            {preparingCount > 0 && (
+              <span
+                className={`w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center ${
+                  activeTab === 'PREPARING'
+                    ? 'bg-[#F5EBE6] text-[#6F4E37]'
+                    : 'bg-blue-100 text-blue-800'
+                }`}
+              >
+                {preparingCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2.5 flex-wrap justify-end">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+            Đồng bộ (5s)
+          </span>
+
+          <LiveClock />
+
+          <button
+            type="button"
             onClick={fetchQueue}
-            className="p-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+            className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
             title="Làm mới hàng đợi"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#6F4E37]' : ''}`} />
           </button>
-
-          <div className="flex items-center gap-1.5 bg-gray-100/80 p-1.5 rounded-2xl">
-            <button
-              type="button"
-              onClick={() => setActiveTab('ALL')}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'ALL'
-                  ? 'bg-[#6F4E37] text-white shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-white'
-              }`}
-            >
-              Tất cả ({queueItems.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('PENDING')}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'PENDING'
-                  ? 'bg-[#6F4E37] text-white shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-white'
-              }`}
-            >
-              <span>Chờ pha chế</span>
-              {pendingCount > 0 && (
-                <span
-                  className={`w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center ${
-                    activeTab === 'PENDING'
-                      ? 'bg-[#F5EBE6] text-[#6F4E37]'
-                      : 'bg-amber-100 text-amber-800'
-                  }`}
-                >
-                  {pendingCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('PREPARING')}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'PREPARING'
-                  ? 'bg-[#6F4E37] text-white shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-white'
-              }`}
-            >
-              <span>Đang pha chế</span>
-              {preparingCount > 0 && (
-                <span
-                  className={`w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center ${
-                    activeTab === 'PREPARING'
-                      ? 'bg-[#F5EBE6] text-[#6F4E37]'
-                      : 'bg-blue-100 text-blue-800'
-                  }`}
-                >
-                  {preparingCount}
-                </span>
-              )}
-            </button>
-          </div>
         </div>
-      </header>
+      </div>
 
-      {/* Main Grid Content */}
-      <main className="flex-1 p-6 overflow-y-auto max-w-7xl w-full mx-auto">
+      {/* 4. Grid Tickets KDS */}
+      <div className="space-y-4">
         {loading && queueItems.length === 0 ? (
-          <div className="h-96 flex flex-col items-center justify-center text-center p-8 text-gray-400 animate-pulse">
+          <div className="bg-white rounded-2xl p-16 border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center text-gray-400 animate-pulse">
             <ChefHat className="w-12 h-12 mb-3 stroke-1 text-gray-300" />
-            <p className="text-sm font-semibold text-gray-600">Đang đồng bộ hàng đợi KDS từ hệ thống...</p>
+            <p className="text-sm font-semibold text-gray-600">Đang đồng bộ hàng đợi KDS từ quầy POS...</p>
           </div>
         ) : queueItems.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -250,17 +288,19 @@ export default function KDSQueuePage() {
             ))}
           </div>
         ) : (
-          <div className="h-96 flex flex-col items-center justify-center text-center p-8 text-gray-400">
-            <ChefHat className="w-16 h-16 mb-3 stroke-1 text-gray-300" />
-            <p className="text-base font-semibold text-gray-700">
-              Không có món nào cần pha chế trong danh mục này
+          <div className="bg-white rounded-2xl p-16 border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center text-gray-400">
+            <div className="w-16 h-16 rounded-2xl bg-[#FAF6F0] flex items-center justify-center text-[#6F4E37] mb-3">
+              <ChefHat className="w-8 h-8" />
+            </div>
+            <p className="text-base font-bold text-gray-800">
+              Hiện tại không có món nào cần pha chế
             </p>
-            <p className="text-xs text-gray-400 mt-1">
-              Đơn gọi món mới từ quầy POS sẽ tự động xuất hiện tại đây theo thời gian thực (5s)
+            <p className="text-xs text-gray-400 mt-1 max-w-sm">
+              Đơn gọi món mới từ quầy POS hoặc ứng dụng đặt hàng sẽ tự động xuất hiện tại đây theo thời gian thực (5s).
             </p>
           </div>
         )}
-      </main>
+      </div>
 
       {/* Quick Recipe BOM Modal */}
       <QuickRecipeModal

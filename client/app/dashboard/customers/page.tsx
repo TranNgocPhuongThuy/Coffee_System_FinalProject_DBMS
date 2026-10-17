@@ -345,12 +345,9 @@ export default function CustomersPage() {
                           <div className="w-9 h-9 rounded-full bg-[#F5EBE6] text-[#6F4E37] font-bold text-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                             {initial}
                           </div>
-                          <div>
-                            <span className="font-semibold text-gray-900 group-hover:text-[#6F4E37] transition-colors block">
-                              {cust.fullName}
-                            </span>
-                            <span className="text-xs text-gray-400 font-mono">ID: #{cust.id}</span>
-                          </div>
+                          <span className="font-bold text-gray-900 group-hover:text-[#6F4E37] transition-colors">
+                            {cust.fullName}
+                          </span>
                         </div>
                       </td>
 

@@ -46,14 +46,14 @@ export const RevenueSummaryCards: React.FC<RevenueSummaryCardsProps> = ({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Card 1: Tổng doanh thu thực nhận */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          <p className="text-xs text-gray-400 font-medium">
             Doanh thu thực nhận
           </p>
-          <h3 className="text-2xl font-extrabold text-[#6F4E37] mt-1.5">
+          <h3 className="text-xl font-bold text-[#6F4E37] mt-0.5">
             {formatCurrency(netRevenue)}
           </h3>
           <p className="text-xs text-gray-400 font-medium mt-1">
@@ -66,12 +66,12 @@ export const RevenueSummaryCards: React.FC<RevenueSummaryCardsProps> = ({
       </div>
 
       {/* Card 2: Tổng số đơn hàng */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          <p className="text-xs text-gray-400 font-medium">
             Tổng đơn hàng
           </p>
-          <h3 className="text-2xl font-extrabold text-gray-900 mt-1.5">
+          <h3 className="text-xl font-bold text-gray-900 mt-0.5">
             {totalOrders.toLocaleString('vi-VN')} <span className="text-sm font-normal text-gray-500">đơn</span>
           </h3>
           <p className="text-xs text-gray-400 mt-1">Ghi nhận từ POS & Online</p>
@@ -82,12 +82,12 @@ export const RevenueSummaryCards: React.FC<RevenueSummaryCardsProps> = ({
       </div>
 
       {/* Card 3: Món bán chạy nhất */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-start justify-between">
         <div className="min-w-0 pr-2">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          <p className="text-xs text-gray-400 font-medium">
             Món bán chạy nhất
           </p>
-          <h3 className="text-base font-bold text-gray-900 mt-1.5 truncate">
+          <h3 className="text-xl font-bold text-gray-900 mt-0.5 truncate">
             {topProductName}
           </h3>
           <p className="text-xs text-gray-400 mt-1">
@@ -100,12 +100,12 @@ export const RevenueSummaryCards: React.FC<RevenueSummaryCardsProps> = ({
       </div>
 
       {/* Card 4: Cảnh báo kho nguyên liệu */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          <p className="text-xs text-gray-400 font-medium">
             Cảnh báo kho
           </p>
-          <h3 className="text-2xl font-extrabold text-rose-600 mt-1.5">
+          <h3 className="text-xl font-bold text-rose-600 mt-0.5">
             {lowStockCount} <span className="text-sm font-normal text-rose-500">mặt hàng</span>
           </h3>
           <p className="text-xs text-rose-500/80 font-medium mt-1">Sắp hết hoặc chạm ngưỡng</p>

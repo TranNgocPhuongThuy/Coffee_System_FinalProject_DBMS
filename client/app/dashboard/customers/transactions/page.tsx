@@ -282,12 +282,14 @@ function TransactionsContent() {
                           className="group text-left cursor-pointer"
                           title="Click để lọc tất cả giao dịch của khách này"
                         >
-                          <span className="font-semibold text-gray-900 group-hover:text-[#6F4E37] transition-colors block">
-                            {tx.customerName || `Khách hàng #${tx.customerId}`}
+                          <span className="font-bold text-gray-900 group-hover:text-[#6F4E37] transition-colors block">
+                            {tx.customerName || `Khách hàng`}
                           </span>
-                          <span className="block text-xs text-gray-400 font-mono">
-                            {tx.customerPhone || `ID: #${tx.customerId}`}
-                          </span>
+                          {tx.customerPhone && (
+                            <span className="block text-xs text-gray-400 font-mono">
+                              {tx.customerPhone}
+                            </span>
+                          )}
                         </button>
 
                         <Link
