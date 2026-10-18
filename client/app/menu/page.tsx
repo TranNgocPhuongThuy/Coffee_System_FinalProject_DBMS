@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Coffee,
   ShoppingBag,
@@ -27,6 +28,7 @@ import {
   Check,
   Package,
   Store,
+  LogIn,
 } from "lucide-react";
 import { useAuthContext } from "@/context/AuthContext";
 import { menuService } from "@/api/menu.service";
@@ -42,6 +44,7 @@ import { loyaltyService } from "@/api";
 
 export default function CustomerStorefrontPage() {
   const { user, logout, refreshUser } = useAuthContext();
+  const router = useRouter();
 
   // Data states
   const [categories, setCategories] = useState<Category[]>([]);
@@ -106,6 +109,10 @@ export default function CustomerStorefrontPage() {
 
   // Hàm xử lý "Mua ngay"
   const handleBuyNow = () => {
+    if (!user) {
+      router.push("/login?callbackUrl=/menu");
+      return;
+    }
     handleAddToCart();
     setIsCartOpen(true);
   };
@@ -273,6 +280,10 @@ export default function CustomerStorefrontPage() {
 
   // Add customized product to cart
   const handleAddToCart = () => {
+    if (!user) {
+      router.push("/login?callbackUrl=/menu");
+      return;
+    }
     if (!selectedProduct || !selectedVariant) return;
 
     const toppingPayload: CustomerCartTopping[] = Object.values(modalToppings)
@@ -324,6 +335,10 @@ export default function CustomerStorefrontPage() {
 
   // Handle Checkout (Place Order)
   const handlePlaceOrder = async () => {
+    if (!user) {
+      router.push("/login?callbackUrl=/menu");
+      return;
+    }
     if (cart.items.length === 0) return;
     // Chỉ bắt buộc nhập địa chỉ khi chọn Giao tận nơi (DELIVERY)
     if (orderType === "DELIVERY" && !cart.deliveryAddress.trim()) {
@@ -512,7 +527,13 @@ export default function CustomerStorefrontPage() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveView("MY_ORDERS")}
+              onClick={() => {
+                if (!user) {
+                  router.push("/login?callbackUrl=/menu");
+                  return;
+                }
+                setActiveView("MY_ORDERS");
+              }}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeView === "MY_ORDERS"
                   ? "bg-white text-[#6F4E37] shadow-xs"
@@ -610,7 +631,13 @@ export default function CustomerStorefrontPage() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveView("MY_ORDERS")}
+            onClick={() => {
+              if (!user) {
+                router.push("/login?callbackUrl=/menu");
+                return;
+              }
+              setActiveView("MY_ORDERS");
+            }}
             className={`flex-1 py-1.5 rounded-lg text-xs font-bold text-center cursor-pointer ${
               activeView === "MY_ORDERS"
                 ? "bg-white text-[#6F4E37] shadow-xs"
@@ -1117,6 +1144,14 @@ export default function CustomerStorefrontPage() {
                 </div>
               </div>
 
+              {/* Lời nhắc nếu chưa đăng nhập */}
+              {!user && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-800 text-[11px] font-medium">
+                  <LogIn className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                  <span>Yêu cầu đăng nhập tài khoản để thêm giỏ hoặc mua hàng.</span>
+                </div>
+              )}
+
               {/* Hàng 2 nút: Thêm giỏ hàng + Mua ngay */}
               <div className="flex items-center gap-2.5">
                 <button
@@ -1369,20 +1404,21 @@ export default function CustomerStorefrontPage() {
                     </div>
                   </div>
 
-                  {/* Lời nhắc đăng nhập tích điểm nếu là khách vãng lai */}
+                  {/* Lời nhắc đăng nhập */}
                   {!user && (
-                    <div className="p-3 rounded-2xl bg-[#FAF6F0] border border-[#EADBCC] text-xs text-gray-600 flex items-center justify-between">
+                    <div className="p-3.5 rounded-2xl bg-[#FAF6F0] border border-[#EADBCC] text-xs text-gray-700 flex items-center justify-between gap-3">
                       <div className="space-y-0.5">
-                        <div className="font-bold text-[#6F4E37]">
-                          Tích điểm hội viên
+                        <div className="font-extrabold text-[#6F4E37] flex items-center gap-1.5">
+                          <LogIn className="w-3.5 h-3.5" />
+                          <span>Yêu cầu đăng nhập</span>
                         </div>
                         <div className="text-[11px] text-gray-500">
-                          Đăng nhập để nhận 1 điểm / 10.000 đ
+                          Đăng nhập để đặt hàng online và tích lũy điểm thưởng
                         </div>
                       </div>
                       <Link
                         href="/login?callbackUrl=/menu"
-                        className="px-2.5 py-1 rounded-lg bg-[#6F4E37] text-white text-[11px] font-bold hover:bg-[#5A3F2C]"
+                        className="px-3 py-1.5 rounded-xl bg-[#6F4E37] text-white text-xs font-bold hover:bg-[#5A3F2C] shrink-0"
                       >
                         Đăng nhập
                       </Link>
@@ -1491,7 +1527,14 @@ export default function CustomerStorefrontPage() {
                   onClick={handlePlaceOrder}
                   className="w-full py-3.5 rounded-2xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-[#6F4E37]/30 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  {isSubmittingOrder ? (
+                  {!user ? (
+                    <>
+                      <LogIn className="w-4 h-4" />
+                      <span>
+                        Đăng nhập để đặt hàng ({formatCurrency(cart.subTotal)})
+                      </span>
+                    </>
+                  ) : isSubmittingOrder ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
                       <span>Đang gửi đơn hàng...</span>

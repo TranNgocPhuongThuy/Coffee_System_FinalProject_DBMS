@@ -12,7 +12,7 @@ interface AuthContextType {
   user: UserProfile | null;
   token: string | null;
   loading: boolean;
-  login: (payload: LoginPayload) => Promise<void>;
+  login: (payload: LoginPayload, redirectUrl?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   hasRole: (...roles: UserRole[]) => boolean;
@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, [logout]);
 
-  const login = async (payload: LoginPayload) => {
+  const login = async (payload: LoginPayload, redirectUrl?: string) => {
     const data: AuthResponseData = await authService.login(payload);
 
     // 1. Lưu Cookie để middleware.ts đọc được ở Server-side (path: '/')
@@ -87,9 +87,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(data.accessToken);
     setUser(data.user);
 
-    // 3. Tự động chuyển hướng về trang mặc định theo Role
-    const targetRoute = ROLE_DEFAULT_ROUTES[data.user.role] || '/dashboard';
-    router.push(targetRoute);
+    // 3. Tự động chuyển hướng về callbackUrl hoặc trang mặc định theo Role
+    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const callbackUrl = redirectUrl || urlParams?.get('callbackUrl') || urlParams?.get('redirect');
+    if (callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
+      router.push(callbackUrl);
+    } else {
+      const targetRoute = ROLE_DEFAULT_ROUTES[data.user.role] || '/dashboard';
+      router.push(targetRoute);
+    }
   };
 
   const refreshUser = async () => {

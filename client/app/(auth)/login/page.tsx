@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Coffee } from 'lucide-react';
+import { Coffee, Info } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
@@ -13,6 +13,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [callbackUrl, setCallbackUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const cb = params.get('callbackUrl') || params.get('redirect');
+      if (cb) setCallbackUrl(cb);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -20,7 +29,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login({ identifier, password });
+      await login({ identifier, password }, callbackUrl || undefined);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Đăng nhập thất bại');
     } finally {
@@ -37,6 +46,13 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Đăng nhập hệ thống</h1>
         <p className="text-sm text-gray-500 mt-1">Hệ thống quản lý quán cà phê MePhaPhin</p>
       </div>
+
+      {callbackUrl && callbackUrl.includes('/menu') && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-[#6F4E37] text-xs font-medium text-center flex items-center justify-center gap-2 animate-in fade-in">
+          <Info className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>Vui lòng đăng nhập để tiếp tục chọn món và đặt hàng online</span>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-medium text-center animate-in fade-in">
@@ -70,7 +86,10 @@ export default function LoginPage() {
       </form>
 
       <div className="mt-6 pt-5 border-t border-gray-100 flex flex-col items-center space-y-2 text-center text-xs">
-        <Link href="/register" className="text-[#6F4E37] font-medium hover:underline">
+        <Link
+          href={`/register${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`}
+          className="text-[#6F4E37] font-medium hover:underline"
+        >
           Khách hàng mới? Đăng ký tài khoản
         </Link>
         <Link href="/setup-password" className="text-[#6F4E37] font-medium hover:underline">

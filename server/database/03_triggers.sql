@@ -306,6 +306,6 @@ BEGIN
         END,
         c.updatedAt = SYSDATETIME()
     FROM Customer c
-    INNER JOIN CustomerPointStats cps ON c.id = cps.customerId;
+    INNER JOIN CustomerPointStats cps ON c.id = cps.customerId
 END;
 GO
