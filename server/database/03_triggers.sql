@@ -205,10 +205,14 @@ BEGIN
         UPDATE p
         SET p.status = N'AVAILABLE', p.updatedAt = GETDATE()
         FROM PagerDevice p
-        INNER JOIN inserted ins ON p.id = ins.pagerId
-        INNER JOIN deleted del ON ins.id = del.id
-        WHERE ins.status IN (N'COMPLETED', N'CANCELLED')
-          AND del.status NOT IN (N'COMPLETED', N'CANCELLED');
+        INNER JOIN (
+            SELECT COALESCE(ins.pagerId, del.pagerId) AS pagerId
+            FROM inserted ins
+            INNER JOIN deleted del ON ins.id = del.id
+            WHERE ins.status IN (N'COMPLETED', N'CANCELLED')
+              AND del.status NOT IN (N'COMPLETED', N'CANCELLED')
+        ) released ON p.id = released.pagerId
+        WHERE released.pagerId IS NOT NULL;
     END
 
     -- Gán trạng thái sử dụng (IN_USE) khi có đơn hàng mới (Dự phòng nếu SP chưa cập nhật)

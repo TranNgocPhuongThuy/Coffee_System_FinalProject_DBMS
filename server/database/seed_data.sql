@@ -358,12 +358,27 @@ GO
 
 -- ==============================================================
 -- 14. LỊCH SỬ BIẾN ĐỘNG ĐIỂM (LoyaltyTransaction)
+-- Khởi tạo đầy đủ số dư sổ cái khớp 100% với Customer.rewardPoints
 -- ==============================================================
 SET IDENTITY_INSERT LoyaltyTransaction ON;
 INSERT INTO LoyaltyTransaction (id, customerId, orderId, transactionType, points, balanceAfter, description, createdAt)
 VALUES
-(1, 1, 1, 'EARN', 4, 250, N'Tích lũy điểm từ hóa đơn ORD260901', DATEADD(DAY, -1, GETDATE())),
-(2, 2, 2, 'REDEEM', -10, 550, N'Đổi 10 điểm giảm 10.000 VNĐ cho đơn ORD260902', GETDATE());
+-- Khách 1 (Nguyễn Văn An): Khởi tạo 246 + Tích điểm đơn ORD260901 4 = 250 điểm (SILVER)
+(1, 1, NULL, 'EARN', 246, 246, N'Khởi tạo số dư điểm ban đầu', DATEADD(DAY, -30, GETDATE())),
+(2, 1, 1, 'EARN', 4, 250, N'Tích lũy điểm từ hóa đơn ORD260901', DATEADD(DAY, -1, GETDATE())),
+
+-- Khách 2 (Lê Thị Mai): Khởi tạo 560 - Đổi điểm đơn ORD260902 10 = 550 điểm (GOLD)
+(3, 2, NULL, 'EARN', 560, 560, N'Khởi tạo số dư điểm ban đầu', DATEADD(DAY, -30, GETDATE())),
+(4, 2, 2, 'REDEEM', -10, 550, N'Đổi 10 điểm giảm 10.000 VNĐ cho đơn ORD260902', GETDATE()),
+
+-- Khách 3 (Trần Tuấn Kiệt): Khởi tạo 20 điểm (STANDARD)
+(5, 3, NULL, 'EARN', 20, 20, N'Khởi tạo số dư điểm ban đầu', DATEADD(DAY, -30, GETDATE())),
+
+-- Khách 4 (Phạm Hoàng Nam): Khởi tạo 1250 điểm (DIAMOND)
+(6, 4, NULL, 'EARN', 1250, 1250, N'Khởi tạo số dư điểm ban đầu', DATEADD(DAY, -30, GETDATE())),
+
+-- Khách 5 (Hoàng Thu Trang): Khởi tạo 320 điểm (SILVER)
+(7, 5, NULL, 'EARN', 320, 320, N'Khởi tạo số dư điểm ban đầu', DATEADD(DAY, -30, GETDATE()));
 SET IDENTITY_INSERT LoyaltyTransaction OFF;
 GO
 
