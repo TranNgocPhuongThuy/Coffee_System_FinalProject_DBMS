@@ -231,7 +231,7 @@ export const CustomerProfileDrawer: React.FC<CustomerProfileDrawerProps> = ({
                         tx.transactionType === 'EARN' ? 'text-emerald-600' : 'text-red-600'
                       }`}
                     >
-                      {tx.transactionType === 'EARN' ? `+${tx.points}` : `-${tx.points}`} pts
+                      {tx.transactionType === 'EARN' ? `+${Math.abs(tx.points)}` : `-${Math.abs(tx.points)}`} pts
                     </p>
                     <p className="text-[10px] text-gray-400 flex items-center justify-end gap-1">
                       <Clock className="w-3 h-3" />

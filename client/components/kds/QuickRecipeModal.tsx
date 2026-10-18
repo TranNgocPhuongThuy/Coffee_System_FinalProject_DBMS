@@ -73,9 +73,9 @@ export const QuickRecipeModal: React.FC<QuickRecipeModalProps> = ({
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span className="font-semibold text-gray-900">{rc.ingredientName || rc.name}</span>
-                    {rc.sizeSnapshot && (
-                      <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                        Size {rc.sizeSnapshot}
+                    {(rc.productSize || rc.sizeSnapshot) && (
+                      <span className="text-[10px] font-bold text-[#6F4E37] bg-[#F5EBE6] px-2 py-0.5 rounded-md border border-[#EBE3D5]">
+                        Size {rc.productSize || rc.sizeSnapshot}
                       </span>
                     )}
                   </div>

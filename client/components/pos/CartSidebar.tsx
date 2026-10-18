@@ -94,6 +94,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   useEffect(() => {
     if (items.length === 0) {
       isManualDeselectRef.current = false;
+      setReceivedCashStr(""); // Tự động xóa tiền khách đưa khi xong đơn / xóa giỏ
     }
   }, [items.length]);
 
@@ -150,7 +151,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
     };
   }, [debouncedCustomerSearch, allCustomers]);
 
-  const receivedCashNum = Number(receivedCashStr) || 0;
+  const receivedCashNum = Number(receivedCashStr.replace(/\D/g, '')) || 0;
 
   return (
     <div className="flex h-full w-full flex-col border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl select-none">
@@ -500,12 +501,17 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
               <input
                 type="text"
                 placeholder="0 đ"
-                value={
-                  receivedCashStr
-                    ? Number(receivedCashStr).toLocaleString("vi-VN")
-                    : ""
-                }
+                // CHỈ thay đổi cách hiển thị: nếu đang focus thì nhập thô, còn không thì tự format
+                value={receivedCashStr}
+                onBlur={(e) => {
+                  const val = Number(e.target.value.replace(/\D/g, ""));
+                  if (val > 0) setReceivedCashStr(val.toLocaleString("vi-VN"));
+                }}
+                onFocus={(e) => {
+                  setReceivedCashStr(e.target.value.replace(/\D/g, ""));
+                }}
                 onChange={(e) => {
+                  // Chỉ lấy số
                   const raw = e.target.value.replace(/\D/g, "");
                   setReceivedCashStr(raw);
                 }}

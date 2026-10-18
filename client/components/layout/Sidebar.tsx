@@ -93,6 +93,10 @@ export default function Sidebar() {
           const isActive =
             item.path === '/dashboard'
               ? pathname === '/dashboard'
+              : item.path.startsWith('/dashboard/inventory')
+              ? pathname.startsWith('/dashboard/inventory')
+              : item.path.startsWith('/dashboard/menu')
+              ? pathname.startsWith('/dashboard/menu')
               : pathname.startsWith(item.path);
 
           return (
