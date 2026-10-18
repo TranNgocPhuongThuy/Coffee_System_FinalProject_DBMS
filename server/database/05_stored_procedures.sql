@@ -264,7 +264,7 @@ GO
 
 
 -- 1.3. sp_CancelOrder
-CREATE PROCEDURE sp_CancelOrder
+CREATE OR ALTER PROCEDURE sp_CancelOrder
     @OrderId INT,
     @EmployeeId INT,
     @CancelReason NVARCHAR(500)
@@ -278,14 +278,12 @@ BEGIN
         BEGIN TRANSACTION;
 
         DECLARE @CurrentStatus NVARCHAR(50), 
-                @PaidAt DATETIME2(7),
                 @CustomerId INT,
                 @PointsRedeemed INT;
 
         -- 1. Khóa và kiểm tra thông tin đơn hàng
         SELECT 
             @CurrentStatus = status, 
-            @PaidAt = paidAt,
             @CustomerId = customerId
         FROM [Order] WITH (UPDLOCK, ROWLOCK)
         WHERE id = @OrderId AND deletedAt IS NULL;
@@ -298,15 +296,13 @@ BEGIN
             RETURN;
         END
 
-        -- Chặn hủy đơn đã thanh toán hoặc đã hoàn tất
-        IF @CurrentStatus = N'COMPLETED' OR @PaidAt IS NOT NULL
+        IF @CurrentStatus = N'COMPLETED'
         BEGIN
-            RAISERROR(N'Không thể hủy đơn hàng đã hoàn tất hoặc đã thanh toán!', 16, 1);
+            RAISERROR(N'Không thể hủy đơn hàng đã hoàn tất!', 16, 1);
             ROLLBACK TRANSACTION;
             RETURN;
         END
 
-        -- Chặn hủy lại đơn đã bị hủy trước đó
         IF @CurrentStatus = N'CANCELLED'
         BEGIN
             RAISERROR(N'Đơn hàng này đã bị hủy trước đó!', 16, 1);
@@ -314,51 +310,51 @@ BEGIN
             RETURN;
         END
 
-        -- 2. Cập nhật trạng thái đơn hàng sang CANCELLED và lưu vết nhân viên hủy
-        -- Trigger trg_Order_SyncPagerStatus sẽ tự động giải phóng thẻ rung về AVAILABLE
+        -- 2. Hủy các món chưa pha chế trong đơn
+        UPDATE OrderDetail
+        SET itemStatus = N'CANCELLED', updatedAt = SYSDATETIME()
+        WHERE orderId = @OrderId AND itemStatus <> N'DONE';
+
+        -- 3. Cập nhật trạng thái đơn hàng sang CANCELLED và giải phóng thẻ rung
         UPDATE [Order]
         SET status = N'CANCELLED',
             cancelReason = @CancelReason,
-            updatedAt = GETDATE()
+            pagerId = NULL,
+            updatedAt = SYSDATETIME()
         WHERE id = @OrderId;
 
-        -- 3. Hoàn trả điểm thưởng nếu khách hàng từng đổi điểm (REDEEM) cho đơn này
+        -- 4. Xử lý điểm thưởng hội viên (nếu có khách hàng)
         IF @CustomerId IS NOT NULL
         BEGIN
-            -- Tìm số điểm đã trừ trong đơn hàng
-            SELECT @PointsRedeemed = ABS(points)
-            FROM LoyaltyTransaction
+            -- TH1: Hoàn lại điểm nếu khách từng đổi điểm (REDEEM) cho đơn này
+            SELECT @PointsRedeemed = ABS(points) 
+            FROM LoyaltyTransaction 
             WHERE orderId = @OrderId AND transactionType = N'REDEEM';
 
             IF @PointsRedeemed > 0
             BEGIN
                 DECLARE @CurrentBalance INT;
-                SELECT @CurrentBalance = rewardPoints 
-                FROM Customer WITH (UPDLOCK, ROWLOCK) 
-                WHERE id = @CustomerId;
-
+                SELECT @CurrentBalance = rewardPoints FROM Customer WITH (UPDLOCK, ROWLOCK) WHERE id = @CustomerId;
                 DECLARE @NewBalance INT = ISNULL(@CurrentBalance, 0) + @PointsRedeemed;
 
-                -- Ghi nhận giao dịch hoàn điểm vào sổ cái
-                -- Trigger trg_LoyaltyTransaction_SyncPoints sẽ tự động cộng bù lại vào Customer.rewardPoints
-                INSERT INTO LoyaltyTransaction (
-                    customerId, 
-                    orderId, 
-                    transactionType, 
-                    points, 
-                    balanceAfter, 
-                    description, 
-                    createdAt
-                )
-                VALUES (
-                    @CustomerId, 
-                    @OrderId, 
-                    N'EARN', 
-                    @PointsRedeemed, 
-                    @NewBalance, 
-                    N'Hoàn lại điểm tích lũy do hủy đơn hàng #' + CAST(@OrderId AS NVARCHAR(20)), 
-                    GETDATE()
-                );
+                INSERT INTO LoyaltyTransaction (customerId, orderId, transactionType, points, balanceAfter, description, createdAt)
+                VALUES (@CustomerId, @OrderId, N'REDEEM', @PointsRedeemed, @NewBalance, N'Hoàn lại điểm do hủy đơn #' + CAST(@OrderId AS NVARCHAR(20)), SYSDATETIME());
+            END
+
+            -- TH2: Thu hồi lại điểm đã cộng (EARN) nếu đơn này từng được tích điểm
+            DECLARE @PointsEarnedBefore INT = 0;
+            SELECT @PointsEarnedBefore = SUM(points) 
+            FROM LoyaltyTransaction 
+            WHERE orderId = @OrderId AND transactionType = N'EARN' AND points > 0;
+
+            IF @PointsEarnedBefore > 0
+            BEGIN
+                DECLARE @CurBal INT;
+                SELECT @CurBal = rewardPoints FROM Customer WITH (UPDLOCK, ROWLOCK) WHERE id = @CustomerId;
+                DECLARE @BalAfterRevoke INT = CASE WHEN ISNULL(@CurBal, 0) - @PointsEarnedBefore > 0 THEN ISNULL(@CurBal, 0) - @PointsEarnedBefore ELSE 0 END;
+
+                INSERT INTO LoyaltyTransaction (customerId, orderId, transactionType, points, balanceAfter, description, createdAt)
+                VALUES (@CustomerId, @OrderId, N'EARN', -@PointsEarnedBefore, @BalAfterRevoke, N'Thu hồi điểm tích lũy do hủy đơn hàng #' + CAST(@OrderId AS NVARCHAR(20)), SYSDATETIME());
             END
         END
 
@@ -366,6 +362,66 @@ BEGIN
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+-- 1.3b. sp_RemoveOrderItem: Tự động tính lại subTotal và totalAmount của Order sau khi xóa món
+CREATE OR ALTER PROCEDURE sp_RemoveOrderItem
+    @OrderDetailId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @ItemStatus NVARCHAR(50);
+        DECLARE @OrderId INT;
+
+        SELECT @OrderId = orderId, @ItemStatus = itemStatus 
+        FROM OrderDetail 
+        WHERE id = @OrderDetailId;
+
+        IF @ItemStatus IS NULL
+        BEGIN
+            RAISERROR(N'Chi tiết món không tồn tại!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        IF @ItemStatus IN ('PREPARING', 'DONE', 'DELIVERED')
+        BEGIN
+            RAISERROR(N'Không thể xóa món đang hoặc đã pha chế xong để bảo toàn dữ liệu tồn kho!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        DELETE FROM OrderDetailTopping WHERE orderDetailId = @OrderDetailId;
+        DELETE FROM OrderDetail WHERE id = @OrderDetailId;
+
+        IF @OrderId IS NOT NULL
+        BEGIN
+            DECLARE @NewSubTotal DECIMAL(18, 2);
+            SELECT @NewSubTotal = ISNULL(SUM(totalPrice), 0)
+            FROM OrderDetail
+            WHERE orderId = @OrderId AND itemStatus <> N'CANCELLED';
+
+            UPDATE [Order]
+            SET subTotal = @NewSubTotal,
+                totalAmount = CASE WHEN @NewSubTotal - discountAmount > 0 THEN @NewSubTotal - discountAmount ELSE 0 END,
+                updatedAt = SYSDATETIME()
+            WHERE id = @OrderId;
+        END
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        INSERT INTO SystemLog (ActionType, TableName, Description, ErrorMessage)
+        VALUES ('ERROR', 'OrderDetail', 'Error in sp_RemoveOrderItem', ERROR_MESSAGE());
         THROW;
     END CATCH
 END;

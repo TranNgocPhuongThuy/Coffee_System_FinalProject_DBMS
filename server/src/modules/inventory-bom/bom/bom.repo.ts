@@ -8,16 +8,7 @@ export class BOMRepo {
     let query = 'SELECT * FROM v_ProductRecipeDetails'
     if (variantId) {
       req.input('variantId', sql.Int, variantId)
-      query = `
-        SELECT 
-          p.name AS productName, pv.size AS productSize,
-          i.name AS ingredientName, rb.consumedQuantity, i.unit AS ingredientUnit
-        FROM RecipeBOM rb
-        JOIN ProductVariant pv ON rb.variantId = pv.id
-        JOIN Product p ON pv.productId = p.id
-        JOIN Ingredient i ON rb.ingredientId = i.id
-        WHERE rb.variantId = @variantId
-      `
+      query = `SELECT * FROM v_ProductRecipeDetails WHERE variantId = @variantId`
     }
     const result = await req.query(query)
     return result.recordset

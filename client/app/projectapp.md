@@ -2,9 +2,9 @@
 
 **Root:** `C:\Programing\hqtcsdl\Coffee_System_FinalProject_DBMS\client\app`
 
-**Generated:** 2026-10-18 01:03:10.887346
+**Generated:** 2026-10-18 15:48:19.297916
 
-**Files:** 40 | **Total size:** 481,763 bytes
+**Files:** 40 | **Total size:** 492,962 bytes
 
 ---
 
@@ -171,7 +171,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 | Path | `(auth)\login\page.tsx` |
 | Size | 2,904 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 22:53:58.635159 |
+| Modified | 2026-10-18 01:54:08.497801 |
 
 ```tsx
 'use client';
@@ -406,7 +406,7 @@ export default function RegisterPage() {
 | Path | `(auth)\setup-password\page.tsx` |
 | Size | 4,685 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 22:09:43.664179 |
+| Modified | 2026-10-18 01:54:08.502802 |
 
 ```tsx
 'use client';
@@ -547,9 +547,9 @@ export default function SetupPasswordPage() {
 | Property | Value |
 |----------|-------|
 | Path | `dashboard\customers\[id]\page.tsx` |
-| Size | 17,941 bytes |
+| Size | 17,961 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 21:23:54.900457 |
+| Modified | 2026-10-18 13:46:27.023865 |
 
 ```tsx
 'use client';
@@ -919,7 +919,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                     </td>
                     <td className="py-3 px-4 font-bold text-xs">
                       <span className={tx.transactionType === 'EARN' ? 'text-emerald-600' : 'text-red-600'}>
-                        {tx.transactionType === 'EARN' ? `+${tx.points}` : `-${tx.points}`} pts
+                        {tx.transactionType === 'EARN' ? `+${Math.abs(tx.points)}` : `-${Math.abs(tx.points)}`} pts
                       </span>
                     </td>
                     <td className="py-3 px-4 font-semibold text-gray-800 text-xs font-mono">
@@ -1572,9 +1572,9 @@ export default function CustomersPage() {
 | Property | Value |
 |----------|-------|
 | Path | `dashboard\customers\transactions\page.tsx` |
-| Size | 17,989 bytes |
+| Size | 18,009 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 21:23:54.904448 |
+| Modified | 2026-10-18 13:46:40.033676 |
 
 ```tsx
 'use client';
@@ -1910,7 +1910,7 @@ function TransactionsContent() {
                     {/* Points */}
                     <td className="py-3.5 px-5 font-bold text-sm">
                       <span className={tx.transactionType === 'EARN' ? 'text-emerald-600' : 'text-red-600'}>
-                        {tx.transactionType === 'EARN' ? `+${tx.points}` : `-${tx.points}`} pts
+                        {tx.transactionType === 'EARN' ? `+${Math.abs(tx.points)}` : `-${Math.abs(tx.points)}`} pts
                       </span>
                     </td>
 
@@ -2004,9 +2004,9 @@ export default function TransactionsPage() {
 | Property | Value |
 |----------|-------|
 | Path | `dashboard\inventory\adjustments\page.tsx` |
-| Size | 22,925 bytes |
+| Size | 23,100 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 21:23:54.907481 |
+| Modified | 2026-10-18 13:45:45.593273 |
 
 ```tsx
 "use client";
@@ -2027,6 +2027,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import inventoryService from "@/api/inventory.service";
+import InventoryNavTabs from '@/components/inventory/InventoryNavTabs';
 
 interface Ingredient {
   id: number;
@@ -2046,6 +2047,7 @@ interface AdjustmentRecord {
   newQuantity?: number;
   difference?: number;
   reason?: string;
+  adjustmentDate?: string;
   adjustedAt?: string;
   createdAt?: string;
 }
@@ -2217,6 +2219,8 @@ export default function InventoryAdjustmentsPage() {
         </div>
       </div>
 
+      <InventoryNavTabs />
+
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3.5">
@@ -2374,8 +2378,8 @@ export default function InventoryAdjustmentsPage() {
                         <p className="line-clamp-2">{adj.reason || "—"}</p>
                       </td>
                       <td className="py-3.5 px-5 text-right text-xs text-gray-500 font-medium">
-                        {adj.adjustedAt || adj.createdAt
-                          ? new Date(adj.adjustedAt || adj.createdAt!).toLocaleString("vi-VN")
+                        {adj.adjustmentDate || adj.adjustedAt || adj.createdAt
+                          ? new Date(adj.adjustmentDate || adj.adjustedAt || adj.createdAt!).toLocaleString("vi-VN")
                           : "—"}
                       </td>
                     </tr>
@@ -2549,9 +2553,9 @@ export default function InventoryAdjustmentsPage() {
 | Property | Value |
 |----------|-------|
 | Path | `dashboard\inventory\boms\page.tsx` |
-| Size | 27,136 bytes |
+| Size | 27,239 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 21:23:54.910165 |
+| Modified | 2026-10-18 12:43:05.010928 |
 
 ```tsx
 "use client";
@@ -2572,6 +2576,7 @@ import {
 } from "lucide-react";
 import inventoryService from "@/api/inventory.service";
 import menuService from "@/api/menu.service";
+import InventoryNavTabs from '@/components/inventory/InventoryNavTabs';
 
 type BomTab = "RECIPE_BOM" | "TOPPING_BOM";
 
@@ -2815,6 +2820,8 @@ export default function BOMManagementPage() {
           </div>
         </div>
       </div>
+
+      <InventoryNavTabs />
 
       {/* Main Tabs Navigation */}
       <div className="flex items-center gap-3 border-b border-gray-200 pb-2">
@@ -3186,17 +3193,15 @@ export default function BOMManagementPage() {
 | Property | Value |
 |----------|-------|
 | Path | `dashboard\inventory\imports\[id]\page.tsx` |
-| Size | 219 bytes |
+| Size | 124 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 21:23:54.913163 |
+| Modified | 2026-10-18 13:48:31.935420 |
 
 ```tsx
+import { redirect } from 'next/navigation';
+
 export default function Page() {
-    return (
-        <div className="p-8">
-            <h1 className="text-2xl font-bold text-gray-800">Chi tiết phiếu nhập kho (Import Detail)</h1>
-        </div>
-    );
+  redirect('/dashboard/inventory/imports');
 }
 
 ```
@@ -3206,17 +3211,15 @@ export default function Page() {
 | Property | Value |
 |----------|-------|
 | Path | `dashboard\inventory\imports\new\page.tsx` |
-| Size | 217 bytes |
+| Size | 124 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 21:23:54.915195 |
+| Modified | 2026-10-18 13:48:22.663532 |
 
 ```tsx
+import { redirect } from 'next/navigation';
+
 export default function Page() {
-    return (
-        <div className="p-8">
-            <h1 className="text-2xl font-bold text-gray-800">Lập phiếu nhập kho mới (New Import)</h1>
-        </div>
-    );
+  redirect('/dashboard/inventory/imports');
 }
 
 ```
@@ -3226,9 +3229,9 @@ export default function Page() {
 | Property | Value |
 |----------|-------|
 | Path | `dashboard\inventory\imports\page.tsx` |
-| Size | 30,410 bytes |
+| Size | 30,513 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 21:23:54.917162 |
+| Modified | 2026-10-18 12:43:28.794019 |
 
 ```tsx
 "use client";
@@ -3253,6 +3256,7 @@ import {
 } from "lucide-react";
 import { useAuthContext } from "@/context/AuthContext";
 import inventoryService from "@/api/inventory.service";
+import InventoryNavTabs from '@/components/inventory/InventoryNavTabs';
 
 interface ImportDetail {
   id?: number;
@@ -3486,6 +3490,8 @@ export default function InventoryImportsPage() {
           </button>
         </div>
       </div>
+
+      <InventoryNavTabs />
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -3914,9 +3920,9 @@ export default function InventoryImportsPage() {
 | Property | Value |
 |----------|-------|
 | Path | `dashboard\inventory\ingredients\page.tsx` |
-| Size | 19,481 bytes |
+| Size | 19,584 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 21:23:54.921172 |
+| Modified | 2026-10-18 12:41:16.510932 |
 
 ```tsx
 "use client";
@@ -3937,6 +3943,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import inventoryService from "@/api/inventory.service";
+import InventoryNavTabs from '@/components/inventory/InventoryNavTabs';
 
 interface Ingredient {
   id: number;
@@ -4123,6 +4130,8 @@ export default function IngredientsPage() {
           </button>
         </div>
       </div>
+
+      <InventoryNavTabs />
 
       {/* 2. Thống kê tổng quan (4 Thẻ Metric Cards: Icon Trái - Thông Số Phải) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -4778,9 +4787,9 @@ export default function CategoriesPage() {
 | Property | Value |
 |----------|-------|
 | Path | `dashboard\menu\page.tsx` |
-| Size | 20,167 bytes |
+| Size | 20,202 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 22:12:45.027405 |
+| Modified | 2026-10-18 13:47:32.647287 |
 
 ```tsx
 'use client';
@@ -4837,7 +4846,9 @@ export default function MenuHubPage() {
 
   const activeProductsCount = products.filter((p) => p.status === 'ACTIVE').length;
   const activeCategoriesCount = categories.filter((c) => c.displayStatus === 'SHOW').length;
-  const activeToppingsCount = toppings.filter((t) => t.status === 'AVAILABLE').length;
+  const activeToppingsCount = toppings.filter(
+    (t) => t.status === 'AVAILABLE' || t.status === 'ACTIVE'
+  ).length;
 
   const filteredPreviewProducts = products
     .filter((p) => p.name.toLowerCase().includes(searchPreview.toLowerCase()))
@@ -5203,7 +5214,7 @@ export default function MenuHubPage() {
 | Path | `dashboard\menu\products\[id]\page.tsx` |
 | Size | 20,148 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 22:13:49.515514 |
+| Modified | 2026-10-18 01:54:08.509814 |
 
 ```tsx
 'use client';
@@ -5705,7 +5716,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 | Path | `dashboard\menu\products\new\page.tsx` |
 | Size | 17,523 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 22:14:23.147241 |
+| Modified | 2026-10-18 01:54:08.512802 |
 
 ```tsx
 'use client';
@@ -6142,7 +6153,7 @@ export default function NewProductPage() {
 | Path | `dashboard\menu\products\page.tsx` |
 | Size | 22,294 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 22:13:17.031380 |
+| Modified | 2026-10-18 01:54:08.514800 |
 
 ```tsx
 'use client';
@@ -6625,9 +6636,9 @@ export default function ProductsPage() {
 | Property | Value |
 |----------|-------|
 | Path | `dashboard\menu\toppings\page.tsx` |
-| Size | 17,374 bytes |
+| Size | 17,486 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 21:23:54.937193 |
+| Modified | 2026-10-18 13:47:47.960418 |
 
 ```tsx
 'use client';
@@ -6745,8 +6756,8 @@ export default function ToppingsPage() {
 
   const filteredToppings = toppings.filter((t) => {
     const matchSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchStatus =
-      statusFilter === 'ALL' || (t.status || 'AVAILABLE') === statusFilter;
+    const normalizedStatus = t.status === 'ACTIVE' ? 'AVAILABLE' : (t.status || 'AVAILABLE');
+    const matchStatus = statusFilter === 'ALL' || normalizedStatus === statusFilter;
     return matchSearch && matchStatus;
   });
 
@@ -6769,7 +6780,7 @@ export default function ToppingsPage() {
     setEditingTopping(t);
     setName(t.name || '');
     setPrice(Number(t.price) || 0);
-    setStatus(t.status || 'AVAILABLE');
+    setStatus(t.status === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE');
     setIsModalOpen(true);
   };
 
@@ -7074,9 +7085,9 @@ export default function ToppingsPage() {
 | Property | Value |
 |----------|-------|
 | Path | `dashboard\page.tsx` |
-| Size | 5,746 bytes |
+| Size | 5,868 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 22:09:59.514857 |
+| Modified | 2026-10-18 12:34:53.826349 |
 
 ```tsx
 "use client";
@@ -7106,26 +7117,26 @@ export default function DashboardOverviewPage() {
     setLoading(true);
     try {
       const [revRes, topRes] = await Promise.all([
-        reportService.getDailyRevenue().catch(() => []),
+        reportService.getRevenueOverview().catch(() => null),
         reportService.getTopProducts().catch(() => []),
       ]);
 
-      const revList = Array.isArray(revRes) ? revRes : [];
-      const totalRev = revList.reduce(
-        (sum: number, item: any) => sum + (Number(item.totalNetRevenue) || Number(item.revenue) || 0),
-        0
-      );
-      const totalOrders = revList.reduce(
-        (sum: number, item: any) => sum + (Number(item.totalOrders) || Number(item.orders) || 0),
-        0
-      );
+      // Backend trả về Object { netRevenue, totalOrders, ... }, không phải Array!
+      const overviewData = revRes?.data || revRes;
+      const totalRev = Number(overviewData?.netRevenue || 0);
+      const totalOrders = Number(overviewData?.totalOrders || 0);
+
       setRevenue(totalRev);
       setTotalOrdersCount(totalOrders);
 
-      const topList = Array.isArray(topRes) ? topRes : [];
+      const topList = Array.isArray(topRes)
+        ? topRes
+        : (topRes as any)?.data || [];
       if (topList.length > 0) {
         setTopProductName(topList[0].productName || topList[0].name || "—");
-        setTopProductQty(topList[0].totalQuantitySold || topList[0].totalQuantity || 0);
+        setTopProductQty(
+          topList[0].totalQuantitySold || topList[0].totalQuantity || 0,
+        );
       }
     } catch (err) {
       console.error("Error fetching overview:", err);
@@ -7195,9 +7206,15 @@ export default function DashboardOverviewPage() {
               className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between"
             >
               <div>
-                <p className="text-xs font-medium text-gray-500">{stat.title}</p>
+                <p className="text-xs font-medium text-gray-500">
+                  {stat.title}
+                </p>
                 <h3 className="text-xl font-bold text-gray-900 mt-1">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#6F4E37]" /> : stat.value}
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-[#6F4E37]" />
+                  ) : (
+                    stat.value
+                  )}
                 </h3>
                 <div className="flex items-center gap-1 mt-2 text-xs font-medium text-emerald-600">
                   <TrendingUp className="w-3.5 h-3.5" />
@@ -7232,7 +7249,9 @@ export default function DashboardOverviewPage() {
                 <h4 className="text-sm font-semibold text-gray-900 group-hover:text-[#6F4E37]">
                   Quản lý Thực đơn
                 </h4>
-                <p className="text-xs text-gray-400">Xem và chỉnh sửa danh mục món</p>
+                <p className="text-xs text-gray-400">
+                  Xem và chỉnh sửa danh mục món
+                </p>
               </div>
             </div>
             <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-[#6F4E37]" />
@@ -7264,9 +7283,9 @@ export { default } from "../../pos/pagers/page";
 | Property | Value |
 |----------|-------|
 | Path | `dashboard\reports\page.tsx` |
-| Size | 14,461 bytes |
+| Size | 14,639 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 21:23:54.943164 |
+| Modified | 2026-10-18 13:54:59.239903 |
 
 ```tsx
 'use client';
@@ -7307,7 +7326,12 @@ export default function ReportsPage() {
   // Compute date range based on timeFilter
   const getDateRange = useCallback(() => {
     const today = new Date();
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    const formatDate = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
     if (timeFilter === 'Tùy chỉnh') {
       return {
@@ -7756,9 +7780,9 @@ export default function KDSLayout({
 | Property | Value |
 |----------|-------|
 | Path | `kds\queue\page.tsx` |
-| Size | 13,890 bytes |
+| Size | 12,985 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-18 00:24:30.304976 |
+| Modified | 2026-10-18 12:14:45.214452 |
 
 ```tsx
 'use client';
@@ -7909,59 +7933,49 @@ export default function KDSQueuePage() {
       )}
 
       {/* 1. Thẻ Metric Cards (Bố cục 'Icon bên trái - Thông số bên phải' chuẩn MePhaPhin) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Tổng số món chờ pha chế */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-[#F5EBE6] text-[#6F4E37] flex items-center justify-center shrink-0 font-bold">
-            <CookingPot className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Hàng đợi hiện tại</p>
-            <p className="text-xl font-bold text-gray-900 mt-0.5">
-              {queueItems.length.toLocaleString('vi-VN')} <span className="text-xs font-normal text-gray-500">món</span>
-            </p>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  {/* Card 1: Chờ pha chế (PENDING) */}
+  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+    <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 font-bold">
+      <Clock className="w-6 h-6" />
+    </div>
+    <div>
+      <p className="text-xs text-gray-400 font-medium">Chờ pha chế</p>
+      <p className="text-xl font-bold text-amber-800 mt-0.5">
+        {pendingCount.toLocaleString('vi-VN')}{' '}
+        <span className="text-xs font-normal text-amber-700/80">món</span>
+      </p>
+    </div>
+  </div>
 
-        {/* Card 2: Chờ pha chế (PENDING) */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 font-bold">
-            <Clock className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Chờ pha chế</p>
-            <p className="text-xl font-bold text-amber-800 mt-0.5">
-              {pendingCount.toLocaleString('vi-VN')} <span className="text-xs font-normal text-amber-700/80">món</span>
-            </p>
-          </div>
-        </div>
+  {/* Card 2: Đang pha chế (PREPARING) */}
+  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 font-bold">
+      <Play className="w-6 h-6 fill-blue-600/20" />
+    </div>
+    <div>
+      <p className="text-xs text-gray-400 font-medium">Đang thực hiện</p>
+      <p className="text-xl font-bold text-blue-700 mt-0.5">
+        {preparingCount.toLocaleString('vi-VN')}{' '}
+        <span className="text-xs font-normal text-blue-600/80">món</span>
+      </p>
+    </div>
+  </div>
 
-        {/* Card 3: Đang pha chế (PREPARING) */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 font-bold">
-            <Play className="w-6 h-6 fill-blue-600/20" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Đang thực hiện</p>
-            <p className="text-xl font-bold text-blue-700 mt-0.5">
-              {preparingCount.toLocaleString('vi-VN')} <span className="text-xs font-normal text-blue-600/80">món</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Card 4: Đã hoàn tất */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Đã xong ca làm việc</p>
-            <p className="text-xl font-bold text-emerald-700 mt-0.5">
-              {doneCount.toLocaleString('vi-VN')} <span className="text-xs font-normal text-emerald-600/80">món</span>
-            </p>
-          </div>
-        </div>
-      </div>
+  {/* Card 3: Đã hoàn tất (DONE) */}
+  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+    <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold">
+      <CheckCircle2 className="w-6 h-6" />
+    </div>
+    <div>
+      <p className="text-xs text-gray-400 font-medium">Đã xong ca làm việc</p>
+      <p className="text-xl font-bold text-emerald-700 mt-0.5">
+        {doneCount.toLocaleString('vi-VN')}{' '}
+        <span className="text-xs font-normal text-emerald-600/80">món</span>
+      </p>
+    </div>
+  </div>
+</div>
 
       {/* 2. Toolbar & Controls (Đóng gói trong Card trắng độc lập chuẩn MePhaPhin) */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -8160,15 +8174,15 @@ export default function Loading() {
 | Property | Value |
 |----------|-------|
 | Path | `menu\page.tsx` |
-| Size | 69,867 bytes |
+| Size | 76,153 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-18 00:27:43.560858 |
+| Modified | 2026-10-18 13:45:27.038929 |
 
 ```tsx
-'use client';
+"use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import Link from "next/link";
 import {
   Coffee,
   ShoppingBag,
@@ -8194,14 +8208,18 @@ import {
   Check,
   Package,
   Store,
-} from 'lucide-react';
-import { useAuthContext } from '@/context/AuthContext';
-import { menuService } from '@/api/menu.service';
-import { posService } from '@/api/pos.service';
-import { Category, Product, Topping, ProductVariant } from '@/types/menu';
-import { SafeProductImage } from '@/components/common/SafeProductImage';
-import { useCustomerCart, CustomerCartItem, CustomerCartTopping } from '@/hooks/useCustomerCart';
-import { loyaltyService } from '@/api';
+} from "lucide-react";
+import { useAuthContext } from "@/context/AuthContext";
+import { menuService } from "@/api/menu.service";
+import { posService } from "@/api/pos.service";
+import { Category, Product, Topping, ProductVariant } from "@/types/menu";
+import { SafeProductImage } from "@/components/common/SafeProductImage";
+import {
+  useCustomerCart,
+  CustomerCartItem,
+  CustomerCartTopping,
+} from "@/hooks/useCustomerCart";
+import { loyaltyService } from "@/api";
 
 export default function CustomerStorefrontPage() {
   const { user, logout, refreshUser } = useAuthContext();
@@ -8213,16 +8231,20 @@ export default function CustomerStorefrontPage() {
   const [loading, setLoading] = useState(true);
 
   // Active view tab: 'MENU' | 'MY_ORDERS'
-  const [activeView, setActiveView] = useState<'MENU' | 'MY_ORDERS'>('MENU');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'ALL'>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeView, setActiveView] = useState<"MENU" | "MY_ORDERS">("MENU");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | "ALL">(
+    "ALL",
+  );
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Cart & Order states
   const cart = useCustomerCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [orderSuccessData, setOrderSuccessData] = useState<any | null>(null);
-  const [orderType, setOrderType] = useState<'DELIVERY' | 'TAKE_AWAY'>('DELIVERY');
+  const [orderType, setOrderType] = useState<"DELIVERY" | "TAKE_AWAY">(
+    "DELIVERY",
+  );
 
   // State xem Profile & Điểm thưởng
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -8236,9 +8258,12 @@ export default function CustomerStorefrontPage() {
   // Tính số tiền giảm giá và tổng thanh toán COD
   const maxRedeemablePoints = Math.min(
     user?.rewardPoints || 0,
-    Math.floor(cart.subTotal / conversionRate)
+    Math.floor(cart.subTotal / conversionRate),
   );
-  const discountAmount = Math.min(cart.subTotal, pointsToRedeem * conversionRate);
+  const discountAmount = Math.min(
+    cart.subTotal,
+    pointsToRedeem * conversionRate,
+  );
   const finalTotalAmount = Math.max(0, cart.subTotal - discountAmount);
 
   // Xem lịch sử điểm khi mở Profile
@@ -8247,7 +8272,10 @@ export default function CustomerStorefrontPage() {
     if (user?.id) {
       setLoadingPointsHistory(true);
       try {
-        const res: any = await loyaltyService.getLoyaltyHistory({ customerId: user.id, limit: 10 });
+        const res: any = await loyaltyService.getLoyaltyHistory({
+          customerId: user.id,
+          limit: 10,
+        });
         setPointsHistory(res?.items || res?.data || []);
       } catch (err) {
         setPointsHistory([]);
@@ -8282,9 +8310,13 @@ export default function CustomerStorefrontPage() {
 
   // Product Customization Modal
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
-  const [modalToppings, setModalToppings] = useState<Record<number, { topping: Topping; quantity: number }>>({});
-  const [modalNote, setModalNote] = useState('');
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    null,
+  );
+  const [modalToppings, setModalToppings] = useState<
+    Record<number, { topping: Topping; quantity: number }>
+  >({});
+  const [modalNote, setModalNote] = useState("");
   const [modalQuantity, setModalQuantity] = useState(1);
 
   // Customer Orders List state
@@ -8292,15 +8324,24 @@ export default function CustomerStorefrontPage() {
   const [loadingOrders, setLoadingOrders] = useState(false);
 
   // Toast notification
-  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  const showToast = (
+    message: string,
+    type: "success" | "error" = "success",
+  ) => {
     setToastMessage({ message, type });
     setTimeout(() => setToastMessage(null), 3500);
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
   };
 
   // 1. Fetch Menu Data
@@ -8308,24 +8349,34 @@ export default function CustomerStorefrontPage() {
     setLoading(true);
     try {
       const [catsRes, prodsRes, topsRes] = await Promise.all([
-        menuService.getCategories({ displayStatus: 'SHOW' as any }).catch(() => [] as any),
-        menuService.getProducts({ status: 'ACTIVE' as any }).catch(() => [] as any),
+        menuService
+          .getCategories({ displayStatus: "SHOW" as any })
+          .catch(() => [] as any),
+        menuService
+          .getProducts({ status: "ACTIVE" as any })
+          .catch(() => [] as any),
         // Không truyền param status để Backend không ép lọc WHERE
         menuService.getToppings().catch(() => [] as any),
       ]);
 
-      setCategories(Array.isArray(catsRes) ? catsRes : (catsRes as any)?.data || []);
-      setProducts(Array.isArray(prodsRes) ? prodsRes : (prodsRes as any)?.data || []);
+      setCategories(
+        Array.isArray(catsRes) ? catsRes : (catsRes as any)?.data || [],
+      );
+      setProducts(
+        Array.isArray(prodsRes) ? prodsRes : (prodsRes as any)?.data || [],
+      );
 
       // Tương thích mềm: Nhận cả 'AVAILABLE' lẫn 'ACTIVE'
-      const rawToppings = Array.isArray(topsRes) ? topsRes : (topsRes as any)?.data || [];
+      const rawToppings = Array.isArray(topsRes)
+        ? topsRes
+        : (topsRes as any)?.data || [];
       const validToppings = rawToppings.filter(
-        (t: any) => t.status === 'AVAILABLE' || t.status === 'ACTIVE'
+        (t: any) => t.status === "AVAILABLE" || t.status === "ACTIVE",
       );
       setToppings(validToppings);
     } catch (err) {
-      console.error('Lỗi khi tải thực đơn:', err);
-      showToast('Không thể tải thực đơn. Vui lòng thử lại sau', 'error');
+      console.error("Lỗi khi tải thực đơn:", err);
+      showToast("Không thể tải thực đơn. Vui lòng thử lại sau", "error");
     } finally {
       setLoading(false);
     }
@@ -8340,7 +8391,7 @@ export default function CustomerStorefrontPage() {
       const items = res?.items || res?.data || (Array.isArray(res) ? res : []);
       setCustomerOrders(items);
     } catch (err) {
-      console.error('Lỗi khi tải đơn hàng:', err);
+      console.error("Lỗi khi tải đơn hàng:", err);
     } finally {
       setLoadingOrders(false);
     }
@@ -8351,25 +8402,18 @@ export default function CustomerStorefrontPage() {
   }, [fetchMenuData]);
 
   useEffect(() => {
-    if (activeView === 'MY_ORDERS') {
+    if (activeView === "MY_ORDERS") {
       fetchCustomerOrders();
     }
   }, [activeView, fetchCustomerOrders]);
 
-  // Set default recipient info from user profile
-  useEffect(() => {
-    if (user) {
-      if (!cart.contactName && user.fullName) cart.setContactName(user.fullName);
-      if (!cart.contactPhone && user.phoneNumber) cart.setContactPhone(user.phoneNumber);
-    }
-  }, [user, cart]);
 
   // Open modal for product options
   const handleOpenOptionModal = (product: Product) => {
     setSelectedProduct(product);
     setSelectedVariant(product.variants?.[0] || null);
     setModalToppings({});
-    setModalNote('');
+    setModalNote("");
     setModalQuantity(1);
   };
 
@@ -8441,7 +8485,7 @@ export default function CustomerStorefrontPage() {
     if (!selectedVariant) return 0;
     const toppingSum = Object.values(modalToppings).reduce(
       (sum, item) => sum + item.topping.price * item.quantity,
-      0
+      0,
     );
     return (selectedVariant.price + toppingSum) * modalQuantity;
   }, [selectedVariant, modalToppings, modalQuantity]);
@@ -8450,11 +8494,11 @@ export default function CustomerStorefrontPage() {
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       const matchesCategory =
-        selectedCategoryId === 'ALL' || p.categoryId === selectedCategoryId;
+        selectedCategoryId === "ALL" || p.categoryId === selectedCategoryId;
       const matchesSearch =
         !searchQuery.trim() ||
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+        (p.description || "").toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
   }, [products, selectedCategoryId, searchQuery]);
@@ -8462,39 +8506,56 @@ export default function CustomerStorefrontPage() {
   // Handle Checkout (Place Order)
   const handlePlaceOrder = async () => {
     if (cart.items.length === 0) return;
-    if (!cart.deliveryAddress.trim()) {
-      showToast('Vui lòng nhập địa chỉ giao hàng nhận món (COD)', 'error');
+    // Chỉ bắt buộc nhập địa chỉ khi chọn Giao tận nơi (DELIVERY)
+    if (orderType === "DELIVERY" && !cart.deliveryAddress.trim()) {
+      showToast("Vui lòng nhập địa chỉ giao hàng nhận món (COD)", "error");
       return;
     }
 
     setIsSubmittingOrder(true);
     try {
-      const orderItems = cart.items.map((item) => ({
-        variantId: item.variantId,
-        quantity: item.quantity,
-        note: item.note || null,
-        itemSnapshotName: item.productName,
-        sizeSnapshot: item.size,
-        unitPrice: item.unitPrice,
-        totalToppingPriceSnapshot: item.totalToppingPrice,
-        totalPrice: item.totalPrice,
-        toppings: item.toppings.map((t) => ({
-          toppingId: t.toppingId || null,
-          toppingSnapshotName: t.toppingSnapshotName,
-          toppingPrice: t.toppingPrice,
-          quantity: t.quantity,
-        })),
-      }));
+      const deliverySummary = [
+        cart.contactName ? `KH: ${cart.contactName}` : '',
+        cart.contactPhone ? `SĐT: ${cart.contactPhone}` : '',
+        orderType === 'DELIVERY' && cart.deliveryAddress ? `Đ/c: ${cart.deliveryAddress}` : 'Lấy tại quán',
+        cart.customerNote ? `Lưu ý: ${cart.customerNote}` : '',
+      ]
+        .filter(Boolean)
+        .join(' | ');
+
+      const orderItems = cart.items.map((item, idx) => {
+        const combinedNote =
+          idx === 0 && deliverySummary
+            ? [item.note, `[${deliverySummary}]`].filter(Boolean).join(' - ').slice(0, 255)
+            : item.note || null;
+
+        return {
+          variantId: item.variantId,
+          quantity: item.quantity,
+          note: combinedNote,
+          itemSnapshotName: item.productName,
+          sizeSnapshot: item.size,
+          unitPrice: item.unitPrice,
+          totalToppingPriceSnapshot: item.totalToppingPrice,
+          totalPrice: item.totalPrice,
+          toppings: item.toppings.map((t) => ({
+            toppingId: t.toppingId || null,
+            toppingSnapshotName: t.toppingSnapshotName,
+            toppingPrice: t.toppingPrice,
+            quantity: t.quantity,
+          })),
+        };
+      });
 
       // Đưa chiết khấu điểm vào đơn hàng
       const payload = {
         employeeId: 2,
         customerId: user?.id || null,
-        orderChannel: 'DELIVERY' as const,
+        orderChannel: (orderType === 'DELIVERY' ? 'DELIVERY' : 'APP') as any,
         subTotal: cart.subTotal,
-        discountAmount: discountAmount,
-        totalAmount: finalTotalAmount,
-        paymentMethod: 'CASH' as const,
+        discountAmount: 0,
+        totalAmount: cart.subTotal,
+        paymentMethod: "CASH" as const,
         items: orderItems,
       };
 
@@ -8505,20 +8566,28 @@ export default function CustomerStorefrontPage() {
       // Nếu có đổi điểm thưởng: Gọi API trừ điểm ngay lập tức
       if (orderId && pointsToRedeem > 0 && user?.id) {
         try {
-          await posService.applyLoyaltyPoints(orderId, user.id, pointsToRedeem, conversionRate);
+          await posService.applyLoyaltyPoints(
+            orderId,
+            user.id,
+            pointsToRedeem,
+            conversionRate,
+          );
           setPointsToRedeem(0);
-          await refreshUser()
+          await refreshUser();
         } catch (pointErr) {
-          console.error('Lỗi trừ điểm thưởng:', pointErr);
+          console.error("Lỗi trừ điểm thưởng:", pointErr);
         }
       }
 
       cart.clearCart();
       setIsCartOpen(false);
       setOrderSuccessData(created);
-      showToast('Đặt hàng thành công! Đơn hàng đang được chuẩn bị.');
+      showToast("Đặt hàng thành công! Đơn hàng đang được chuẩn bị.");
     } catch (err: any) {
-      showToast(err.response?.data?.message || err.message || 'Đặt hàng thất bại.', 'error');
+      showToast(
+        err.response?.data?.message || err.message || "Đặt hàng thất bại.",
+        "error",
+      );
     } finally {
       setIsSubmittingOrder(false);
     }
@@ -8526,35 +8595,35 @@ export default function CustomerStorefrontPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'PENDING_PREP':
+      case "PENDING_PREP":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
             <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
             Đang chờ quán xác nhận
           </span>
         );
-      case 'PREPARING':
+      case "PREPARING":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
             <Coffee className="w-3.5 h-3.5 text-blue-600" />
             Đang pha chế món
           </span>
         );
-      case 'READY_FOR_PICKUP':
+      case "READY_FOR_PICKUP":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
             <Truck className="w-3.5 h-3.5 text-emerald-600" />
             Sẵn sàng giao / Nhận món
           </span>
         );
-      case 'COMPLETED':
+      case "COMPLETED":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-zinc-100 text-zinc-800 border border-zinc-200">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             Đã hoàn thành
           </span>
         );
-      case 'CANCELLED':
+      case "CANCELLED":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
             <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
@@ -8576,10 +8645,10 @@ export default function CustomerStorefrontPage() {
       {toastMessage && (
         <div
           className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5 text-white font-semibold text-sm ${
-            toastMessage.type === 'error' ? 'bg-rose-600' : 'bg-[#6F4E37]'
+            toastMessage.type === "error" ? "bg-rose-600" : "bg-[#6F4E37]"
           }`}
         >
-          {toastMessage.type === 'error' ? (
+          {toastMessage.type === "error" ? (
             <AlertCircle className="w-5 h-5 text-rose-200" />
           ) : (
             <CheckCircle2 className="w-5 h-5 text-emerald-300" />
@@ -8592,13 +8661,20 @@ export default function CustomerStorefrontPage() {
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-[#F0E6DD] shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between gap-4">
           {/* Logo Brand */}
-          <Link href="/menu" className="flex items-center gap-2.5 shrink-0 group">
+          <Link
+            href="/menu"
+            className="flex items-center gap-2.5 shrink-0 group"
+          >
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#6F4E37] to-[#5A3F2C] text-white flex items-center justify-center shadow-md shadow-[#6F4E37]/20 group-hover:scale-105 transition-transform">
               <Coffee className="w-5 h-5 stroke-[2.2]" />
             </div>
             <div>
-              <span className="text-xl font-black tracking-tight text-[#6F4E37]">MePhaPhin</span>
-              <span className="block text-[10px] font-bold text-amber-700 tracking-widest uppercase">Coffee & Tea</span>
+              <span className="text-xl font-black tracking-tight text-[#6F4E37]">
+                MePhaPhin
+              </span>
+              <span className="block text-[10px] font-bold text-amber-700 tracking-widest uppercase">
+                Coffee & Tea
+              </span>
             </div>
           </Link>
 
@@ -8606,22 +8682,22 @@ export default function CustomerStorefrontPage() {
           <div className="hidden md:flex items-center gap-1 bg-[#FAF6F0] p-1 rounded-xl border border-[#F0E6DD]">
             <button
               type="button"
-              onClick={() => setActiveView('MENU')}
+              onClick={() => setActiveView("MENU")}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeView === 'MENU'
-                  ? 'bg-white text-[#6F4E37] shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                activeView === "MENU"
+                  ? "bg-white text-[#6F4E37] shadow-xs"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               Thực đơn đặt món
             </button>
             <button
               type="button"
-              onClick={() => setActiveView('MY_ORDERS')}
+              onClick={() => setActiveView("MY_ORDERS")}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeView === 'MY_ORDERS'
-                  ? 'bg-white text-[#6F4E37] shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                activeView === "MY_ORDERS"
+                  ? "bg-white text-[#6F4E37] shadow-xs"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               <Receipt className="w-3.5 h-3.5" />
@@ -8640,13 +8716,20 @@ export default function CustomerStorefrontPage() {
                   title="Bấm để xem hạng thẻ và điểm thưởng"
                 >
                   <div className="w-8 h-8 rounded-full bg-[#6F4E37] text-white flex items-center justify-center text-xs font-bold shadow-xs">
-                    {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'K'}
+                    {user.fullName
+                      ? user.fullName.charAt(0).toUpperCase()
+                      : "K"}
                   </div>
                   <div className="hidden sm:block text-xs leading-tight">
-                    <div className="font-extrabold text-gray-900 line-clamp-1">{user.fullName}</div>
+                    <div className="font-extrabold text-gray-900 line-clamp-1">
+                      {user.fullName}
+                    </div>
                     <div className="flex items-center gap-1 text-[11px] text-[#6F4E37] font-bold">
                       <Award className="w-3 h-3 text-amber-600 fill-amber-500" />
-                      <span>{user.rewardPoints || 0} pts • Hạng {user.membershipTier || 'STANDARD'}</span>
+                      <span>
+                        {user.rewardPoints || 0} pts • Hạng{" "}
+                        {user.membershipTier || "STANDARD"}
+                      </span>
                     </div>
                   </div>
                 </button>
@@ -8697,18 +8780,22 @@ export default function CustomerStorefrontPage() {
         <div className="md:hidden flex border-t border-gray-100 bg-[#FAF6F0] p-1.5">
           <button
             type="button"
-            onClick={() => setActiveView('MENU')}
+            onClick={() => setActiveView("MENU")}
             className={`flex-1 py-1.5 rounded-lg text-xs font-bold text-center cursor-pointer ${
-              activeView === 'MENU' ? 'bg-white text-[#6F4E37] shadow-xs' : 'text-gray-500'
+              activeView === "MENU"
+                ? "bg-white text-[#6F4E37] shadow-xs"
+                : "text-gray-500"
             }`}
           >
             Thực đơn đặt món
           </button>
           <button
             type="button"
-            onClick={() => setActiveView('MY_ORDERS')}
+            onClick={() => setActiveView("MY_ORDERS")}
             className={`flex-1 py-1.5 rounded-lg text-xs font-bold text-center cursor-pointer ${
-              activeView === 'MY_ORDERS' ? 'bg-white text-[#6F4E37] shadow-xs' : 'text-gray-500'
+              activeView === "MY_ORDERS"
+                ? "bg-white text-[#6F4E37] shadow-xs"
+                : "text-gray-500"
             }`}
           >
             Đơn hàng của tôi
@@ -8718,7 +8805,7 @@ export default function CustomerStorefrontPage() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {activeView === 'MENU' ? (
+        {activeView === "MENU" ? (
           <>
             {/* Banner Khuyến Mãi / Lời chào */}
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#6F4E37] via-[#855D40] to-[#A27B5C] text-white p-6 sm:p-8 shadow-xl shadow-[#6F4E37]/15">
@@ -8728,10 +8815,12 @@ export default function CustomerStorefrontPage() {
                   Đậm đà phong vị cà phê Việt
                 </span>
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight">
-                  Chào mừng {user?.fullName || 'bạn'} đến với MePhaPhin!
+                  Chào mừng {user?.fullName || "bạn"} đến với MePhaPhin!
                 </h1>
                 <p className="text-xs sm:text-sm text-white/90 leading-relaxed max-w-xl">
-                  Khám phá hương vị cà phê phin truyền thống và thức uống hiện đại. Đặt món giao tận nơi với hình thức thanh toán COD nhanh chóng, tiện lợi.
+                  Khám phá hương vị cà phê phin truyền thống và thức uống hiện
+                  đại. Đặt món giao tận nơi với hình thức thanh toán COD nhanh
+                  chóng, tiện lợi.
                 </p>
               </div>
               <div className="absolute right-4 -bottom-6 opacity-15 pointer-events-none hidden sm:block">
@@ -8745,17 +8834,19 @@ export default function CustomerStorefrontPage() {
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
                 <button
                   type="button"
-                  onClick={() => setSelectedCategoryId('ALL')}
+                  onClick={() => setSelectedCategoryId("ALL")}
                   className={`px-4 py-2.5 rounded-2xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                    selectedCategoryId === 'ALL'
-                      ? 'bg-[#6F4E37] text-white shadow-md shadow-[#6F4E37]/20'
-                      : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200/80'
+                    selectedCategoryId === "ALL"
+                      ? "bg-[#6F4E37] text-white shadow-md shadow-[#6F4E37]/20"
+                      : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200/80"
                   }`}
                 >
                   Tất cả ({products.length})
                 </button>
                 {categories.map((c) => {
-                  const count = products.filter((p) => p.categoryId === c.id).length;
+                  const count = products.filter(
+                    (p) => p.categoryId === c.id,
+                  ).length;
                   const isSelected = selectedCategoryId === c.id;
                   return (
                     <button
@@ -8764,14 +8855,16 @@ export default function CustomerStorefrontPage() {
                       onClick={() => setSelectedCategoryId(c.id)}
                       className={`px-4 py-2.5 rounded-2xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
                         isSelected
-                          ? 'bg-[#6F4E37] text-white shadow-md shadow-[#6F4E37]/20'
-                          : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200/80'
+                          ? "bg-[#6F4E37] text-white shadow-md shadow-[#6F4E37]/20"
+                          : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200/80"
                       }`}
                     >
                       <span>{c.name}</span>
                       <span
                         className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                          isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                          isSelected
+                            ? "bg-white/20 text-white"
+                            : "bg-gray-100 text-gray-500"
                         }`}
                       >
                         {count}
@@ -8794,7 +8887,7 @@ export default function CustomerStorefrontPage() {
                 {searchQuery && (
                   <button
                     type="button"
-                    onClick={() => setSearchQuery('')}
+                    onClick={() => setSearchQuery("")}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -8807,7 +8900,10 @@ export default function CustomerStorefrontPage() {
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                  <div key={n} className="bg-white rounded-3xl p-4 border border-gray-100 animate-pulse space-y-3">
+                  <div
+                    key={n}
+                    className="bg-white rounded-3xl p-4 border border-gray-100 animate-pulse space-y-3"
+                  >
                     <div className="aspect-4/3 w-full bg-gray-200 rounded-2xl" />
                     <div className="h-4 bg-gray-200 rounded w-3/4" />
                     <div className="h-3 bg-gray-100 rounded w-1/2" />
@@ -8820,11 +8916,11 @@ export default function CustomerStorefrontPage() {
                 {filteredProducts.map((p) => {
                   const minPrice = p.variants?.reduce(
                     (min, v) => (v.price < min ? v.price : min),
-                    p.variants[0]?.price || 0
+                    p.variants[0]?.price || 0,
                   );
                   const maxPrice = p.variants?.reduce(
                     (max, v) => (v.price > max ? v.price : max),
-                    p.variants[0]?.price || 0
+                    p.variants[0]?.price || 0,
                   );
 
                   return (
@@ -8839,7 +8935,9 @@ export default function CustomerStorefrontPage() {
                             src={p.image}
                             alt={p.name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            fallbackIcon={<Coffee className="w-10 h-10 text-[#6F4E37]/40 stroke-[1.5]" />}
+                            fallbackIcon={
+                              <Coffee className="w-10 h-10 text-[#6F4E37]/40 stroke-[1.5]" />
+                            }
                           />
                           {p.categoryName && (
                             <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-xs text-[10px] font-bold text-white">
@@ -8848,7 +8946,7 @@ export default function CustomerStorefrontPage() {
                           )}
                           {p.variants && p.variants.length > 0 && (
                             <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-amber-500/90 text-[10px] font-bold text-white shadow-xs">
-                              {p.variants.map((v) => v.size).join(' • ')}
+                              {p.variants.map((v) => v.size).join(" • ")}
                             </span>
                           )}
                         </div>
@@ -8858,14 +8956,17 @@ export default function CustomerStorefrontPage() {
                           {p.name}
                         </h3>
                         <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">
-                          {p.description || 'Hương vị thơm ngon đậm đà, được pha chế từ nguyên liệu sạch nguyên chất.'}
+                          {p.description ||
+                            "Hương vị thơm ngon đậm đà, được pha chế từ nguyên liệu sạch nguyên chất."}
                         </p>
                       </div>
 
                       {/* Footer & Add Button */}
                       <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
                         <div>
-                          <span className="text-[10px] text-gray-400 font-semibold block">Giá chỉ từ</span>
+                          <span className="text-[10px] text-gray-400 font-semibold block">
+                            Giá chỉ từ
+                          </span>
                           <span className="font-black text-sm text-[#6F4E37]">
                             {minPrice === maxPrice
                               ? formatCurrency(minPrice || 0)
@@ -8891,15 +8992,18 @@ export default function CustomerStorefrontPage() {
                 <div className="w-16 h-16 rounded-full bg-[#FAF6F0] flex items-center justify-center mx-auto text-[#6F4E37]">
                   <CupSoda className="w-8 h-8 stroke-[1.5]" />
                 </div>
-                <h4 className="font-bold text-base text-gray-900">Không tìm thấy món phù hợp</h4>
+                <h4 className="font-bold text-base text-gray-900">
+                  Không tìm thấy món phù hợp
+                </h4>
                 <p className="text-xs text-gray-500">
-                  Thử tìm kiếm với từ khóa khác hoặc chuyển sang danh mục món khác.
+                  Thử tìm kiếm với từ khóa khác hoặc chuyển sang danh mục món
+                  khác.
                 </p>
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedCategoryId('ALL');
-                    setSearchQuery('');
+                    setSelectedCategoryId("ALL");
+                    setSearchQuery("");
                   }}
                   className="px-4 py-2 rounded-xl bg-[#6F4E37] text-white text-xs font-bold hover:bg-[#5A3F2C]"
                 >
@@ -8913,8 +9017,12 @@ export default function CustomerStorefrontPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-black text-gray-900">Lịch sử đơn hàng của bạn</h2>
-                <p className="text-xs text-gray-500 mt-0.5">Theo dõi trạng thái các đơn giao hàng COD và tại quầy</p>
+                <h2 className="text-xl font-black text-gray-900">
+                  Lịch sử đơn hàng của bạn
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Theo dõi trạng thái các đơn giao hàng COD và tại quầy
+                </p>
               </div>
               <button
                 type="button"
@@ -8922,7 +9030,9 @@ export default function CustomerStorefrontPage() {
                 disabled={loadingOrders}
                 className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center gap-1.5 cursor-pointer"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${loadingOrders ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${loadingOrders ? "animate-spin" : ""}`}
+                />
                 <span>Làm mới</span>
               </button>
             </div>
@@ -8930,7 +9040,9 @@ export default function CustomerStorefrontPage() {
             {loadingOrders ? (
               <div className="bg-white rounded-3xl p-16 text-center border border-gray-100 shadow-sm">
                 <RefreshCw className="w-8 h-8 text-[#6F4E37] animate-spin mx-auto mb-3" />
-                <p className="text-xs font-bold text-gray-600">Đang đồng bộ danh sách đơn hàng...</p>
+                <p className="text-xs font-bold text-gray-600">
+                  Đang đồng bộ danh sách đơn hàng...
+                </p>
               </div>
             ) : customerOrders.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -8948,18 +9060,23 @@ export default function CustomerStorefrontPage() {
                           <Clock className="w-3 h-3" />
                           <span>
                             {ord.createdAt
-                              ? new Date(ord.createdAt).toLocaleString('vi-VN', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                })
-                              : 'Vừa đặt'}
+                              ? new Date(ord.createdAt).toLocaleString(
+                                  "vi-VN",
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                  },
+                                )
+                              : "Vừa đặt"}
                           </span>
                           <span>•</span>
                           <span className="font-semibold text-amber-800">
-                            {ord.orderChannel === 'DELIVERY' ? 'Giao hàng (COD)' : 'Tại quầy'}
+                            {ord.orderChannel === "DELIVERY"
+                              ? "Giao hàng (COD)"
+                              : "Tại quầy"}
                           </span>
                         </div>
                       </div>
@@ -8967,7 +9084,9 @@ export default function CustomerStorefrontPage() {
                     </div>
 
                     <div className="flex items-center justify-between text-xs pt-1">
-                      <span className="text-gray-500 font-medium">Tổng thanh toán (COD):</span>
+                      <span className="text-gray-500 font-medium">
+                        Tổng thanh toán (COD):
+                      </span>
                       <span className="font-black text-base text-[#6F4E37]">
                         {formatCurrency(ord.totalAmount || 0)}
                       </span>
@@ -8980,13 +9099,16 @@ export default function CustomerStorefrontPage() {
                 <div className="w-16 h-16 rounded-full bg-[#FAF6F0] flex items-center justify-center mx-auto text-[#6F4E37]">
                   <ShoppingBag className="w-8 h-8 stroke-[1.5]" />
                 </div>
-                <h4 className="font-bold text-base text-gray-900">Bạn chưa có đơn hàng nào</h4>
+                <h4 className="font-bold text-base text-gray-900">
+                  Bạn chưa có đơn hàng nào
+                </h4>
                 <p className="text-xs text-gray-500">
-                  Hãy chọn những món thức uống yêu thích từ thực đơn để lên đơn ngay!
+                  Hãy chọn những món thức uống yêu thích từ thực đơn để lên đơn
+                  ngay!
                 </p>
                 <button
                   type="button"
-                  onClick={() => setActiveView('MENU')}
+                  onClick={() => setActiveView("MENU")}
                   className="px-5 py-2.5 rounded-xl bg-[#6F4E37] text-white text-xs font-bold hover:bg-[#5A3F2C]"
                 >
                   Khám phá thực đơn
@@ -9012,8 +9134,12 @@ export default function CustomerStorefrontPage() {
                   />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-gray-900">{selectedProduct.name}</h3>
-                  <p className="text-xs text-gray-500 font-medium">{selectedProduct.categoryName || 'Tùy chọn món'}</p>
+                  <h3 className="font-bold text-base text-gray-900">
+                    {selectedProduct.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 font-medium">
+                    {selectedProduct.categoryName || "Tùy chọn món"}
+                  </p>
                 </div>
               </div>
               <button
@@ -9042,12 +9168,14 @@ export default function CustomerStorefrontPage() {
                         onClick={() => setSelectedVariant(v)}
                         className={`rounded-2xl border p-3 text-center transition-all cursor-pointer ${
                           isSelected
-                            ? 'border-[#6F4E37] bg-[#F5EBE6] text-[#6F4E37] ring-2 ring-[#6F4E37]/20 shadow-xs'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                            ? "border-[#6F4E37] bg-[#F5EBE6] text-[#6F4E37] ring-2 ring-[#6F4E37]/20 shadow-xs"
+                            : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
                         }`}
                       >
                         <div className="text-sm font-black">Size {v.size}</div>
-                        <div className="text-xs font-semibold mt-0.5">{formatCurrency(v.price)}</div>
+                        <div className="text-xs font-semibold mt-0.5">
+                          {formatCurrency(v.price)}
+                        </div>
                       </button>
                     );
                   })}
@@ -9070,8 +9198,8 @@ export default function CustomerStorefrontPage() {
                           key={t.id}
                           className={`flex items-center justify-between p-2.5 rounded-2xl border transition-all ${
                             isChecked
-                              ? 'border-[#6F4E37] bg-[#FAF6F0]'
-                              : 'border-gray-200/80 bg-white hover:border-gray-300'
+                              ? "border-[#6F4E37] bg-[#FAF6F0]"
+                              : "border-gray-200/80 bg-white hover:border-gray-300"
                           }`}
                         >
                           <div
@@ -9081,14 +9209,18 @@ export default function CustomerStorefrontPage() {
                             <div
                               className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
                                 isChecked
-                                  ? 'border-[#6F4E37] bg-[#6F4E37] text-white'
-                                  : 'border-gray-300 bg-white'
+                                  ? "border-[#6F4E37] bg-[#6F4E37] text-white"
+                                  : "border-gray-300 bg-white"
                               }`}
                             >
-                              {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                              {isChecked && (
+                                <Check className="w-3 h-3 stroke-[3]" />
+                              )}
                             </div>
                             <div>
-                              <div className="text-xs font-bold text-gray-900">{t.name}</div>
+                              <div className="text-xs font-bold text-gray-900">
+                                {t.name}
+                              </div>
                               <div className="text-[10px] font-semibold text-[#6F4E37]">
                                 +{formatCurrency(t.price)}
                               </div>
@@ -9104,7 +9236,9 @@ export default function CustomerStorefrontPage() {
                               >
                                 <Minus className="w-3 h-3" />
                               </button>
-                              <span className="text-xs font-bold w-4 text-center">{selectedItem.quantity}</span>
+                              <span className="text-xs font-bold w-4 text-center">
+                                {selectedItem.quantity}
+                              </span>
                               <button
                                 type="button"
                                 onClick={() => handleUpdateToppingQty(t.id, 1)}
@@ -9140,7 +9274,9 @@ export default function CustomerStorefrontPage() {
             {/* Modal Footer Actions: Thêm vào giỏ hàng & Mua ngay */}
             <div className="border-t border-gray-100 bg-[#FAF6F0]/60 p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Số lượng:</span>
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Số lượng:
+                </span>
                 <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-2 py-1 shadow-2xs">
                   <button
                     type="button"
@@ -9149,7 +9285,9 @@ export default function CustomerStorefrontPage() {
                   >
                     <Minus className="w-4 h-4" />
                   </button>
-                  <span className="w-6 text-center text-sm font-black text-gray-900">{modalQuantity}</span>
+                  <span className="w-6 text-center text-sm font-black text-gray-900">
+                    {modalQuantity}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setModalQuantity((q) => q + 1)}
@@ -9196,8 +9334,12 @@ export default function CustomerStorefrontPage() {
                   <ShoppingBag className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-gray-900">Giỏ hàng của bạn</h3>
-                  <p className="text-xs text-gray-500">{cart.totalItemCount} ly món đang chọn</p>
+                  <h3 className="font-extrabold text-base text-gray-900">
+                    Giỏ hàng của bạn
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    {cart.totalItemCount} ly món đang chọn
+                  </p>
                 </div>
               </div>
               <button
@@ -9214,8 +9356,12 @@ export default function CustomerStorefrontPage() {
               {cart.items.length === 0 ? (
                 <div className="py-16 text-center text-gray-400 space-y-2">
                   <ShoppingBag className="w-12 h-12 stroke-[1.5] mx-auto opacity-30 text-[#6F4E37]" />
-                  <p className="text-sm font-bold text-gray-700">Giỏ hàng chưa có món nào</p>
-                  <p className="text-xs text-gray-400">Chọn những món yêu thích từ thực đơn để thưởng thức</p>
+                  <p className="text-sm font-bold text-gray-700">
+                    Giỏ hàng chưa có món nào
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Chọn những món yêu thích từ thực đơn để thưởng thức
+                  </p>
                 </div>
               ) : (
                 <>
@@ -9240,14 +9386,20 @@ export default function CustomerStorefrontPage() {
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <div className="font-bold text-sm text-gray-900">
-                              {item.productName}{' '}
+                              {item.productName}{" "}
                               <span className="text-xs px-1.5 py-0.5 rounded-md bg-white border border-gray-200 text-gray-700 font-bold">
                                 Size {item.size}
                               </span>
                             </div>
                             {item.toppings.length > 0 && (
                               <div className="text-[11px] text-gray-500 mt-0.5">
-                                + {item.toppings.map((t) => `${t.toppingSnapshotName} (x${t.quantity})`).join(', ')}
+                                +{" "}
+                                {item.toppings
+                                  .map(
+                                    (t) =>
+                                      `${t.toppingSnapshotName} (x${t.quantity})`,
+                                  )
+                                  .join(", ")}
                               </div>
                             )}
                             {item.note && (
@@ -9274,7 +9426,9 @@ export default function CustomerStorefrontPage() {
                             >
                               <Minus className="w-3 h-3" />
                             </button>
-                            <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+                            <span className="text-xs font-bold w-4 text-center">
+                              {item.quantity}
+                            </span>
                             <button
                               type="button"
                               onClick={() => cart.updateQuantity(item.id, 1)}
@@ -9295,11 +9449,11 @@ export default function CustomerStorefrontPage() {
                   <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-2xl text-xs font-bold">
                     <button
                       type="button"
-                      onClick={() => setOrderType('DELIVERY')}
+                      onClick={() => setOrderType("DELIVERY")}
                       className={`py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                        orderType === 'DELIVERY'
-                          ? 'bg-white text-[#6F4E37] shadow-xs'
-                          : 'text-gray-500 hover:text-gray-700'
+                        orderType === "DELIVERY"
+                          ? "bg-white text-[#6F4E37] shadow-xs"
+                          : "text-gray-500 hover:text-gray-700"
                       }`}
                     >
                       <Truck className="w-3.5 h-3.5" />
@@ -9307,11 +9461,11 @@ export default function CustomerStorefrontPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setOrderType('TAKE_AWAY')}
+                      onClick={() => setOrderType("TAKE_AWAY")}
                       className={`py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                        orderType === 'TAKE_AWAY'
-                          ? 'bg-white text-[#6F4E37] shadow-xs'
-                          : 'text-gray-500 hover:text-gray-700'
+                        orderType === "TAKE_AWAY"
+                          ? "bg-white text-[#6F4E37] shadow-xs"
+                          : "text-gray-500 hover:text-gray-700"
                       }`}
                     >
                       <Store className="w-3.5 h-3.5" />
@@ -9322,7 +9476,7 @@ export default function CustomerStorefrontPage() {
                   {/* Thông tin nhận món */}
                   <div className="p-4 rounded-3xl border border-amber-200 bg-amber-50/50 space-y-3">
                     <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
-                      {orderType === 'DELIVERY' ? (
+                      {orderType === "DELIVERY" ? (
                         <>
                           <Truck className="w-4 h-4 text-amber-700" />
                           <span>Thông tin giao hàng nhận món (COD)</span>
@@ -9362,16 +9516,19 @@ export default function CustomerStorefrontPage() {
                         />
                       </div>
 
-                      {orderType === 'DELIVERY' && (
+                      {orderType === "DELIVERY" && (
                         <div>
                           <label className="block text-gray-600 font-semibold mb-1">
-                            Địa chỉ giao hàng nhận món <span className="text-rose-500">*</span>:
+                            Địa chỉ giao hàng nhận món{" "}
+                            <span className="text-rose-500">*</span>:
                           </label>
                           <input
                             type="text"
                             required
                             value={cart.deliveryAddress}
-                            onChange={(e) => cart.setDeliveryAddress(e.target.value)}
+                            onChange={(e) =>
+                              cart.setDeliveryAddress(e.target.value)
+                            }
                             placeholder="Số nhà, tên đường, tòa nhà/phòng..."
                             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs focus:outline-none focus:border-[#6F4E37]"
                           />
@@ -9397,8 +9554,12 @@ export default function CustomerStorefrontPage() {
                   {!user && (
                     <div className="p-3 rounded-2xl bg-[#FAF6F0] border border-[#EADBCC] text-xs text-gray-600 flex items-center justify-between">
                       <div className="space-y-0.5">
-                        <div className="font-bold text-[#6F4E37]">Tích điểm hội viên</div>
-                        <div className="text-[11px] text-gray-500">Đăng nhập để nhận 1 điểm / 10.000 đ</div>
+                        <div className="font-bold text-[#6F4E37]">
+                          Tích điểm hội viên
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          Đăng nhập để nhận 1 điểm / 10.000 đ
+                        </div>
                       </div>
                       <Link
                         href="/login?callbackUrl=/menu"
@@ -9415,14 +9576,22 @@ export default function CustomerStorefrontPage() {
                       <div className="flex items-center justify-between font-bold text-amber-900">
                         <span className="flex items-center gap-1.5">
                           <Award className="w-4 h-4 text-amber-600 fill-amber-500" />
-                          <span>Dùng điểm giảm giá (Có {user.rewardPoints} pts)</span>
+                          <span>
+                            Dùng điểm giảm giá (Có {user.rewardPoints} pts)
+                          </span>
                         </span>
                         <button
                           type="button"
-                          onClick={() => setPointsToRedeem(pointsToRedeem > 0 ? 0 : maxRedeemablePoints)}
+                          onClick={() =>
+                            setPointsToRedeem(
+                              pointsToRedeem > 0 ? 0 : maxRedeemablePoints,
+                            )
+                          }
                           className="text-[11px] text-[#6F4E37] font-extrabold underline cursor-pointer"
                         >
-                          {pointsToRedeem > 0 ? 'Bỏ dùng' : `Dùng hết (${maxRedeemablePoints} pts)`}
+                          {pointsToRedeem > 0
+                            ? "Bỏ dùng"
+                            : `Dùng hết (${maxRedeemablePoints} pts)`}
                         </button>
                       </div>
 
@@ -9431,8 +9600,15 @@ export default function CustomerStorefrontPage() {
                           type="number"
                           min={0}
                           max={maxRedeemablePoints}
-                          value={pointsToRedeem || ''}
-                          onChange={(e) => setPointsToRedeem(Math.min(maxRedeemablePoints, Math.max(0, Number(e.target.value) || 0)))}
+                          value={pointsToRedeem || ""}
+                          onChange={(e) =>
+                            setPointsToRedeem(
+                              Math.min(
+                                maxRedeemablePoints,
+                                Math.max(0, Number(e.target.value) || 0),
+                              ),
+                            )
+                          }
                           placeholder="Nhập số điểm muốn đổi..."
                           className="flex-1 bg-white border border-amber-300 rounded-xl px-3 py-1.5 font-bold text-xs text-gray-900 focus:outline-none"
                         />
@@ -9451,9 +9627,13 @@ export default function CustomerStorefrontPage() {
                       </div>
                       <div>
                         <div className="font-bold text-emerald-900">
-                          {orderType === 'DELIVERY' ? 'Thanh toán tiền mặt khi nhận hàng (COD)' : 'Thanh toán khi nhận món tại quầy'}
+                          {orderType === "DELIVERY"
+                            ? "Thanh toán tiền mặt khi nhận hàng (COD)"
+                            : "Thanh toán khi nhận món tại quầy"}
                         </div>
-                        <div className="text-[11px] text-emerald-700">Kiểm tra đồ uống và thanh toán an toàn</div>
+                        <div className="text-[11px] text-emerald-700">
+                          Kiểm tra đồ uống và thanh toán an toàn
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -9467,15 +9647,21 @@ export default function CustomerStorefrontPage() {
                 <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between text-gray-500">
                     <span>Tạm tính ({cart.totalItemCount} món):</span>
-                    <span className="font-bold text-gray-900">{formatCurrency(cart.subTotal)}</span>
+                    <span className="font-bold text-gray-900">
+                      {formatCurrency(cart.subTotal)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-gray-500">
                     <span>Phí vận chuyển:</span>
-                    <span className="font-bold text-emerald-600">Miễn phí (0 đ)</span>
+                    <span className="font-bold text-emerald-600">
+                      Miễn phí (0 đ)
+                    </span>
                   </div>
                   <div className="flex justify-between text-base font-black text-gray-900 pt-2 border-t border-gray-200">
                     <span>TỔNG CỘNG:</span>
-                    <span className="text-[#6F4E37]">{formatCurrency(cart.subTotal)}</span>
+                    <span className="text-[#6F4E37]">
+                      {formatCurrency(cart.subTotal)}
+                    </span>
                   </div>
                 </div>
 
@@ -9491,15 +9677,20 @@ export default function CustomerStorefrontPage() {
                       <RefreshCw className="w-4 h-4 animate-spin" />
                       <span>Đang gửi đơn hàng...</span>
                     </>
-                  ) : orderType === 'DELIVERY' ? (
+                  ) : orderType === "DELIVERY" ? (
                     <>
                       <Truck className="w-4 h-4" />
-                      <span>Xác nhận đặt hàng COD ({formatCurrency(cart.subTotal)})</span>
+                      <span>
+                        Xác nhận đặt hàng COD ({formatCurrency(cart.subTotal)})
+                      </span>
                     </>
                   ) : (
                     <>
                       <Store className="w-4 h-4" />
-                      <span>Xác nhận đặt lấy tại quán ({formatCurrency(cart.subTotal)})</span>
+                      <span>
+                        Xác nhận đặt lấy tại quán (
+                        {formatCurrency(cart.subTotal)})
+                      </span>
                     </>
                   )}
                 </button>
@@ -9518,9 +9709,15 @@ export default function CustomerStorefrontPage() {
             </div>
 
             <div>
-              <h3 className="font-black text-xl text-gray-900">Đặt hàng thành công!</h3>
+              <h3 className="font-black text-xl text-gray-900">
+                Đặt hàng thành công!
+              </h3>
               <p className="text-xs text-gray-500 mt-1">
-                Đơn hàng #{orderSuccessData.orderCode || orderSuccessData.id || orderSuccessData.newOrderId} của bạn đã được tiếp nhận.
+                Đơn hàng #
+                {orderSuccessData.orderCode ||
+                  orderSuccessData.id ||
+                  orderSuccessData.newOrderId}{" "}
+                của bạn đã được tiếp nhận.
               </p>
             </div>
 
@@ -9528,16 +9725,23 @@ export default function CustomerStorefrontPage() {
               <div className="flex justify-between">
                 <span className="text-gray-500">Mã đơn hàng:</span>
                 <span className="font-mono font-bold text-gray-900">
-                  #{orderSuccessData.orderCode || orderSuccessData.id || orderSuccessData.newOrderId}
+                  #
+                  {orderSuccessData.orderCode ||
+                    orderSuccessData.id ||
+                    orderSuccessData.newOrderId}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Phương thức:</span>
-                <span className="font-bold text-amber-800">Thanh toán COD khi nhận món</span>
+                <span className="font-bold text-amber-800">
+                  Thanh toán COD khi nhận món
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Trạng thái:</span>
-                <span className="font-bold text-blue-600">Đang chờ pha chế</span>
+                <span className="font-bold text-blue-600">
+                  Đang chờ pha chế
+                </span>
               </div>
             </div>
 
@@ -9546,7 +9750,7 @@ export default function CustomerStorefrontPage() {
                 type="button"
                 onClick={() => {
                   setOrderSuccessData(null);
-                  setActiveView('MY_ORDERS');
+                  setActiveView("MY_ORDERS");
                 }}
                 className="w-full py-3 rounded-2xl bg-[#6F4E37] text-white font-bold text-xs hover:bg-[#5A3F2C] cursor-pointer shadow-md shadow-[#6F4E37]/20"
               >
@@ -9571,11 +9775,15 @@ export default function CustomerStorefrontPage() {
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-[#6F4E37] text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                  {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'K'}
+                  {user.fullName ? user.fullName.charAt(0).toUpperCase() : "K"}
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-gray-900">{user.fullName}</h3>
-                  <p className="text-xs text-gray-400 font-mono">{user.phoneNumber}</p>
+                  <h3 className="font-extrabold text-base text-gray-900">
+                    {user.fullName}
+                  </h3>
+                  <p className="text-xs text-gray-400 font-mono">
+                    {user.phoneNumber}
+                  </p>
                 </div>
               </div>
               <button
@@ -9590,39 +9798,63 @@ export default function CustomerStorefrontPage() {
             {/* Thẻ Thống Kê Hạng và Điểm */}
             <div className="p-4 bg-gradient-to-br from-[#FAF6F0] to-[#F5EBE6] rounded-2xl border border-[#EBE3D5] flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Hạng thành viên</span>
-                <span className="text-lg font-black text-[#6F4E37]">HẠNG {user.membershipTier || 'STANDARD'}</span>
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
+                  Hạng thành viên
+                </span>
+                <span className="text-lg font-black text-[#6F4E37]">
+                  HẠNG {user.membershipTier || "STANDARD"}
+                </span>
               </div>
               <div className="text-right">
-                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Điểm khả dụng</span>
-                <span className="text-2xl font-black text-amber-700">{user.rewardPoints || 0} pts</span>
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
+                  Điểm khả dụng
+                </span>
+                <span className="text-2xl font-black text-amber-700">
+                  {user.rewardPoints || 0} pts
+                </span>
               </div>
             </div>
 
             {/* Lịch sử điểm thưởng */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Lịch sử tích / đổi điểm gần đây</h4>
+              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                Lịch sử tích / đổi điểm gần đây
+              </h4>
               <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
                 {loadingPointsHistory ? (
-                  <p className="text-xs text-center text-gray-400 py-6">Đang tải lịch sử điểm...</p>
+                  <p className="text-xs text-center text-gray-400 py-6">
+                    Đang tải lịch sử điểm...
+                  </p>
                 ) : pointsHistory.length > 0 ? (
                   pointsHistory.map((tx) => (
-                    <div key={tx.id} className="p-2.5 bg-gray-50 rounded-xl flex items-center justify-between text-xs">
+                    <div
+                      key={tx.id}
+                      className="p-2.5 bg-gray-50 rounded-xl flex items-center justify-between text-xs"
+                    >
                       <div>
                         <span className="font-bold text-gray-900 block">
-                          {tx.transactionType === 'EARN' ? 'Tích điểm đơn hàng' : 'Đổi điểm giảm giá'}
+                          {tx.transactionType === "EARN"
+                            ? "Tích điểm đơn hàng"
+                            : "Đổi điểm giảm giá"}
                         </span>
                         <span className="text-[10px] text-gray-400">
-                          {new Date(tx.createdAt).toLocaleDateString('vi-VN')}
+                          {new Date(tx.createdAt).toLocaleDateString("vi-VN")}
                         </span>
                       </div>
-                      <span className={`font-black ${tx.transactionType === 'EARN' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {tx.transactionType === 'EARN' ? `+${tx.points}` : `-${tx.points}`} pts
+                      <span
+                        className={`font-black ${tx.transactionType === "EARN" ? "text-emerald-600" : "text-rose-600"}`}
+                      >
+                        {tx.transactionType === "EARN"
+                          ? `+${tx.points}`
+                          : `-${tx.points}`}{" "}
+                        pts
                       </span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-center text-gray-400 py-6">Chưa có giao dịch điểm nào.</p>
+                  <p className="text-xs text-center text-gray-400 py-6">
+                    Chưa có giao dịch điểm nào.
+                  </p>
                 )}
               </div>
             </div>
@@ -9738,16 +9970,16 @@ export default function Page() {
 | Property | Value |
 |----------|-------|
 | Path | `pos\orders\page.tsx` |
-| Size | 24,054 bytes |
+| Size | 25,337 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 21:23:54.963540 |
+| Modified | 2026-10-18 12:08:03.224687 |
 
 ```tsx
 // app/pos/orders/page.tsx
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Search,
   Eye,
@@ -9770,70 +10002,86 @@ import {
   X,
   LogOut,
   LayoutDashboard,
-} from 'lucide-react';
-import { useAuthContext } from '@/context/AuthContext';
-import { posService } from '@/api/pos.service';
-import { OrderItemResponse } from '@/types/pos';
-import { OrderStatus } from '@/types/enums';
-import { OrderDetailDrawer } from '@/components/pos/OrderDetailDrawer';
-import { PrintReceiptModal } from '@/components/pos/PrintReceiptModal';
-import { CancelOrderModal } from '@/components/pos/CancelOrderModal';
-import { PosUserDropdown } from '@/components/pos/PosUserDropdown';
+} from "lucide-react";
+import { useAuthContext } from "@/context/AuthContext";
+import { posService } from "@/api/pos.service";
+import { OrderItemResponse } from "@/types/pos";
+import { OrderStatus } from "@/types/enums";
+import { OrderDetailDrawer } from "@/components/pos/OrderDetailDrawer";
+import { PrintReceiptModal } from "@/components/pos/PrintReceiptModal";
+import { CancelOrderModal } from "@/components/pos/CancelOrderModal";
+import { PosUserDropdown } from "@/components/pos/PosUserDropdown";
 
-const STATUS_FILTERS: { key: OrderStatus | 'ALL'; label: string }[] = [
-  { key: 'ALL', label: 'Tất cả' },
-  { key: 'PENDING_PREP', label: 'Chờ pha chế' },
-  { key: 'PREPARING', label: 'Đang pha chế' },
-  { key: 'READY_FOR_PICKUP', label: 'Chờ lấy món' },
-  { key: 'COMPLETED', label: 'Hoàn tất' },
-  { key: 'CANCELLED', label: 'Đã hủy' },
+const STATUS_FILTERS: { key: OrderStatus | "ALL"; label: string }[] = [
+  { key: "ALL", label: "Tất cả" },
+  { key: "PENDING_PREP", label: "Chờ pha chế" },
+  { key: "PREPARING", label: "Đang pha chế" },
+  { key: "READY_FOR_PICKUP", label: "Chờ lấy món" },
+  { key: "COMPLETED", label: "Hoàn tất" },
+  { key: "CANCELLED", label: "Đã hủy" },
 ];
 
 export default function PosOrdersPage() {
   const { user, logout } = useAuthContext();
-  const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const isManagerOrAdmin = user?.role === "ADMIN" || user?.role === "MANAGER";
   const [orders, setOrders] = useState<OrderItemResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [meta, setMeta] = useState({ page: 1, limit: 10, totalItems: 0, totalPages: 1 });
+  const [meta, setMeta] = useState({
+    page: 1,
+    limit: 10,
+    totalItems: 0,
+    totalPages: 1,
+  });
 
   // Bộ lọc
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | "ALL">("ALL");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   // Modals & Drawer States
-  const [selectedOrder, setSelectedOrder] = useState<OrderItemResponse | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderItemResponse | null>(
+    null,
+  );
   const [printOrderId, setPrintOrderId] = useState<number | null>(null);
   const [cancelOrderId, setCancelOrderId] = useState<number | null>(null);
-  const [cancelOrderCode, setCancelOrderCode] = useState<string>('');
+  const [cancelOrderCode, setCancelOrderCode] = useState<string>("");
 
-  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
-  const fetchOrders = useCallback(async (page = 1) => {
-    setLoading(true);
-    try {
-      const params: any = {
-        page,
-        limit: 10,
-      };
+  const fetchOrders = useCallback(
+    async (page = 1) => {
+      setLoading(true);
+      try {
+        const params: any = {
+          page,
+          limit: 10,
+        };
 
-      if (search.trim()) params.search = search.trim();
-      if (statusFilter !== 'ALL') params.status = statusFilter;
-      if (fromDate) params.fromDate = fromDate;
-      if (toDate) params.toDate = toDate;
+        if (search.trim()) params.search = search.trim();
+        if (statusFilter !== "ALL") params.status = statusFilter;
+        if (fromDate) params.fromDate = fromDate;
+        if (toDate) params.toDate = toDate;
 
-      const res = await posService.getOrders(params);
-      setOrders(res.items || res.data || []);
-      if (res.meta) {
-        setMeta(res.meta);
+        const res = await posService.getOrders(params);
+        setOrders(res.items || res.data || []);
+        if (res.meta) {
+          setMeta(res.meta);
+        }
+      } catch (err: any) {
+        setToastMessage({
+          type: "error",
+          message: err.message || "Không thể tải danh sách đơn hàng",
+        });
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      setToastMessage({ type: 'error', message: err.message || 'Không thể tải danh sách đơn hàng' });
-    } finally {
-      setLoading(false);
-    }
-  }, [search, statusFilter, fromDate, toDate]);
+    },
+    [search, statusFilter, fromDate, toDate],
+  );
 
   useEffect(() => {
     fetchOrders(1);
@@ -9848,14 +10096,17 @@ export default function PosOrdersPage() {
   }, [toastMessage]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
   };
 
   const getTodayRange = () => {
     const today = new Date();
     const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
     const dateStr = `${yyyy}-${mm}-${dd}`;
     return { from: dateStr, to: dateStr };
   };
@@ -9864,18 +10115,18 @@ export default function PosOrdersPage() {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yyyy = yesterday.getFullYear();
-    const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
-    const dd = String(yesterday.getDate()).padStart(2, '0');
+    const mm = String(yesterday.getMonth() + 1).padStart(2, "0");
+    const dd = String(yesterday.getDate()).padStart(2, "0");
     const dateStr = `${yyyy}-${mm}-${dd}`;
     return { from: dateStr, to: dateStr };
   };
 
-  const setDatePreset = (type: 'TODAY' | 'YESTERDAY') => {
-    if (type === 'TODAY') {
+  const setDatePreset = (type: "TODAY" | "YESTERDAY") => {
+    if (type === "TODAY") {
       const { from, to } = getTodayRange();
       setFromDate(from);
       setToDate(to);
-    } else if (type === 'YESTERDAY') {
+    } else if (type === "YESTERDAY") {
       const { from, to } = getYesterdayRange();
       setFromDate(from);
       setToDate(to);
@@ -9883,8 +10134,8 @@ export default function PosOrdersPage() {
   };
 
   const clearDateFilter = () => {
-    setFromDate('');
-    setToDate('');
+    setFromDate("");
+    setToDate("");
   };
 
   const isTodayActive = () => {
@@ -9899,18 +10150,42 @@ export default function PosOrdersPage() {
 
   const getStatusBadge = (status: OrderStatus) => {
     switch (status) {
-      case 'PENDING_PREP':
-        return <span className="rounded-md bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">Chờ pha chế</span>;
-      case 'PREPARING':
-        return <span className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300">Đang pha chế</span>;
-      case 'READY_FOR_PICKUP':
-        return <span className="rounded-md bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:border-purple-800 dark:text-purple-300">Chờ lấy món</span>;
-      case 'COMPLETED':
-        return <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">Hoàn tất</span>;
-      case 'CANCELLED':
-        return <span className="rounded-md bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300">Đã hủy</span>;
+      case "PENDING_PREP":
+        return (
+          <span className="rounded-md bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">
+            Chờ pha chế
+          </span>
+        );
+      case "PREPARING":
+        return (
+          <span className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300">
+            Đang pha chế
+          </span>
+        );
+      case "READY_FOR_PICKUP":
+        return (
+          <span className="rounded-md bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:border-purple-800 dark:text-purple-300">
+            Chờ lấy món
+          </span>
+        );
+      case "COMPLETED":
+        return (
+          <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+            Hoàn tất
+          </span>
+        );
+      case "CANCELLED":
+        return (
+          <span className="rounded-md bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300">
+            Đã hủy
+          </span>
+        );
       default:
-        return <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700">{status}</span>;
+        return (
+          <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700">
+            {status}
+          </span>
+        );
     }
   };
 
@@ -9919,20 +10194,29 @@ export default function PosOrdersPage() {
       const data = await posService.getOrderById(id);
       setSelectedOrder(data);
     } catch (err: any) {
-      setToastMessage({ type: 'error', message: err.message || 'Không thể xem chi tiết đơn hàng' });
+      setToastMessage({
+        type: "error",
+        message: err.message || "Không thể xem chi tiết đơn hàng",
+      });
     }
   };
 
   const handlePayOrder = async (orderId: number) => {
     try {
-      await posService.completePayment(orderId, 'CASH');
-      setToastMessage({ type: 'success', message: `Thanh toán thành công đơn #${orderId}` });
+      await posService.completePayment(orderId, "CASH");
+      setToastMessage({
+        type: "success",
+        message: `Thanh toán thành công đơn #${orderId}`,
+      });
       fetchOrders(meta.page);
       if (selectedOrder?.id === orderId) {
         handleOpenDetail(orderId);
       }
     } catch (err: any) {
-      setToastMessage({ type: 'error', message: err.message || 'Thanh toán thất bại' });
+      setToastMessage({
+        type: "error",
+        message: err.message || "Thanh toán thất bại",
+      });
     }
   };
 
@@ -9956,7 +10240,9 @@ export default function PosOrdersPage() {
               <h1 className="font-extrabold text-base text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight">
                 QUẢN LÝ ĐƠN HÀNG POS
               </h1>
-              <p className="text-xs text-zinc-400 font-medium leading-none">Danh sách & Tra cứu hóa đơn</p>
+              <p className="text-xs text-zinc-400 font-medium leading-none">
+                Danh sách & Tra cứu hóa đơn
+              </p>
             </div>
           </div>
         </div>
@@ -9999,12 +10285,16 @@ export default function PosOrdersPage() {
         <div className="fixed top-20 right-6 z-50 animate-bounce">
           <div
             className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold shadow-xl ${
-              toastMessage.type === 'success'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-rose-600 text-white'
+              toastMessage.type === "success"
+                ? "bg-emerald-600 text-white"
+                : "bg-rose-600 text-white"
             }`}
           >
-            {toastMessage.type === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+            {toastMessage.type === "success" ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              <AlertCircle className="h-4 w-4" />
+            )}
             <span>{toastMessage.message}</span>
           </div>
         </div>
@@ -10033,22 +10323,22 @@ export default function PosOrdersPage() {
               <div className="flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-xl">
                 <button
                   type="button"
-                  onClick={() => setDatePreset('TODAY')}
+                  onClick={() => setDatePreset("TODAY")}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     isTodayActive()
-                      ? 'bg-[#6F4E37] text-white shadow-xs'
-                      : 'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white'
+                      ? "bg-[#6F4E37] text-white shadow-xs"
+                      : "text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
                   }`}
                 >
                   Hôm nay
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDatePreset('YESTERDAY')}
+                  onClick={() => setDatePreset("YESTERDAY")}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     isYesterdayActive()
-                      ? 'bg-[#6F4E37] text-white shadow-xs'
-                      : 'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white'
+                      ? "bg-[#6F4E37] text-white shadow-xs"
+                      : "text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
                   }`}
                 >
                   Hôm qua
@@ -10066,20 +10356,19 @@ export default function PosOrdersPage() {
               </div>
 
               {/* Date range inputs on the right */}
-              <div className="flex items-center gap-1.5 bg-zinc-50 dark:bg-zinc-850 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-1">
-                <Calendar className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs shadow-inner">
                 <input
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  className="bg-transparent text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none cursor-pointer"
+                  className="bg-transparent text-zinc-100 font-medium focus:outline-none cursor-pointer [color-scheme:dark]"
                 />
-                <span className="text-zinc-400 font-bold px-0.5">-</span>
+                <span className="text-zinc-500 font-bold">-</span>
                 <input
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  className="bg-transparent text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none cursor-pointer"
+                  className="bg-transparent text-zinc-100 font-medium focus:outline-none cursor-pointer [color-scheme:dark]"
                 />
               </div>
             </div>
@@ -10096,8 +10385,8 @@ export default function PosOrdersPage() {
                   onClick={() => setStatusFilter(f.key)}
                   className={`rounded-xl px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                     active
-                      ? 'bg-[#6F4E37] text-white shadow-xs'
-                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
+                      ? "bg-[#6F4E37] text-white shadow-xs"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400"
                   }`}
                 >
                   {f.label}
@@ -10126,36 +10415,56 @@ export default function PosOrdersPage() {
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-zinc-400 font-medium">
+                    <td
+                      colSpan={8}
+                      className="py-12 text-center text-zinc-400 font-medium"
+                    >
                       Đang tải dữ liệu đơn hàng...
                     </td>
                   </tr>
                 ) : orders.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-zinc-400 font-medium">
+                    <td
+                      colSpan={8}
+                      className="py-12 text-center text-zinc-400 font-medium"
+                    >
                       Không tìm thấy đơn hàng nào
                     </td>
                   </tr>
                 ) : (
                   orders.map((order) => (
-                    <tr key={order.id} className="hover:bg-zinc-50/80 dark:hover:bg-zinc-850/40 transition-colors">
+                    <tr
+                      key={order.id}
+                      className="hover:bg-zinc-50/80 dark:hover:bg-zinc-850/40 transition-colors"
+                    >
                       <td className="py-3 px-4 font-extrabold text-zinc-900 dark:text-zinc-100">
                         #{order.orderCode}
                       </td>
                       <td className="py-3 px-4 text-zinc-500 dark:text-zinc-400">
-                        {new Date(order.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(order.createdAt).toLocaleTimeString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                         <div className="text-[10px] text-zinc-400">
-                          {new Date(order.createdAt).toLocaleDateString('vi-VN')}
+                          {new Date(order.createdAt).toLocaleDateString(
+                            "vi-VN",
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         {order.customerName ? (
                           <div>
-                            <div className="font-bold text-zinc-800 dark:text-zinc-200">{order.customerName}</div>
-                            <div className="text-[10px] text-zinc-400">{order.customerPhone}</div>
+                            <div className="font-bold text-zinc-800 dark:text-zinc-200">
+                              {order.customerName}
+                            </div>
+                            <div className="text-[10px] text-zinc-400">
+                              {order.customerPhone}
+                            </div>
                           </div>
                         ) : (
-                          <span className="text-zinc-400 italic">Khách vãng lai</span>
+                          <span className="text-zinc-400 italic">
+                            Khách vãng lai
+                          </span>
                         )}
                       </td>
                       <td className="py-3 px-4">
@@ -10171,9 +10480,11 @@ export default function PosOrdersPage() {
                         {formatCurrency(order.totalAmount)}
                       </td>
                       <td className="py-3 px-4 font-medium text-zinc-600 dark:text-zinc-300">
-                        {order.paymentMethod || 'Tiền mặt'}
+                        {order.paymentMethod || "Tiền mặt"}
                       </td>
-                      <td className="py-3 px-4">{getStatusBadge(order.status)}</td>
+                      <td className="py-3 px-4">
+                        {getStatusBadge(order.status)}
+                      </td>
                       <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
                         <button
                           type="button"
@@ -10191,19 +10502,20 @@ export default function PosOrdersPage() {
                         >
                           <Printer className="h-4 w-4" />
                         </button>
-                        {order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCancelOrderId(order.id);
-                              setCancelOrderCode(order.orderCode);
-                            }}
-                            title="Hủy đơn"
-                            className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                          >
-                            <Ban className="h-4 w-4" />
-                          </button>
-                        )}
+                        {order.status !== "COMPLETED" &&
+                          order.status !== "CANCELLED" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCancelOrderId(order.id);
+                                setCancelOrderCode(order.orderCode);
+                              }}
+                              title="Hủy đơn"
+                              className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                            >
+                              <Ban className="h-4 w-4" />
+                            </button>
+                          )}
                       </td>
                     </tr>
                   ))
@@ -10216,8 +10528,11 @@ export default function PosOrdersPage() {
           {meta.totalPages > 1 && (
             <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
               <div className="text-xs text-zinc-500">
-                Hiển thị trang <strong className="text-zinc-800 dark:text-zinc-200">{meta.page}</strong> /{' '}
-                {meta.totalPages} ({meta.totalItems} đơn hàng)
+                Hiển thị trang{" "}
+                <strong className="text-zinc-800 dark:text-zinc-200">
+                  {meta.page}
+                </strong>{" "}
+                / {meta.totalPages} ({meta.totalItems} đơn hàng)
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -10251,7 +10566,7 @@ export default function PosOrdersPage() {
         onPayOrder={handlePayOrder}
         onCancelOrder={(id) => {
           setCancelOrderId(id);
-          setCancelOrderCode(selectedOrder?.orderCode || '');
+          setCancelOrderCode(selectedOrder?.orderCode || "");
         }}
       />
 
@@ -10269,7 +10584,10 @@ export default function PosOrdersPage() {
         orderCode={cancelOrderCode}
         onClose={() => setCancelOrderId(null)}
         onSuccess={() => {
-          setToastMessage({ type: 'success', message: 'Hủy đơn hàng và giải phóng thẻ rung thành công!' });
+          setToastMessage({
+            type: "success",
+            message: "Hủy đơn hàng và giải phóng thẻ rung thành công!",
+          });
           fetchOrders(meta.page);
           if (selectedOrder?.id === cancelOrderId) {
             handleOpenDetail(cancelOrderId);
@@ -10287,16 +10605,16 @@ export default function PosOrdersPage() {
 | Property | Value |
 |----------|-------|
 | Path | `pos\pagers\page.tsx` |
-| Size | 47,478 bytes |
+| Size | 49,046 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-17 21:23:54.963540 |
+| Modified | 2026-10-18 01:54:08.617187 |
 
 ```tsx
 // app/pos/pagers/page.tsx
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   BellRing,
   BatteryLow,
@@ -10325,56 +10643,74 @@ import {
   Check,
   LogOut,
   LayoutDashboard,
-} from 'lucide-react';
-import { useAuthContext } from '@/context/AuthContext';
-import { pagerService } from '@/api/pager.service';
-import { ActivePagerDashboardItem, PagerDevice, CreatePagerPayload } from '@/types/pager';
-import { PagerStatus } from '@/types/enums';
-import { PosUserDropdown } from '@/components/pos/PosUserDropdown';
+} from "lucide-react";
+import { useAuthContext } from "@/context/AuthContext";
+import { pagerService } from "@/api/pager.service";
+import {
+  ActivePagerDashboardItem,
+  PagerDevice,
+  CreatePagerPayload,
+} from "@/types/pager";
+import { PagerStatus } from "@/types/enums";
+import { PosUserDropdown } from "@/components/pos/PosUserDropdown";
 
-const PAGER_STATUS_TABS: { key: PagerStatus | 'ALL'; label: string }[] = [
-  { key: 'ALL', label: 'Tất cả trạng thái' },
-  { key: 'AVAILABLE', label: 'Sẵn sàng' },
-  { key: 'IN_USE', label: 'Đang phát' },
-  { key: 'CHARGING', label: 'Đang sạc' },
-  { key: 'MAINTENANCE', label: 'Bảo trì' },
+const PAGER_STATUS_TABS: { key: PagerStatus | "ALL"; label: string }[] = [
+  { key: "ALL", label: "Tất cả trạng thái" },
+  { key: "AVAILABLE", label: "Sẵn sàng" },
+  { key: "IN_USE", label: "Đang phát" },
+  { key: "CHARGING", label: "Đang sạc" },
+  { key: "MAINTENANCE", label: "Bảo trì" },
 ];
 
 export default function PagersManagementPage() {
   const { user, logout } = useAuthContext();
-  const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
-  const [activeTab, setActiveTab] = useState<'active_dashboard' | 'all_devices'>('active_dashboard');
+  const isManagerOrAdmin = user?.role === "ADMIN" || user?.role === "MANAGER";
+  const [activeTab, setActiveTab] = useState<
+    "active_dashboard" | "all_devices"
+  >("active_dashboard");
 
   // Tab 1: Dashboard Data
-  const [activePagers, setActivePagers] = useState<ActivePagerDashboardItem[]>([]);
+  const [activePagers, setActivePagers] = useState<ActivePagerDashboardItem[]>(
+    [],
+  );
   const [loadingDashboard, setLoadingDashboard] = useState(false);
 
   // Tab 2: Devices Data
   const [devices, setDevices] = useState<PagerDevice[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
-  const [meta, setMeta] = useState({ page: 1, limit: 12, totalItems: 0, totalPages: 1 });
-  const [statusFilter, setStatusFilter] = useState<PagerStatus | 'ALL'>('ALL');
+  const [meta, setMeta] = useState({
+    page: 1,
+    limit: 12,
+    totalItems: 0,
+    totalPages: 1,
+  });
+  const [statusFilter, setStatusFilter] = useState<PagerStatus | "ALL">("ALL");
 
   // Search
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Toast
-  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // Modal: Thêm Thẻ Mới
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newBatteryLevel, setNewBatteryLevel] = useState(100);
-  const [newStatus, setNewStatus] = useState<PagerStatus>('AVAILABLE');
+  const [newStatus, setNewStatus] = useState<PagerStatus>("AVAILABLE");
   const [isSubmittingAdd, setIsSubmittingAdd] = useState(false);
 
   // Modal: Sửa Trạng Thái / Pin Thẻ
   const [editingDevice, setEditingDevice] = useState<PagerDevice | null>(null);
-  const [editStatus, setEditStatus] = useState<PagerStatus>('AVAILABLE');
+  const [editStatus, setEditStatus] = useState<PagerStatus>("AVAILABLE");
   const [editBattery, setEditBattery] = useState<number>(100);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
   // Modal: Xác nhận Xóa
-  const [deletingDevice, setDeletingDevice] = useState<PagerDevice | null>(null);
+  const [deletingDevice, setDeletingDevice] = useState<PagerDevice | null>(
+    null,
+  );
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
 
   // 1. Tải dữ liệu Dashboard (Tab 1)
@@ -10385,8 +10721,8 @@ export default function PagersManagementPage() {
       setActivePagers(Array.isArray(data) ? data : []);
     } catch (err: any) {
       setToastMessage({
-        type: 'error',
-        message: err.message || 'Không thể tải bảng điều phối thẻ rung',
+        type: "error",
+        message: err.message || "Không thể tải bảng điều phối thẻ rung",
       });
     } finally {
       setLoadingDashboard(false);
@@ -10403,7 +10739,7 @@ export default function PagersManagementPage() {
           limit: 12,
         };
         if (searchQuery.trim()) params.search = searchQuery.trim();
-        if (statusFilter !== 'ALL') params.status = statusFilter;
+        if (statusFilter !== "ALL") params.status = statusFilter;
 
         const res = await pagerService.getPagers(params);
         setDevices(res.items || res.data || []);
@@ -10412,19 +10748,19 @@ export default function PagersManagementPage() {
         }
       } catch (err: any) {
         setToastMessage({
-          type: 'error',
-          message: err.message || 'Không thể tải danh sách thiết bị thẻ rung',
+          type: "error",
+          message: err.message || "Không thể tải danh sách thiết bị thẻ rung",
         });
       } finally {
         setLoadingDevices(false);
       }
     },
-    [searchQuery, statusFilter]
+    [searchQuery, statusFilter],
   );
 
   // Effect load ban đầu hoặc khi đổi tab
   useEffect(() => {
-    if (activeTab === 'active_dashboard') {
+    if (activeTab === "active_dashboard") {
       fetchDashboard();
     } else {
       fetchDevices(1);
@@ -10442,7 +10778,7 @@ export default function PagersManagementPage() {
   // 3. Xử lý rung chuông gọi khách
   const handleBuzzPager = (pagerCode: string, orderCode: string) => {
     setToastMessage({
-      type: 'success',
+      type: "success",
       message: `Đang gửi tín hiệu RUNG & PHÁT ÂM THANH đến thẻ ${pagerCode} (Đơn #${orderCode})!`,
     });
   };
@@ -10457,7 +10793,10 @@ export default function PagersManagementPage() {
         targetId = foundInDevices.id;
       } else {
         // Fetch trực tiếp để lấy id
-        const res = await pagerService.getPagers({ search: pagerCode, limit: 1 });
+        const res = await pagerService.getPagers({
+          search: pagerCode,
+          limit: 1,
+        });
         if (res.items && res.items.length > 0) {
           targetId = res.items[0].id;
         }
@@ -10469,18 +10808,18 @@ export default function PagersManagementPage() {
 
       await pagerService.releasePager(targetId);
       setToastMessage({
-        type: 'success',
+        type: "success",
         message: `Đã thu hồi thẻ ${pagerCode} về trạng thái Sẵn sàng thành công!`,
       });
 
       // Reload
       fetchDashboard();
-      if (activeTab === 'all_devices') {
+      if (activeTab === "all_devices") {
         fetchDevices(meta.page);
       }
     } catch (err: any) {
       setToastMessage({
-        type: 'error',
+        type: "error",
         message: err.message || `Không thể thu hồi thẻ ${pagerCode}`,
       });
     }
@@ -10498,23 +10837,23 @@ export default function PagersManagementPage() {
       };
 
       const res = await pagerService.createPager(payload);
-      const createdCode = res?.data?.pagerCode || '';
+      const createdCode = res?.data?.pagerCode || "";
       setToastMessage({
-        type: 'success',
+        type: "success",
         message: createdCode
           ? `Thêm thiết bị thẻ rung ${createdCode} thành công!`
-          : 'Thêm thiết bị thẻ rung thành công!',
+          : "Thêm thiết bị thẻ rung thành công!",
       });
 
       setIsAddModalOpen(false);
       setNewBatteryLevel(100);
-      setNewStatus('AVAILABLE');
+      setNewStatus("AVAILABLE");
 
       fetchDevices(1);
     } catch (err: any) {
       setToastMessage({
-        type: 'error',
-        message: err.message || 'Thêm thiết bị thất bại',
+        type: "error",
+        message: err.message || "Thêm thiết bị thất bại",
       });
     } finally {
       setIsSubmittingAdd(false);
@@ -10536,19 +10875,19 @@ export default function PagersManagementPage() {
       }
 
       setToastMessage({
-        type: 'success',
+        type: "success",
         message: `Cập nhật thẻ ${editingDevice.pagerCode} thành công!`,
       });
 
       setEditingDevice(null);
       fetchDevices(meta.page);
-      if (activeTab === 'active_dashboard') {
+      if (activeTab === "active_dashboard") {
         fetchDashboard();
       }
     } catch (err: any) {
       setToastMessage({
-        type: 'error',
-        message: err.message || 'Cập nhật thiết bị thất bại',
+        type: "error",
+        message: err.message || "Cập nhật thiết bị thất bại",
       });
     } finally {
       setIsSubmittingEdit(false);
@@ -10563,7 +10902,7 @@ export default function PagersManagementPage() {
     try {
       await pagerService.deletePager(deletingDevice.id);
       setToastMessage({
-        type: 'success',
+        type: "success",
         message: `Đã xóa thiết bị thẻ ${deletingDevice.pagerCode}!`,
       });
 
@@ -10571,8 +10910,8 @@ export default function PagersManagementPage() {
       fetchDevices(meta.page);
     } catch (err: any) {
       setToastMessage({
-        type: 'error',
-        message: err.message || 'Xóa thiết bị thất bại',
+        type: "error",
+        message: err.message || "Xóa thiết bị thất bại",
       });
     } finally {
       setIsSubmittingDelete(false);
@@ -10584,8 +10923,9 @@ export default function PagersManagementPage() {
     (p) =>
       p.pagerCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.customerName && p.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (p.customerPhone && p.customerPhone.includes(searchQuery))
+      (p.customerName &&
+        p.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (p.customerPhone && p.customerPhone.includes(searchQuery)),
   );
 
   // Helper render mức pin
@@ -10617,28 +10957,28 @@ export default function PagersManagementPage() {
   // Helper render Badge trạng thái
   const getDeviceStatusBadge = (status: PagerStatus) => {
     switch (status) {
-      case 'AVAILABLE':
+      case "AVAILABLE":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
             <CheckCircle2 className="w-3.5 h-3.5" />
             Sẵn sàng
           </span>
         );
-      case 'IN_USE':
+      case "IN_USE":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">
             <Radio className="w-3.5 h-3.5 animate-pulse" />
             Đang phát cho khách
           </span>
         );
-      case 'CHARGING':
+      case "CHARGING":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300">
             <BatteryCharging className="w-3.5 h-3.5 text-blue-600" />
             Đang sạc
           </span>
         );
-      case 'MAINTENANCE':
+      case "MAINTENANCE":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-300">
             <Wrench className="w-3.5 h-3.5 text-zinc-500" />
@@ -10670,7 +11010,8 @@ export default function PagersManagementPage() {
                   Bảng Điều Phối & Thu Hồi Thẻ Rung
                 </h1>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Giám sát thẻ đang phục vụ, thời gian chờ khách và quản lý phần cứng Pager
+                  Giám sát thẻ đang phục vụ, thời gian chờ khách và quản lý phần
+                  cứng Pager
                 </p>
               </div>
             </div>
@@ -10690,7 +11031,7 @@ export default function PagersManagementPage() {
             <button
               type="button"
               onClick={() => {
-                if (activeTab === 'active_dashboard') fetchDashboard();
+                if (activeTab === "active_dashboard") fetchDashboard();
                 else fetchDevices(meta.page);
               }}
               className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
@@ -10718,10 +11059,12 @@ export default function PagersManagementPage() {
         <div className="fixed top-20 right-6 z-50 animate-bounce">
           <div
             className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold shadow-xl ${
-              toastMessage.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+              toastMessage.type === "success"
+                ? "bg-emerald-600 text-white"
+                : "bg-rose-600 text-white"
             }`}
           >
-            {toastMessage.type === 'success' ? (
+            {toastMessage.type === "success" ? (
               <CheckCircle2 className="h-4 w-4" />
             ) : (
               <AlertCircle className="h-4 w-4" />
@@ -10738,20 +11081,20 @@ export default function PagersManagementPage() {
           <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xs w-fit">
             <button
               type="button"
-              onClick={() => setActiveTab('active_dashboard')}
+              onClick={() => setActiveTab("active_dashboard")}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'active_dashboard'
-                  ? 'bg-[#6F4E37] text-white shadow-xs'
-                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
+                activeTab === "active_dashboard"
+                  ? "bg-[#6F4E37] text-white shadow-xs"
+                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               }`}
             >
               <Radio className="w-4 h-4" />
               <span>Điều phối thẻ đang phát</span>
               <span
                 className={`px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${
-                  activeTab === 'active_dashboard'
-                    ? 'bg-[#F5EBE6] text-[#6F4E37]'
-                    : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+                  activeTab === "active_dashboard"
+                    ? "bg-[#F5EBE6] text-[#6F4E37]"
+                    : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                 }`}
               >
                 {activePagers.length}
@@ -10760,20 +11103,20 @@ export default function PagersManagementPage() {
 
             <button
               type="button"
-              onClick={() => setActiveTab('all_devices')}
+              onClick={() => setActiveTab("all_devices")}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'all_devices'
-                  ? 'bg-[#6F4E37] text-white shadow-xs'
-                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
+                activeTab === "all_devices"
+                  ? "bg-[#6F4E37] text-white shadow-xs"
+                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               }`}
             >
               <SlidersHorizontal className="w-4 h-4" />
               <span>Quản lý thiết bị phần cứng</span>
               <span
                 className={`px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${
-                  activeTab === 'all_devices'
-                    ? 'bg-[#F5EBE6] text-[#6F4E37]'
-                    : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+                  activeTab === "all_devices"
+                    ? "bg-[#F5EBE6] text-[#6F4E37]"
+                    : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                 }`}
               >
                 {meta.totalItems || devices.length}
@@ -10782,18 +11125,22 @@ export default function PagersManagementPage() {
           </div>
 
           {/* Action button in Tab 2 */}
-          {activeTab === 'all_devices' && (
+          {activeTab === "all_devices" && (
             <button
               type="button"
               disabled={!isManagerOrAdmin}
               onClick={() => {
                 if (isManagerOrAdmin) setIsAddModalOpen(true);
               }}
-              title={isManagerOrAdmin ? 'Thêm thiết bị thẻ rung mới' : 'Chỉ Quản lý mới có quyền thêm thiết bị'}
+              title={
+                isManagerOrAdmin
+                  ? "Thêm thiết bị thẻ rung mới"
+                  : "Chỉ Quản lý mới có quyền thêm thiết bị"
+              }
               className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold shadow-xs transition-colors ${
                 isManagerOrAdmin
-                  ? 'bg-[#6F4E37] hover:bg-[#5A3F2C] cursor-pointer'
-                  : 'bg-zinc-400 dark:bg-zinc-700 opacity-50 cursor-not-allowed'
+                  ? "bg-[#6F4E37] hover:bg-[#5A3F2C] cursor-pointer"
+                  : "bg-zinc-400 dark:bg-zinc-700 opacity-50 cursor-not-allowed"
               }`}
             >
               <Plus className="w-4 h-4" />
@@ -10817,14 +11164,14 @@ export default function PagersManagementPage() {
             </div>
 
             <div className="text-xs text-zinc-500 font-medium">
-              {activeTab === 'active_dashboard'
+              {activeTab === "active_dashboard"
                 ? `Đang có ${filteredActivePagers.length} thẻ rung đang cấp phát cho khách`
                 : `Tổng cộng ${meta.totalItems || devices.length} thiết bị trong kho`}
             </div>
           </div>
 
           {/* Status Filter Pills for Tab 2 */}
-          {activeTab === 'all_devices' && (
+          {activeTab === "all_devices" && (
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pt-1 border-t border-zinc-100 dark:border-zinc-800">
               {PAGER_STATUS_TABS.map((tab) => (
                 <button
@@ -10833,8 +11180,8 @@ export default function PagersManagementPage() {
                   onClick={() => setStatusFilter(tab.key)}
                   className={`rounded-xl px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-all ${
                     statusFilter === tab.key
-                      ? 'bg-[#6F4E37] text-white shadow-xs'
-                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
+                      ? "bg-[#6F4E37] text-white shadow-xs"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400"
                   }`}
                 >
                   {tab.label}
@@ -10847,7 +11194,7 @@ export default function PagersManagementPage() {
         {/* ========================================================
             5. TAB 1: BẢNG ĐIỀU PHỐI (Active Pagers Dashboard)
             ======================================================== */}
-        {activeTab === 'active_dashboard' && (
+        {activeTab === "active_dashboard" && (
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xs border border-zinc-200 dark:border-zinc-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
@@ -10876,7 +11223,10 @@ export default function PagersManagementPage() {
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                   {loadingDashboard ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-zinc-400 font-medium">
+                      <td
+                        colSpan={6}
+                        className="py-12 text-center text-zinc-400 font-medium"
+                      >
                         Đang tải dữ liệu điều phối thẻ rung...
                       </td>
                     </tr>
@@ -10902,7 +11252,9 @@ export default function PagersManagementPage() {
                           </td>
 
                           {/* Mức pin */}
-                          <td className="py-3.5 px-5">{renderBatteryIndicator(pager.batteryLevel)}</td>
+                          <td className="py-3.5 px-5">
+                            {renderBatteryIndicator(pager.batteryLevel)}
+                          </td>
 
                           {/* Mã đơn liên kết */}
                           <td className="py-3.5 px-5">
@@ -10920,7 +11272,7 @@ export default function PagersManagementPage() {
                           <td className="py-3.5 px-5">
                             <div>
                               <span className="font-bold text-zinc-900 dark:text-zinc-100 block">
-                                {pager.customerName || 'Khách vãng lai'}
+                                {pager.customerName || "Khách vãng lai"}
                               </span>
                               {pager.customerPhone && (
                                 <span className="text-[11px] text-zinc-400 font-mono">
@@ -10937,12 +11289,12 @@ export default function PagersManagementPage() {
                               <span
                                 className={`font-bold px-2 py-0.5 rounded-md ${
                                   isOverdue
-                                    ? 'text-rose-600 bg-rose-50 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-800'
-                                    : 'text-zinc-700 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300'
+                                    ? "text-rose-600 bg-rose-50 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-800"
+                                    : "text-zinc-700 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300"
                                 }`}
                               >
                                 {pager.waitingMinutes} phút
-                                {isOverdue && ' (Chờ lâu)'}
+                                {isOverdue && " (Chờ lâu)"}
                               </span>
                             </div>
                           </td>
@@ -10953,7 +11305,12 @@ export default function PagersManagementPage() {
                               {/* Rung chuông */}
                               <button
                                 type="button"
-                                onClick={() => handleBuzzPager(pager.pagerCode, pager.orderCode)}
+                                onClick={() =>
+                                  handleBuzzPager(
+                                    pager.pagerCode,
+                                    pager.orderCode,
+                                  )
+                                }
                                 className="px-2.5 py-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
                                 title="Rung chuông & Nhấp nháy gọi khách đến quầy nhận món"
                               >
@@ -10964,7 +11321,9 @@ export default function PagersManagementPage() {
                               {/* Thu hồi thẻ */}
                               <button
                                 type="button"
-                                onClick={() => handleReleasePager(pager.pagerCode)}
+                                onClick={() =>
+                                  handleReleasePager(pager.pagerCode)
+                                }
                                 className="px-3 py-1.5 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
                                 title="Thu hồi thẻ về khay sạc"
                               >
@@ -10978,7 +11337,10 @@ export default function PagersManagementPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-zinc-400 font-medium">
+                      <td
+                        colSpan={6}
+                        className="py-12 text-center text-zinc-400 font-medium"
+                      >
                         Không có thẻ rung nào đang được phát cho khách.
                       </td>
                     </tr>
@@ -10992,7 +11354,7 @@ export default function PagersManagementPage() {
         {/* ========================================================
             6. TAB 2: QUẢN LÝ THIẾT BỊ PHẦN CỨNG (All Devices)
             ======================================================== */}
-        {activeTab === 'all_devices' && (
+        {activeTab === "all_devices" && (
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xs border border-zinc-200 dark:border-zinc-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
@@ -11018,7 +11380,10 @@ export default function PagersManagementPage() {
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                   {loadingDevices ? (
                     <tr>
-                      <td colSpan={5} className="py-12 text-center text-zinc-400 font-medium">
+                      <td
+                        colSpan={5}
+                        className="py-12 text-center text-zinc-400 font-medium"
+                      >
                         Đang tải danh sách thiết bị thẻ rung...
                       </td>
                     </tr>
@@ -11034,17 +11399,21 @@ export default function PagersManagementPage() {
                           </span>
                         </td>
 
-                        <td className="py-3.5 px-5">{renderBatteryIndicator(dev.batteryLevel)}</td>
+                        <td className="py-3.5 px-5">
+                          {renderBatteryIndicator(dev.batteryLevel)}
+                        </td>
 
-                        <td className="py-3.5 px-5">{getDeviceStatusBadge(dev.status)}</td>
+                        <td className="py-3.5 px-5">
+                          {getDeviceStatusBadge(dev.status)}
+                        </td>
 
                         <td className="py-3.5 px-5 text-zinc-500 font-mono">
-                          {new Date(dev.createdAt).toLocaleDateString('vi-VN')}
+                          {new Date(dev.createdAt).toLocaleDateString("vi-VN")}
                         </td>
 
                         <td className="py-3.5 px-5 text-right space-x-1.5 whitespace-nowrap">
                           {/* Nút thu hồi nhanh nếu đang IN_USE */}
-                          {dev.status === 'IN_USE' && (
+                          {dev.status === "IN_USE" && (
                             <button
                               type="button"
                               onClick={() => handleReleasePager(dev.pagerCode)}
@@ -11072,13 +11441,13 @@ export default function PagersManagementPage() {
                           {/* Nút xóa */}
                           <button
                             type="button"
-                            disabled={dev.status === 'IN_USE'}
+                            disabled={dev.status === "IN_USE"}
                             onClick={() => setDeletingDevice(dev)}
                             className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-30 disabled:cursor-not-allowed"
                             title={
-                              dev.status === 'IN_USE'
-                                ? 'Không thể xóa thẻ đang phát cho khách'
-                                : 'Xóa thiết bị'
+                              dev.status === "IN_USE"
+                                ? "Không thể xóa thẻ đang phát cho khách"
+                                : "Xóa thiết bị"
                             }
                           >
                             <Trash2 className="w-4 h-4" />
@@ -11088,7 +11457,10 @@ export default function PagersManagementPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="py-12 text-center text-zinc-400 font-medium">
+                      <td
+                        colSpan={5}
+                        className="py-12 text-center text-zinc-400 font-medium"
+                      >
                         Không tìm thấy thiết bị thẻ rung nào phù hợp.
                       </td>
                     </tr>
@@ -11101,8 +11473,11 @@ export default function PagersManagementPage() {
             {meta.totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-zinc-200 dark:border-zinc-800 px-4 py-3">
                 <div className="text-xs text-zinc-500">
-                  Trang <strong className="text-zinc-800 dark:text-zinc-200">{meta.page}</strong> /{' '}
-                  {meta.totalPages} ({meta.totalItems} thiết bị)
+                  Trang{" "}
+                  <strong className="text-zinc-800 dark:text-zinc-200">
+                    {meta.page}
+                  </strong>{" "}
+                  / {meta.totalPages} ({meta.totalItems} thiết bị)
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -11153,25 +11528,42 @@ export default function PagersManagementPage() {
             </div>
 
             <form onSubmit={handleAddDevice} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300">
+              <div>
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
                   Trạng thái thiết bị
                 </label>
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value as PagerStatus)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-[#6F4E37] cursor-pointer"
+                  className="w-full px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 text-white font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-[#6F4E37] cursor-pointer"
                 >
-                  <option value="AVAILABLE">Sẵn sàng</option>
-                  <option value="CHARGING">Đang sạc</option>
-                  <option value="MAINTENANCE">Bảo trì</option>
+                  <option
+                    value="AVAILABLE"
+                    className="bg-zinc-800 text-white py-1"
+                  >
+                    Sẵn sàng
+                  </option>
+                  <option
+                    value="CHARGING"
+                    className="bg-zinc-800 text-white py-1"
+                  >
+                    Đang sạc
+                  </option>
+                  <option
+                    value="MAINTENANCE"
+                    className="bg-zinc-800 text-white py-1"
+                  >
+                    Bảo trì
+                  </option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center text-xs font-bold text-zinc-700 dark:text-zinc-300">
                   <span>Mức pin ban đầu</span>
-                  <span className="text-[#6F4E37] dark:text-[#D4A373] font-mono font-bold">{newBatteryLevel}%</span>
+                  <span className="text-[#6F4E37] dark:text-[#D4A373] font-mono font-bold">
+                    {newBatteryLevel}%
+                  </span>
                 </div>
                 <input
                   type="range"
@@ -11196,7 +11588,7 @@ export default function PagersManagementPage() {
                   disabled={isSubmittingAdd}
                   className="px-4 py-2 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmittingAdd ? 'Đang lưu...' : 'Xác nhận thêm'}
+                  {isSubmittingAdd ? "Đang lưu..." : "Xác nhận thêm"}
                 </button>
               </div>
             </form>
@@ -11248,7 +11640,9 @@ export default function PagersManagementPage() {
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center text-xs font-bold text-zinc-700 dark:text-zinc-300">
                   <span>Mức pin (%)</span>
-                  <span className="text-[#6F4E37] dark:text-[#D4A373] font-mono font-bold">{editBattery}%</span>
+                  <span className="text-[#6F4E37] dark:text-[#D4A373] font-mono font-bold">
+                    {editBattery}%
+                  </span>
                 </div>
                 <input
                   type="range"
@@ -11273,7 +11667,7 @@ export default function PagersManagementPage() {
                   disabled={isSubmittingEdit}
                   className="px-4 py-2 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmittingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  {isSubmittingEdit ? "Đang lưu..." : "Lưu thay đổi"}
                 </button>
               </div>
             </form>
@@ -11295,13 +11689,17 @@ export default function PagersManagementPage() {
                 <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
                   Xác nhận xóa thiết bị
                 </h3>
-                <p className="text-xs text-zinc-500">Mã thẻ: {deletingDevice.pagerCode}</p>
+                <p className="text-xs text-zinc-500">
+                  Mã thẻ: {deletingDevice.pagerCode}
+                </p>
               </div>
             </div>
 
             <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
-              Bạn có chắc chắn muốn xóa thiết bị thẻ rung{' '}
-              <strong className="text-zinc-900 dark:text-zinc-100">{deletingDevice.pagerCode}</strong>{' '}
+              Bạn có chắc chắn muốn xóa thiết bị thẻ rung{" "}
+              <strong className="text-zinc-900 dark:text-zinc-100">
+                {deletingDevice.pagerCode}
+              </strong>{" "}
               khỏi danh sách quản lý không?
             </p>
 
@@ -11319,7 +11717,7 @@ export default function PagersManagementPage() {
                 onClick={handleDeleteDevice}
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
               >
-                {isSubmittingDelete ? 'Đang xóa...' : 'Xóa thiết bị'}
+                {isSubmittingDelete ? "Đang xóa..." : "Xóa thiết bị"}
               </button>
             </div>
           </div>
@@ -11336,9 +11734,9 @@ export default function PagersManagementPage() {
 | Property | Value |
 |----------|-------|
 | Path | `pos\terminal\page.tsx` |
-| Size | 13,017 bytes |
+| Size | 15,201 bytes |
 | Extension | `.tsx` |
-| Modified | 2026-10-18 00:00:07.307833 |
+| Modified | 2026-10-18 13:44:39.713470 |
 
 ```tsx
 // app/pos/terminal/page.tsx
@@ -11375,10 +11773,13 @@ import { QuickCreateCustomerModal } from '@/components/pos/QuickCreateCustomerMo
 import { ApplyLoyaltyModal } from '@/components/pos/ApplyLoyaltyModal';
 import { PrintReceiptModal } from '@/components/pos/PrintReceiptModal';
 import { PosUserDropdown } from '@/components/pos/PosUserDropdown';
+import OrdersPage from '../orders/page';
+import PagersPage from '../pagers/page';
 
 export default function PosTerminalPage() {
   const { user, logout } = useAuthContext();
   const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const [activeTab, setActiveTab] = useState<'TERMINAL' | 'ORDERS' | 'PAGERS'>('TERMINAL');
   // 1. Data States từ API
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -11461,56 +11862,64 @@ export default function PosTerminalPage() {
 
   // 6. Xử lý Chốt đơn & Thanh toán
   const handleCheckout = async () => {
-  if (items.length === 0) {
-    setToastMessage({ type: 'error', message: 'Vui lòng chọn ít nhất 1 món vào đơn hàng' });
-    return;
-  }
+    if (items.length === 0) {
+      setToastMessage({ type: 'error', message: 'Vui lòng chọn ít nhất 1 món vào đơn hàng' });
+      return;
+    }
 
-  setIsSubmitting(true);
+    setIsSubmitting(true);
 
-  try {
-    const payload = buildPayload(user?.id || 1);
-    const res = await posService.createOrder(payload);
-    const createdOrder = res?.data || res;
-    const newOrderId = createdOrder.id || res.orderId;
+    try {
+      const selectedCustId = selectedCustomer?.id;
+      const payload = buildPayload(user?.id || 1);
 
-    // BỔ SUNG: Nếu có đổi điểm giảm giá, gọi API để trừ điểm hội viên
-    if (newOrderId && pointsToRedeem > 0 && selectedCustomer) {
-      try {
-        await posService.applyLoyaltyPoints(
-          newOrderId,
-          selectedCustomer.id,
-          pointsToRedeem,
-          conversionRate
-        );
-      } catch (pointErr) {
-        console.error('Lỗi khi khấu trừ điểm hội viên:', pointErr);
+      // Nếu có đổi điểm: Tạo đơn với giá gốc trước để sp_ApplyLoyaltyPoints tự động trừ tiền & trừ điểm sổ cái chuẩn xác
+      if (pointsToRedeem > 0 && selectedCustId) {
+        payload.discountAmount = 0;
+        payload.totalAmount = subTotal;
       }
+
+      const res = await posService.createOrder(payload);
+      const createdOrder = res?.data || res;
+      const newOrderId = createdOrder.id || createdOrder.newOrderId || res.orderId;
+
+      // Thực thi trừ điểm thưởng trong CSDL nếu có đổi điểm
+      if (newOrderId && pointsToRedeem > 0 && selectedCustId) {
+        try {
+          await posService.applyLoyaltyPoints(
+            newOrderId,
+            selectedCustId,
+            pointsToRedeem,
+            conversionRate
+          );
+        } catch (pointErr) {
+          console.error('Lỗi khi khấu trừ điểm hội viên:', pointErr);
+        }
+      }
+
+      setToastMessage({
+        type: 'success',
+        message: `Tạo đơn #${createdOrder.orderCode || newOrderId} thành công!`,
+      });
+
+      // Mở modal in hóa đơn
+      if (newOrderId) {
+        setCreatedOrderIdForReceipt(newOrderId);
+      }
+
+      // Reset giỏ hàng và reload lại danh sách thẻ rung trống
+      clearCart();
+      const updatedPagers = await pagerService.getAvailablePagers().catch(() => []);
+      setAvailablePagers(updatedPagers);
+    } catch (err: any) {
+      setToastMessage({
+        type: 'error',
+        message: err.message || 'Không thể tạo đơn hàng. Vui lòng kiểm tra lại nguyên liệu hoặc thẻ rung.',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setToastMessage({
-      type: 'success',
-      message: `Tạo đơn #${createdOrder.orderCode || newOrderId} thành công!`,
-    });
-
-    // Mở modal in hóa đơn
-    if (newOrderId) {
-      setCreatedOrderIdForReceipt(newOrderId);
-    }
-
-    // Reset giỏ hàng và reload lại danh sách thẻ rung trống
-    clearCart();
-    const updatedPagers = await pagerService.getAvailablePagers().catch(() => []);
-    setAvailablePagers(updatedPagers);
-  } catch (err: any) {
-    setToastMessage({
-      type: 'error',
-      message: err.message || 'Không thể tạo đơn hàng. Vui lòng kiểm tra lại nguyên liệu hoặc thẻ rung.',
-    });
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   return (
     <div className="flex h-screen w-full flex-col bg-[#FAF6F0] dark:bg-zinc-950 overflow-hidden">
@@ -11530,7 +11939,7 @@ export default function PosTerminalPage() {
           </div>
         </div>
 
-        {/* Quick Nav Links */}
+        {/* Quick Nav / Tab Buttons */}
         <div className="flex items-center gap-2">
           {isManagerOrAdmin && (
             <Link
@@ -11542,21 +11951,44 @@ export default function PosTerminalPage() {
             </Link>
           )}
 
-          <Link
-            href="/pos/orders"
-            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
+          <button
+            type="button"
+            onClick={() => setActiveTab('TERMINAL')}
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
+              activeTab === 'TERMINAL'
+                ? 'bg-[#6F4E37] text-white border-[#6F4E37] shadow-xs'
+                : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200'
+            }`}
           >
-            <Receipt className="h-3.5 w-3.5 text-[#6F4E37] dark:text-[#D4A373]" />
-            <span>Lịch sử hóa đơn</span>
-          </Link>
+            <Coffee className="h-3.5 w-3.5" />
+            <span>Quầy Order</span>
+          </button>
 
-          <Link
-            href="/pos/pagers"
-            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
+          <button
+            type="button"
+            onClick={() => setActiveTab('ORDERS')}
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
+              activeTab === 'ORDERS'
+                ? 'bg-[#6F4E37] text-white border-[#6F4E37] shadow-xs'
+                : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200'
+            }`}
           >
-            <Radio className="h-3.5 w-3.5 text-[#6F4E37] dark:text-[#D4A373]" />
+            <Receipt className="h-3.5 w-3.5" />
+            <span>Lịch sử hóa đơn</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('PAGERS')}
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
+              activeTab === 'PAGERS'
+                ? 'bg-[#6F4E37] text-white border-[#6F4E37] shadow-xs'
+                : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200'
+            }`}
+          >
+            <Radio className="h-3.5 w-3.5" />
             <span>Thẻ rung</span>
-          </Link>
+          </button>
 
           <button
             type="button"
@@ -11577,10 +12009,11 @@ export default function PosTerminalPage() {
       {toastMessage && (
         <div className="fixed top-16 right-6 z-50 animate-bounce">
           <div
-            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold shadow-xl ${toastMessage.type === 'success'
-              ? 'bg-emerald-600 text-white'
-              : 'bg-rose-600 text-white'
-              }`}
+            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold shadow-xl ${
+              toastMessage.type === 'success'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-rose-600 text-white'
+            }`}
           >
             {toastMessage.type === 'success' ? (
               <CheckCircle2 className="h-4 w-4" />
@@ -11592,46 +12025,60 @@ export default function PosTerminalPage() {
         </div>
       )}
 
-      {/* 3. Khung làm việc chính: Chia 2 cột (Menu Grid 65% + Cart Sidebar 35%) */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Cột trái: Lưới sản phẩm */}
-        <div className="flex-1 overflow-hidden">
-          <ProductGrid
-            categories={categories}
-            products={products}
-            isLoading={loadingData}
-            onSelectProduct={(prod) => setSelectedProductForOption(prod)}
-          />
-        </div>
+      {/* 3. Khung làm việc chính */}
+      <main className="flex-1 h-full overflow-hidden">
+        {activeTab === 'TERMINAL' && (
+          <div className="flex h-full overflow-hidden">
+            {/* Cột trái: Lưới sản phẩm */}
+            <div className="flex-1 overflow-hidden">
+              <ProductGrid
+                categories={categories}
+                products={products}
+                isLoading={loadingData}
+                onSelectProduct={(prod) => setSelectedProductForOption(prod)}
+              />
+            </div>
 
-        {/* Cột phải: Giỏ hàng Sidebar */}
-        <div className="w-[380px] lg:w-[420px] shrink-0 h-full">
-          <CartSidebar
-            items={items}
-            subTotal={subTotal}
-            discountAmount={discountAmount}
-            totalAmount={totalAmount}
-            totalItemCount={totalItemCount}
-            orderChannel={orderChannel}
-            paymentMethod={paymentMethod}
-            selectedCustomer={selectedCustomer}
-            selectedPager={selectedPager}
-            availablePagers={availablePagers}
-            allCustomers={customers}
-            isSubmitting={isSubmitting}
-            onUpdateQuantity={updateQuantity}
-            onRemoveItem={removeItem}
-            onClearCart={clearCart}
-            onSetOrderChannel={setOrderChannel}
-            onSetPaymentMethod={setPaymentMethod}
-            onSelectCustomer={setSelectedCustomer}
-            onSelectPager={setSelectedPager}
-            onOpenQuickCreateCustomer={() => setIsCustomerModalOpen(true)}
-            onOpenApplyLoyalty={() => setIsLoyaltyModalOpen(true)}
-            onSubmitOrder={handleCheckout}
-          />
-        </div>
-      </div>
+            {/* Cột phải: Giỏ hàng Sidebar */}
+            <div className="w-[380px] lg:w-[420px] shrink-0 h-full">
+              <CartSidebar
+                items={items}
+                subTotal={subTotal}
+                discountAmount={discountAmount}
+                totalAmount={totalAmount}
+                totalItemCount={totalItemCount}
+                orderChannel={orderChannel}
+                paymentMethod={paymentMethod}
+                selectedCustomer={selectedCustomer}
+                selectedPager={selectedPager}
+                availablePagers={availablePagers}
+                allCustomers={customers}
+                isSubmitting={isSubmitting}
+                onUpdateQuantity={updateQuantity}
+                onRemoveItem={removeItem}
+                onClearCart={clearCart}
+                onSetOrderChannel={setOrderChannel}
+                onSetPaymentMethod={setPaymentMethod}
+                onSelectCustomer={setSelectedCustomer}
+                onSelectPager={setSelectedPager}
+                onOpenQuickCreateCustomer={() => setIsCustomerModalOpen(true)}
+                onOpenApplyLoyalty={() => setIsLoyaltyModalOpen(true)}
+                onSubmitOrder={handleCheckout}
+              />
+            </div>
+          </div>
+        )}
+        {activeTab === 'ORDERS' && (
+          <div className="h-full overflow-y-auto">
+            <OrdersPage />
+          </div>
+        )}
+        {activeTab === 'PAGERS' && (
+          <div className="h-full overflow-y-auto">
+            <PagersPage />
+          </div>
+        )}
+      </main>
 
       {/* 4. Modals */}
       {/* Modal tùy chọn món */}

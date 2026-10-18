@@ -331,7 +331,7 @@ function TransactionsContent() {
                     {/* Points */}
                     <td className="py-3.5 px-5 font-bold text-sm">
                       <span className={tx.transactionType === 'EARN' ? 'text-emerald-600' : 'text-red-600'}>
-                        {tx.transactionType === 'EARN' ? `+${tx.points}` : `-${tx.points}`} pts
+                        {tx.transactionType === 'EARN' ? `+${Math.abs(tx.points)}` : `-${Math.abs(tx.points)}`} pts
                       </span>
                     </td>
 

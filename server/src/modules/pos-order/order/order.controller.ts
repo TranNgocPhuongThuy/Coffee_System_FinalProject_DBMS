@@ -22,6 +22,12 @@ export class OrderController {
       if (req.user?.role === 'CUSTOMER') {
         query.customerId = req.user.id;
       }
+
+      // CHỐNG CACHE TRIỆT ĐỂ: Ép mọi request GET luôn lấy dữ liệu mới nhất từ CSDL
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const result = await this.orderService.getOrders(query);
       res.status(200).json({ success: true, ...result });
     } catch (error) {

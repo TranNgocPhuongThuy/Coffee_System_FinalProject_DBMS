@@ -365,7 +365,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                     </td>
                     <td className="py-3 px-4 font-bold text-xs">
                       <span className={tx.transactionType === 'EARN' ? 'text-emerald-600' : 'text-red-600'}>
-                        {tx.transactionType === 'EARN' ? `+${tx.points}` : `-${tx.points}`} pts
+                        {tx.transactionType === 'EARN' ? `+${Math.abs(tx.points)}` : `-${Math.abs(tx.points)}`} pts
                       </span>
                     </td>
                     <td className="py-3 px-4 font-semibold text-gray-800 text-xs font-mono">

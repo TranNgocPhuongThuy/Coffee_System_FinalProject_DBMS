@@ -15,7 +15,10 @@ export class OrderService {
    */
   private generateOrderCode(): string {
     const now = new Date()
-    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '')
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const dateStr = `${year}${month}${day}`
     const randomSuffix = Math.floor(1000 + Math.random() * 9000)
     return `ORD-${dateStr}-${randomSuffix}`
   }
@@ -80,20 +83,12 @@ export class OrderService {
    * Tạo đơn hàng mới tại quầy POS
    */
   async createOrder(data: CreateOrderType) {
-    // 1. Tự động sinh orderCode nếu chưa có
-    if (!data.orderCode) {
-      data.orderCode = this.generateOrderCode()
-    }
-
-    // 2. Kiểm tra tính khả dụng của thẻ rung nếu có gán pagerId
+    if (!data.orderCode) data.orderCode = this.generateOrderCode()
     if (data.pagerId) {
       const isAvailable = await this.orderRepo.isPagerAvailable(data.pagerId)
-      if (!isAvailable) {
-        throw new Error(`Thẻ rung #${data.pagerId} hiện không khả dụng hoặc pin < 15%`)
-      }
+      if (!isAvailable) throw new Error(`Thẻ rung #${data.pagerId} hiện không khả dụng hoặc pin < 15%`)
     }
 
-    // 3. Thực thi Stored Procedure tạo đơn
     let newOrderId: number
     if (data.pagerCode && data.pagerCode.trim().length > 0) {
       newOrderId = await this.orderRepo.createOrderWithPager(data)
@@ -101,18 +96,9 @@ export class OrderService {
       newOrderId = await this.orderRepo.createCounterOrder(data)
     }
 
-    // 4. Tự động tích điểm hội viên nếu có gán customerId và đơn >= 10.000đ
-    if (data.customerId && data.totalAmount >= 10000) {
-      await this.orderRepo
-        .earnLoyaltyPoints(newOrderId, data.customerId, data.totalAmount)
-        .catch((err) => {
-          console.error('Lỗi khi tích điểm hội viên:', err)
-        })
-    }
 
-    // 5. Lấy lại dữ liệu đơn hàng hoàn chỉnh vừa tạo
+
     const createdOrder = await this.getOrderById(newOrderId)
-
     return {
       message: 'Tạo đơn hàng POS thành công',
       orderId: newOrderId,
@@ -147,11 +133,11 @@ export class OrderService {
    */
   async cancelOrder(orderId: number, body: CancelOrderType) {
     const order = await this.getOrderById(orderId)
-    if (order.status === 'COMPLETED' || order.paidAt) {
-      throw new Error('Không thể hủy đơn hàng đã hoàn tất hoặc đã thanh toán')
+    if (order.status === 'COMPLETED') {
+      throw new Error('Không thể hủy đơn hàng đã hoàn tất!')
     }
     if (order.status === 'CANCELLED') {
-      throw new Error('Đơn hàng này đã bị hủy trước đó')
+      throw new Error('Đơn hàng này đã bị hủy trước đó!')
     }
 
     await this.orderRepo.cancelOrder(orderId, body.employeeId, body.cancelReason)

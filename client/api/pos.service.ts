@@ -9,7 +9,16 @@ import {
 export const posService = {
   // Lấy danh sách đơn hàng có phân trang & lọc
   getOrders: async (params?: FilterOrderParams) => {
-    const res = await apiClient.get(ENDPOINTS.POS.ORDERS.INDEX, { params });
+    const res = await apiClient.get(ENDPOINTS.POS.ORDERS.INDEX, {
+      params: {
+        ...params,
+        _t: Date.now(), // Timestamp đảm bảo URL luôn luôn mới, ép kéo dữ liệu trực tiếp từ SQL Server
+      },
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+      },
+    });
     return res.data;
   },
 

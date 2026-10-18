@@ -32,10 +32,13 @@ import { QuickCreateCustomerModal } from '@/components/pos/QuickCreateCustomerMo
 import { ApplyLoyaltyModal } from '@/components/pos/ApplyLoyaltyModal';
 import { PrintReceiptModal } from '@/components/pos/PrintReceiptModal';
 import { PosUserDropdown } from '@/components/pos/PosUserDropdown';
+import OrdersPage from '../orders/page';
+import PagersPage from '../pagers/page';
 
 export default function PosTerminalPage() {
   const { user, logout } = useAuthContext();
   const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const [activeTab, setActiveTab] = useState<'TERMINAL' | 'ORDERS' | 'PAGERS'>('TERMINAL');
   // 1. Data States từ API
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -80,20 +83,26 @@ export default function PosTerminalPage() {
   } = usePosCart();
 
   // 5. Tải dữ liệu ban đầu
-  const fetchData = async () => {
+ const fetchData = async () => {
     setLoadingData(true);
     try {
       const [catsRes, prodsRes, topsRes, pagersRes, custsRes] = await Promise.all([
         menuService.getCategories({ displayStatus: 'SHOW' as any }).catch(() => [] as any),
         menuService.getProducts({ status: 'ACTIVE' as any }).catch(() => [] as any),
-        menuService.getToppings({ status: 'ACTIVE' as any }).catch(() => [] as any),
+        // FIX LỖI MẤT TOPPING: Bỏ filter status trên API, lấy tất cả về rồi filter ở Client
+        menuService.getToppings().catch(() => [] as any),
         pagerService.getAvailablePagers().catch(() => [] as any),
         loyaltyService.getCustomers({ limit: 100 }).catch(() => ({ items: [] } as any)),
       ]);
 
       setCategories(Array.isArray(catsRes) ? (catsRes as any) : (catsRes as any)?.data || []);
       setProducts(Array.isArray(prodsRes) ? (prodsRes as any) : (prodsRes as any)?.data || []);
-      setToppings(Array.isArray(topsRes) ? (topsRes as any) : (topsRes as any)?.data || []);
+      
+      // LỌC TOPPING: Chấp nhận cả 'AVAILABLE' và 'ACTIVE'
+      const rawToppings = Array.isArray(topsRes) ? topsRes : (topsRes as any)?.data || [];
+      const validToppings = rawToppings.filter((t: any) => t.status === 'AVAILABLE' || t.status === 'ACTIVE');
+      setToppings(validToppings);
+
       setAvailablePagers(Array.isArray(pagersRes) ? (pagersRes as any) : (pagersRes as any)?.data || []);
       setCustomers((custsRes as any)?.items || (custsRes as any)?.data || []);
     } catch (error: any) {
@@ -103,6 +112,10 @@ export default function PosTerminalPage() {
       setLoadingData(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -118,56 +131,64 @@ export default function PosTerminalPage() {
 
   // 6. Xử lý Chốt đơn & Thanh toán
   const handleCheckout = async () => {
-  if (items.length === 0) {
-    setToastMessage({ type: 'error', message: 'Vui lòng chọn ít nhất 1 món vào đơn hàng' });
-    return;
-  }
+    if (items.length === 0) {
+      setToastMessage({ type: 'error', message: 'Vui lòng chọn ít nhất 1 món vào đơn hàng' });
+      return;
+    }
 
-  setIsSubmitting(true);
+    setIsSubmitting(true);
 
-  try {
-    const payload = buildPayload(user?.id || 1);
-    const res = await posService.createOrder(payload);
-    const createdOrder = res?.data || res;
-    const newOrderId = createdOrder.id || res.orderId;
+    try {
+      const selectedCustId = selectedCustomer?.id;
+      const payload = buildPayload(user?.id || 1);
 
-    // BỔ SUNG: Nếu có đổi điểm giảm giá, gọi API để trừ điểm hội viên
-    if (newOrderId && pointsToRedeem > 0 && selectedCustomer) {
-      try {
-        await posService.applyLoyaltyPoints(
-          newOrderId,
-          selectedCustomer.id,
-          pointsToRedeem,
-          conversionRate
-        );
-      } catch (pointErr) {
-        console.error('Lỗi khi khấu trừ điểm hội viên:', pointErr);
+      // Nếu có đổi điểm: Tạo đơn với giá gốc trước để sp_ApplyLoyaltyPoints tự động trừ tiền & trừ điểm sổ cái chuẩn xác
+      if (pointsToRedeem > 0 && selectedCustId) {
+        payload.discountAmount = 0;
+        payload.totalAmount = subTotal;
       }
+
+      const res = await posService.createOrder(payload);
+      const createdOrder = res?.data || res;
+      const newOrderId = createdOrder.id || createdOrder.newOrderId || res.orderId;
+
+      // Thực thi trừ điểm thưởng trong CSDL nếu có đổi điểm
+      if (newOrderId && pointsToRedeem > 0 && selectedCustId) {
+        try {
+          await posService.applyLoyaltyPoints(
+            newOrderId,
+            selectedCustId,
+            pointsToRedeem,
+            conversionRate
+          );
+        } catch (pointErr) {
+          console.error('Lỗi khi khấu trừ điểm hội viên:', pointErr);
+        }
+      }
+
+      setToastMessage({
+        type: 'success',
+        message: `Tạo đơn #${createdOrder.orderCode || newOrderId} thành công!`,
+      });
+
+      // Mở modal in hóa đơn
+      if (newOrderId) {
+        setCreatedOrderIdForReceipt(newOrderId);
+      }
+
+      // Reset giỏ hàng và reload lại danh sách thẻ rung trống
+      clearCart();
+      const updatedPagers = await pagerService.getAvailablePagers().catch(() => []);
+      setAvailablePagers(updatedPagers);
+    } catch (err: any) {
+      setToastMessage({
+        type: 'error',
+        message: err.message || 'Không thể tạo đơn hàng. Vui lòng kiểm tra lại nguyên liệu hoặc thẻ rung.',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setToastMessage({
-      type: 'success',
-      message: `Tạo đơn #${createdOrder.orderCode || newOrderId} thành công!`,
-    });
-
-    // Mở modal in hóa đơn
-    if (newOrderId) {
-      setCreatedOrderIdForReceipt(newOrderId);
-    }
-
-    // Reset giỏ hàng và reload lại danh sách thẻ rung trống
-    clearCart();
-    const updatedPagers = await pagerService.getAvailablePagers().catch(() => []);
-    setAvailablePagers(updatedPagers);
-  } catch (err: any) {
-    setToastMessage({
-      type: 'error',
-      message: err.message || 'Không thể tạo đơn hàng. Vui lòng kiểm tra lại nguyên liệu hoặc thẻ rung.',
-    });
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   return (
     <div className="flex h-screen w-full flex-col bg-[#FAF6F0] dark:bg-zinc-950 overflow-hidden">
@@ -187,7 +208,7 @@ export default function PosTerminalPage() {
           </div>
         </div>
 
-        {/* Quick Nav Links */}
+        {/* Quick Nav / Tab Buttons */}
         <div className="flex items-center gap-2">
           {isManagerOrAdmin && (
             <Link
@@ -199,21 +220,44 @@ export default function PosTerminalPage() {
             </Link>
           )}
 
-          <Link
-            href="/pos/orders"
-            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
+          <button
+            type="button"
+            onClick={() => setActiveTab('TERMINAL')}
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
+              activeTab === 'TERMINAL'
+                ? 'bg-[#6F4E37] text-white border-[#6F4E37] shadow-xs'
+                : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200'
+            }`}
           >
-            <Receipt className="h-3.5 w-3.5 text-[#6F4E37] dark:text-[#D4A373]" />
-            <span>Lịch sử hóa đơn</span>
-          </Link>
+            <Coffee className="h-3.5 w-3.5" />
+            <span>Quầy Order</span>
+          </button>
 
-          <Link
-            href="/pos/pagers"
-            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
+          <button
+            type="button"
+            onClick={() => setActiveTab('ORDERS')}
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
+              activeTab === 'ORDERS'
+                ? 'bg-[#6F4E37] text-white border-[#6F4E37] shadow-xs'
+                : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200'
+            }`}
           >
-            <Radio className="h-3.5 w-3.5 text-[#6F4E37] dark:text-[#D4A373]" />
+            <Receipt className="h-3.5 w-3.5" />
+            <span>Lịch sử hóa đơn</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('PAGERS')}
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
+              activeTab === 'PAGERS'
+                ? 'bg-[#6F4E37] text-white border-[#6F4E37] shadow-xs'
+                : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200'
+            }`}
+          >
+            <Radio className="h-3.5 w-3.5" />
             <span>Thẻ rung</span>
-          </Link>
+          </button>
 
           <button
             type="button"
@@ -234,10 +278,11 @@ export default function PosTerminalPage() {
       {toastMessage && (
         <div className="fixed top-16 right-6 z-50 animate-bounce">
           <div
-            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold shadow-xl ${toastMessage.type === 'success'
-              ? 'bg-emerald-600 text-white'
-              : 'bg-rose-600 text-white'
-              }`}
+            className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold shadow-xl ${
+              toastMessage.type === 'success'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-rose-600 text-white'
+            }`}
           >
             {toastMessage.type === 'success' ? (
               <CheckCircle2 className="h-4 w-4" />
@@ -249,48 +294,60 @@ export default function PosTerminalPage() {
         </div>
       )}
 
-      
+      {/* 3. Khung làm việc chính */}
+      <main className="flex-1 h-full overflow-hidden">
+        {activeTab === 'TERMINAL' && (
+          <div className="flex h-full overflow-hidden">
+            {/* Cột trái: Lưới sản phẩm */}
+            <div className="flex-1 overflow-hidden">
+              <ProductGrid
+                categories={categories}
+                products={products}
+                isLoading={loadingData}
+                onSelectProduct={(prod) => setSelectedProductForOption(prod)}
+              />
+            </div>
 
-      {/* 3. Khung làm việc chính: Chia 2 cột (Menu Grid 65% + Cart Sidebar 35%) */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Cột trái: Lưới sản phẩm */}
-        <div className="flex-1 overflow-hidden">
-          <ProductGrid
-            categories={categories}
-            products={products}
-            isLoading={loadingData}
-            onSelectProduct={(prod) => setSelectedProductForOption(prod)}
-          />
-        </div>
-
-        {/* Cột phải: Giỏ hàng Sidebar */}
-        <div className="w-[380px] lg:w-[420px] shrink-0 h-full">
-          <CartSidebar
-            items={items}
-            subTotal={subTotal}
-            discountAmount={discountAmount}
-            totalAmount={totalAmount}
-            totalItemCount={totalItemCount}
-            orderChannel={orderChannel}
-            paymentMethod={paymentMethod}
-            selectedCustomer={selectedCustomer}
-            selectedPager={selectedPager}
-            availablePagers={availablePagers}
-            allCustomers={customers}
-            isSubmitting={isSubmitting}
-            onUpdateQuantity={updateQuantity}
-            onRemoveItem={removeItem}
-            onClearCart={clearCart}
-            onSetOrderChannel={setOrderChannel}
-            onSetPaymentMethod={setPaymentMethod}
-            onSelectCustomer={setSelectedCustomer}
-            onSelectPager={setSelectedPager}
-            onOpenQuickCreateCustomer={() => setIsCustomerModalOpen(true)}
-            onOpenApplyLoyalty={() => setIsLoyaltyModalOpen(true)}
-            onSubmitOrder={handleCheckout}
-          />
-        </div>
-      </div>
+            {/* Cột phải: Giỏ hàng Sidebar */}
+            <div className="w-[380px] lg:w-[420px] shrink-0 h-full">
+              <CartSidebar
+                items={items}
+                subTotal={subTotal}
+                discountAmount={discountAmount}
+                totalAmount={totalAmount}
+                totalItemCount={totalItemCount}
+                orderChannel={orderChannel}
+                paymentMethod={paymentMethod}
+                selectedCustomer={selectedCustomer}
+                selectedPager={selectedPager}
+                availablePagers={availablePagers}
+                allCustomers={customers}
+                isSubmitting={isSubmitting}
+                onUpdateQuantity={updateQuantity}
+                onRemoveItem={removeItem}
+                onClearCart={clearCart}
+                onSetOrderChannel={setOrderChannel}
+                onSetPaymentMethod={setPaymentMethod}
+                onSelectCustomer={setSelectedCustomer}
+                onSelectPager={setSelectedPager}
+                onOpenQuickCreateCustomer={() => setIsCustomerModalOpen(true)}
+                onOpenApplyLoyalty={() => setIsLoyaltyModalOpen(true)}
+                onSubmitOrder={handleCheckout}
+              />
+            </div>
+          </div>
+        )}
+        {activeTab === 'ORDERS' && (
+          <div className="h-full overflow-y-auto">
+            <OrdersPage />
+          </div>
+        )}
+        {activeTab === 'PAGERS' && (
+          <div className="h-full overflow-y-auto">
+            <PagersPage />
+          </div>
+        )}
+      </main>
 
       {/* 4. Modals */}
       {/* Modal tùy chọn món */}

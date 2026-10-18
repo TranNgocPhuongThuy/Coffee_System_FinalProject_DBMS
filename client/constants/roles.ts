@@ -31,7 +31,7 @@ export const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
   // DASHBOARD
   { path: '/dashboard/menu', allowedRoles: ['MANAGER', 'ADMIN'] },
   { path: '/dashboard/inventory/ingredients', allowedRoles: ['MANAGER', 'STOREKEEPER', 'ADMIN'] },
-  { path: '/dashboard/inventory/boms', allowedRoles: ['MANAGER', 'BARISTA', 'ADMIN'] },
+  { path: '/dashboard/inventory/boms', allowedRoles: ['MANAGER', 'BARISTA', 'STOREKEEPER', 'ADMIN'] },
   { path: '/dashboard/inventory/imports', allowedRoles: ['MANAGER', 'STOREKEEPER', 'ADMIN'] },
   { path: '/dashboard/inventory/adjustments', allowedRoles: ['MANAGER', 'STOREKEEPER', 'ADMIN'] },
   { path: '/dashboard/customers', allowedRoles: ['MANAGER', 'CASHIER', 'ADMIN'] },

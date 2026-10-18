@@ -6,14 +6,20 @@ export class LoyaltyController {
     private loyaltyService = new LoyaltyService()
 
     getHistory = async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            const query = FilterLoyaltyHistoryQuerySchema.parse(req.query)
-            const data = await this.loyaltyService.getLoyaltyHistory(query)
-            res.status(200).json({ success: true, ...data })
-        } catch (error) {
-            next(error)
+    try {
+        const query = FilterLoyaltyHistoryQuerySchema.parse(req.query);
+        
+        // BẢO MẬT: Khách hàng chỉ được phép xem lịch sử của chính mình
+        if (req.user?.role === 'CUSTOMER') {
+            query.customerId = req.user.id;
         }
+
+        const data = await this.loyaltyService.getLoyaltyHistory(query);
+        res.status(200).json({ success: true, ...data });
+    } catch (error) {
+        next(error);
     }
+}
 
     adjustPoints = async (req: Request, res: Response, next: NextFunction) => {
         try {

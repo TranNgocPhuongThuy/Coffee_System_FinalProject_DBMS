@@ -15,20 +15,20 @@ bomRouter.use(authGuard)
 // Xem định lượng món và topping
 bomRouter.get(
   '/recipes',
-  roleGuard('BARISTA', 'MANAGER'),
+  roleGuard('BARISTA', 'MANAGER', 'STOREKEEPER'),
   validatePipe(GetVariantBOMQuerySchema, 'query'),
   controller.getRecipes
 )
 
 bomRouter.get(
   '/toppings',
-  roleGuard('BARISTA', 'MANAGER'),
+  roleGuard('BARISTA', 'MANAGER', 'STOREKEEPER'),
   controller.getToppingBOM
 )
 
 bomRouter.get(
   '/toppings/:toppingId',
-  roleGuard('BARISTA', 'MANAGER'),
+  roleGuard('BARISTA', 'MANAGER', 'STOREKEEPER'),
   controller.getToppingBOM
 )
 

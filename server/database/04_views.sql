@@ -11,9 +11,12 @@ FROM Ingredient
 WHERE deletedAt IS NULL 
   AND stockQuantity <= minimumThreshold;
 GO
+
 --2. Hiển thị công thức định lượng của từng size sp 
 CREATE OR ALTER VIEW v_ProductRecipeDetails AS
 SELECT 
+    rb.variantId,
+    rb.ingredientId,
     p.name AS productName,
     pv.size AS productSize,
     i.name AS ingredientName,
@@ -27,6 +30,7 @@ WHERE p.deletedAt IS NULL
   AND pv.deletedAt IS NULL 
   AND i.deletedAt IS NULL;
 GO
+
 --3. Phục vụ pos & in hóa đơn, sử dụng dữ liệu Snapshot 
 CREATE OR ALTER VIEW v_InvoiceDetails AS
 SELECT 
@@ -51,13 +55,24 @@ SELECT
     od.totalToppingPriceSnapshot,
     od.totalPrice AS lineTotalPrice,
     od.itemStatus,
-    od.note AS itemNote
+    -- Tự động nối tên các Topping vào ghi chú món khi in hóa đơn
+    CONCAT(
+        od.note,
+        CASE WHEN od.note IS NOT NULL AND tp.toppingList IS NOT NULL THEN N' | ' ELSE N'' END,
+        CASE WHEN tp.toppingList IS NOT NULL THEN N'Topping: ' + tp.toppingList ELSE N'' END
+    ) AS itemNote
 FROM [Order] o
 LEFT JOIN Employee e ON o.employeeId = e.id
 LEFT JOIN Customer c ON o.customerId = c.id
 JOIN OrderDetail od ON o.id = od.orderId
+OUTER APPLY (
+    SELECT STRING_AGG(CONCAT(odt.toppingSnapshotName, N' (x', odt.quantity, N')'), N', ') AS toppingList
+    FROM OrderDetailTopping odt
+    WHERE odt.orderDetailId = od.id
+) tp
 WHERE o.deletedAt IS NULL;
 GO
+
 --4. Thống kê tổng doanh thu thực thu theo từng ngày 
 CREATE OR ALTER VIEW v_DailyRevenue AS
 SELECT 
@@ -71,6 +86,7 @@ WHERE status = 'COMPLETED'
   AND deletedAt IS NULL
 GROUP BY CAST(ISNULL(paidAt, createdAt) AS DATE);
 GO
+
 --5. Tổng hợp số lượng doanh thu theo từng sản phẩm 
 CREATE OR ALTER VIEW v_TopSellingProducts AS
 SELECT 
@@ -87,6 +103,7 @@ WHERE o.status = 'COMPLETED'
   AND p.deletedAt IS NULL
 GROUP BY p.id, p.name;
 GO
+
 --6. Hiển thị bản điều phối thẻ rung và theo dõi thời gian chờ của khách
 CREATE OR ALTER VIEW v_ActivePagerDashboard AS
 SELECT 
@@ -104,7 +121,7 @@ CROSS APPLY (
     SELECT TOP 1 * 
     FROM [Order] ord 
     WHERE ord.pagerId = p.id 
-      AND ord.status IN ('PENDING_PREP', 'READY_FOR_PICKUP')
+      AND ord.status IN ('PENDING_PREP', 'PREPARING', 'READY_FOR_PICKUP')
       AND ord.deletedAt IS NULL
     ORDER BY ord.id DESC
 ) o
@@ -112,6 +129,7 @@ LEFT JOIN Customer c ON o.customerId = c.id
 WHERE p.status = 'IN_USE'
   AND p.deletedAt IS NULL;
 GO
+
 --7. Tổng hợp lịch sử tích/ đổi điểm và đối soát số dư từng hội viên
 CREATE OR ALTER VIEW v_CustomerLoyaltySummary AS
 SELECT 
@@ -120,8 +138,8 @@ SELECT
     c.phoneNumber,
     c.membershipTier,
     c.rewardPoints AS currentRewardPoints,
-    ISNULL(SUM(CASE WHEN lt.transactionType = 'EARN' THEN lt.points ELSE 0 END), 0) AS totalPointsEarned,
-    ISNULL(SUM(CASE WHEN lt.transactionType = 'REDEEM' THEN lt.points ELSE 0 END), 0) AS totalPointsRedeemed
+    ISNULL(SUM(CASE WHEN lt.transactionType = 'EARN' THEN ABS(lt.points) ELSE 0 END), 0) AS totalPointsEarned,
+    ISNULL(SUM(CASE WHEN lt.transactionType = 'REDEEM' THEN ABS(lt.points) ELSE 0 END), 0) AS totalPointsRedeemed
 FROM Customer c
 LEFT JOIN LoyaltyTransaction lt ON c.id = lt.customerId
 WHERE c.deletedAt IS NULL

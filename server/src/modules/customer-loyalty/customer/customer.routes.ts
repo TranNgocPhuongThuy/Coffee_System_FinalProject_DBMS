@@ -14,5 +14,5 @@ customerRouter.get('/:id', roleGuard('CASHIER', 'MANAGER', 'ADMIN'), controller.
 
 // Chỉ Manager và Admin được tạo mới, cập nhật hoặc xóa
 customerRouter.post('/', roleGuard('CASHIER', 'MANAGER', 'ADMIN'), controller.create)
-customerRouter.put('/:id', roleGuard('MANAGER', 'ADMIN'), controller.update)
+customerRouter.put('/:id', roleGuard('CASHIER', 'MANAGER', 'ADMIN'), controller.update)
 customerRouter.delete('/:id', roleGuard('MANAGER', 'ADMIN'), controller.delete)

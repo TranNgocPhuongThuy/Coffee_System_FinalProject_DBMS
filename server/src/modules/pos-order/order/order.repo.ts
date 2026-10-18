@@ -128,6 +128,7 @@ export class OrderRepo {
     const request = pool.request();
 
     const detailsTVP = this.buildOrderDetailTVP(data.items);
+    const toppingsTVP = this.buildOrderDetailToppingTVP(data.items);
 
     request.input("OrderCode", sql.VarChar(64), data.orderCode);
     request.input(
@@ -147,7 +148,7 @@ export class OrderRepo {
     request.input("TotalAmount", sql.Decimal(18, 2), data.totalAmount);
     request.input("PaymentMethod", sql.NVarChar(50), data.paymentMethod);
     request.input("OrderDetails", detailsTVP);
-    // ĐÃ XÓA: request.input('OrderToppings', toppingsTVP) để tránh lỗi "too many arguments"
+    request.input("OrderToppings", toppingsTVP);
     request.output("NewOrderId", sql.Int);
 
     const result = await request.execute("sp_CreateCounterOrder");

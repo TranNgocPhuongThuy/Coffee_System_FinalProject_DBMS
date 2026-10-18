@@ -9,22 +9,18 @@ import {
   Printer,
   Ban,
   Clock,
-  ArrowLeft,
   User,
   Radio,
   Coffee,
-  RotateCcw,
+  RefreshCw,
   CheckCircle2,
   AlertCircle,
   ChevronLeft,
   ChevronRight,
   Filter,
   Receipt,
-  Plus,
   Calendar,
   X,
-  LogOut,
-  LayoutDashboard,
 } from "lucide-react";
 import { useAuthContext } from "@/context/AuthContext";
 import { posService } from "@/api/pos.service";
@@ -33,7 +29,6 @@ import { OrderStatus } from "@/types/enums";
 import { OrderDetailDrawer } from "@/components/pos/OrderDetailDrawer";
 import { PrintReceiptModal } from "@/components/pos/PrintReceiptModal";
 import { CancelOrderModal } from "@/components/pos/CancelOrderModal";
-import { PosUserDropdown } from "@/components/pos/PosUserDropdown";
 
 const STATUS_FILTERS: { key: OrderStatus | "ALL"; label: string }[] = [
   { key: "ALL", label: "Tất cả" },
@@ -45,8 +40,7 @@ const STATUS_FILTERS: { key: OrderStatus | "ALL"; label: string }[] = [
 ];
 
 export default function PosOrdersPage() {
-  const { user, logout } = useAuthContext();
-  const isManagerOrAdmin = user?.role === "ADMIN" || user?.role === "MANAGER";
+  const { user } = useAuthContext();
   const [orders, setOrders] = useState<OrderItemResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState({
@@ -63,9 +57,7 @@ export default function PosOrdersPage() {
   const [toDate, setToDate] = useState("");
 
   // Modals & Drawer States
-  const [selectedOrder, setSelectedOrder] = useState<OrderItemResponse | null>(
-    null,
-  );
+  const [selectedOrder, setSelectedOrder] = useState<OrderItemResponse | null>(null);
   const [printOrderId, setPrintOrderId] = useState<number | null>(null);
   const [cancelOrderId, setCancelOrderId] = useState<number | null>(null);
   const [cancelOrderCode, setCancelOrderCode] = useState<string>("");
@@ -76,8 +68,8 @@ export default function PosOrdersPage() {
   } | null>(null);
 
   const fetchOrders = useCallback(
-    async (page = 1) => {
-      setLoading(true);
+    async (page = 1, isSilent = false) => {
+      if (!isSilent) setLoading(true);
       try {
         const params: any = {
           page,
@@ -95,20 +87,31 @@ export default function PosOrdersPage() {
           setMeta(res.meta);
         }
       } catch (err: any) {
-        setToastMessage({
-          type: "error",
-          message: err.message || "Không thể tải danh sách đơn hàng",
-        });
+        if (!isSilent) {
+          setToastMessage({
+            type: "error",
+            message: err.message || "Không thể tải danh sách đơn hàng",
+          });
+        }
       } finally {
-        setLoading(false);
+        if (!isSilent) setLoading(false);
       }
     },
     [search, statusFilter, fromDate, toDate],
   );
 
+  // 1. Tải dữ liệu ban đầu khi filter thay đổi
   useEffect(() => {
     fetchOrders(1);
   }, [fetchOrders]);
+
+  // 2. REAL-TIME AUTO POLLING: Tự động làm mới danh sách đơn mỗi 5 giây
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchOrders(meta.page, true); // Chạy ngầm cập nhật real-time không gây giật màn hình
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchOrders, meta.page]);
 
   // Tự động tắt toast
   useEffect(() => {
@@ -245,65 +248,7 @@ export default function PosOrdersPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-[#FAF6F0] dark:bg-zinc-950">
-      {/* 1. Topbar */}
-      <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-6 dark:border-zinc-800 dark:bg-zinc-900 shadow-2xs">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/pos/terminal"
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 transition-colors"
-            title="Về POS Bán hàng"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#6F4E37] text-white font-black">
-              <Receipt className="h-4 w-4" />
-            </div>
-            <div>
-              <h1 className="font-extrabold text-base text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight">
-                QUẢN LÝ ĐƠN HÀNG POS
-              </h1>
-              <p className="text-xs text-zinc-400 font-medium leading-none">
-                Danh sách & Tra cứu hóa đơn
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {isManagerOrAdmin && (
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-xs font-bold text-zinc-700 hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
-            >
-              <LayoutDashboard className="h-4 w-4 text-[#6F4E37] dark:text-[#D4A373]" />
-              <span>Về Dashboard</span>
-            </Link>
-          )}
-
-          <Link
-            href="/pos/terminal"
-            className="flex items-center gap-2 rounded-xl bg-[#6F4E37] px-4 py-2 text-xs font-bold text-white shadow-md shadow-[#6F4E37]/30 hover:bg-[#5A3F2C] active:scale-95 transition-all"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Mở POS Bán hàng</span>
-          </Link>
-          <button
-            type="button"
-            onClick={() => fetchOrders(meta.page)}
-            title="Tải lại danh sách"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800 cursor-pointer"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </button>
-
-          {/* User Dropdown */}
-          <div className="h-6 w-px bg-zinc-200 dark:bg-zinc-700 mx-1" />
-          <PosUserDropdown />
-        </div>
-      </header>
-
-      {/* 2. Toast Thông báo */}
+      {/* 1. Toast Thông báo */}
       {toastMessage && (
         <div className="fixed top-20 right-6 z-50 animate-bounce">
           <div
@@ -323,26 +268,36 @@ export default function PosOrdersPage() {
         </div>
       )}
 
-      {/* 3. Main Content Area */}
+      {/* 2. Main Content Area */}
       <main className="flex-1 p-6 space-y-5 max-w-7xl mx-auto w-full">
         {/* Bộ lọc & Tìm kiếm */}
         <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-800 dark:bg-zinc-900 space-y-3.5">
           <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-            {/* Search Input */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-              <input
-                type="text"
-                placeholder="Tìm mã đơn, tên khách, số điện thoại..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 py-2.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-[#6F4E37] focus:bg-white focus:outline-none dark:border-zinc-800 dark:bg-zinc-850 dark:text-zinc-100"
-              />
+            {/* Search Input & Nút Làm Mới Real-time */}
+            <div className="flex items-center gap-2 flex-1 max-w-md">
+              <button
+                type="button"
+                onClick={() => fetchOrders(1)}
+                className="p-2.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 transition-colors cursor-pointer shadow-xs shrink-0"
+                title="Làm mới đơn hàng ngay lập tức"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-[#6F4E37] dark:text-[#D4A373]" : ""}`} />
+              </button>
+
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm mã đơn, tên khách, số điện thoại..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 py-2.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-[#6F4E37] focus:bg-white focus:outline-none dark:border-zinc-800 dark:bg-zinc-850 dark:text-zinc-100"
+                />
+              </div>
             </div>
 
             {/* Quick date presets & custom date range */}
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              {/* Preset buttons on the left */}
               <div className="flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-xl">
                 <button
                   type="button"
@@ -378,7 +333,7 @@ export default function PosOrdersPage() {
                 )}
               </div>
 
-              {/* Date range inputs on the right */}
+              {/* Date range inputs */}
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs shadow-inner">
                 <input
                   type="date"
@@ -438,19 +393,13 @@ export default function PosOrdersPage() {
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {loading ? (
                   <tr>
-                    <td
-                      colSpan={8}
-                      className="py-12 text-center text-zinc-400 font-medium"
-                    >
+                    <td colSpan={8} className="py-12 text-center text-zinc-400 font-medium">
                       Đang tải dữ liệu đơn hàng...
                     </td>
                   </tr>
                 ) : orders.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={8}
-                      className="py-12 text-center text-zinc-400 font-medium"
-                    >
+                    <td colSpan={8} className="py-12 text-center text-zinc-400 font-medium">
                       Không tìm thấy đơn hàng nào
                     </td>
                   </tr>
@@ -469,9 +418,7 @@ export default function PosOrdersPage() {
                           minute: "2-digit",
                         })}
                         <div className="text-[10px] text-zinc-400">
-                          {new Date(order.createdAt).toLocaleDateString(
-                            "vi-VN",
-                          )}
+                          {new Date(order.createdAt).toLocaleDateString("vi-VN")}
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -485,9 +432,7 @@ export default function PosOrdersPage() {
                             </div>
                           </div>
                         ) : (
-                          <span className="text-zinc-400 italic">
-                            Khách vãng lai
-                          </span>
+                          <span className="text-zinc-400 italic">Khách vãng lai</span>
                         )}
                       </td>
                       <td className="py-3 px-4">
@@ -505,15 +450,13 @@ export default function PosOrdersPage() {
                       <td className="py-3 px-4 font-medium text-zinc-600 dark:text-zinc-300">
                         {order.paymentMethod || "Tiền mặt"}
                       </td>
-                      <td className="py-3 px-4">
-                        {getStatusBadge(order.status)}
-                      </td>
+                      <td className="py-3 px-4">{getStatusBadge(order.status)}</td>
                       <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => handleOpenDetail(order.id)}
                           title="Xem chi tiết"
-                          className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                          className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 cursor-pointer"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
@@ -521,7 +464,7 @@ export default function PosOrdersPage() {
                           type="button"
                           onClick={() => setPrintOrderId(order.id)}
                           title="In hóa đơn"
-                          className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                          className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 cursor-pointer"
                         >
                           <Printer className="h-4 w-4" />
                         </button>
@@ -534,7 +477,7 @@ export default function PosOrdersPage() {
                                 setCancelOrderCode(order.orderCode);
                               }}
                               title="Hủy đơn"
-                              className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                              className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
                             >
                               <Ban className="h-4 w-4" />
                             </button>
@@ -552,9 +495,7 @@ export default function PosOrdersPage() {
             <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
               <div className="text-xs text-zinc-500">
                 Hiển thị trang{" "}
-                <strong className="text-zinc-800 dark:text-zinc-200">
-                  {meta.page}
-                </strong>{" "}
+                <strong className="text-zinc-800 dark:text-zinc-200">{meta.page}</strong>{" "}
                 / {meta.totalPages} ({meta.totalItems} đơn hàng)
               </div>
               <div className="flex items-center gap-2">
@@ -562,7 +503,7 @@ export default function PosOrdersPage() {
                   type="button"
                   disabled={meta.page <= 1}
                   onClick={() => fetchOrders(meta.page - 1)}
-                  className="rounded-lg border border-zinc-200 p-1.5 text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300"
+                  className="rounded-lg border border-zinc-200 p-1.5 text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 cursor-pointer"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -570,7 +511,7 @@ export default function PosOrdersPage() {
                   type="button"
                   disabled={meta.page >= meta.totalPages}
                   onClick={() => fetchOrders(meta.page + 1)}
-                  className="rounded-lg border border-zinc-200 p-1.5 text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300"
+                  className="rounded-lg border border-zinc-200 p-1.5 text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 cursor-pointer"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>

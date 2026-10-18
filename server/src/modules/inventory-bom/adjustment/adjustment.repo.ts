@@ -19,6 +19,14 @@ export class AdjustmentRepo {
       req.input('ingredientId', sql.Int, filter.ingredientId)
       query += ' AND ia.ingredientId = @ingredientId'
     }
+    if (filter.fromDate) {
+      req.input('fromDate', sql.Date, filter.fromDate)
+      query += ' AND CAST(ia.adjustmentDate AS DATE) >= @fromDate'
+    }
+    if (filter.toDate) {
+      req.input('toDate', sql.Date, filter.toDate)
+      query += ' AND CAST(ia.adjustmentDate AS DATE) <= @toDate'
+    }
     query += ' ORDER BY ia.adjustmentDate DESC'
     const result = await req.query(query)
     return result.recordset

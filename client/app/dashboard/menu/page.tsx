@@ -52,7 +52,9 @@ export default function MenuHubPage() {
 
   const activeProductsCount = products.filter((p) => p.status === 'ACTIVE').length;
   const activeCategoriesCount = categories.filter((c) => c.displayStatus === 'SHOW').length;
-  const activeToppingsCount = toppings.filter((t) => t.status === 'AVAILABLE').length;
+  const activeToppingsCount = toppings.filter(
+    (t) => t.status === 'AVAILABLE' || t.status === 'ACTIVE'
+  ).length;
 
   const filteredPreviewProducts = products
     .filter((p) => p.name.toLowerCase().includes(searchPreview.toLowerCase()))

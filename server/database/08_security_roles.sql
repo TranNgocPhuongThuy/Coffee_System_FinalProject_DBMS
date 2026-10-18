@@ -65,8 +65,8 @@ GO
 -- Phạm vi: Xem màn hình KDS, tra cứu công thức, hoàn thành món.
 -- Ngăn chặn can thiệp giá bán, doanh thu và xóa dữ liệu.
 -- ==============================================================
-GRANT SELECT ON [Order] TO BARISTA;
-GRANT SELECT, UPDATE (itemStatus) ON OrderDetail TO BARISTA;
+GRANT SELECT, UPDATE (status, updatedAt) ON [Order] TO BARISTA;
+GRANT SELECT, UPDATE (itemStatus, updatedAt) ON OrderDetail TO BARISTA;
 GRANT SELECT ON OrderDetailTopping TO BARISTA;
 GRANT SELECT ON RecipeBOM TO BARISTA;
 GRANT SELECT ON ToppingBOM TO BARISTA;

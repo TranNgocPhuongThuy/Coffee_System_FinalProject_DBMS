@@ -113,8 +113,8 @@ export default function ToppingsPage() {
 
   const filteredToppings = toppings.filter((t) => {
     const matchSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchStatus =
-      statusFilter === 'ALL' || (t.status || 'AVAILABLE') === statusFilter;
+    const normalizedStatus = t.status === 'ACTIVE' ? 'AVAILABLE' : (t.status || 'AVAILABLE');
+    const matchStatus = statusFilter === 'ALL' || normalizedStatus === statusFilter;
     return matchSearch && matchStatus;
   });
 
@@ -137,7 +137,7 @@ export default function ToppingsPage() {
     setEditingTopping(t);
     setName(t.name || '');
     setPrice(Number(t.price) || 0);
-    setStatus(t.status || 'AVAILABLE');
+    setStatus(t.status === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE');
     setIsModalOpen(true);
   };
 

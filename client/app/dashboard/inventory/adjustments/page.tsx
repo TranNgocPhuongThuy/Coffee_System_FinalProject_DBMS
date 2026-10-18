@@ -36,6 +36,7 @@ interface AdjustmentRecord {
   newQuantity?: number;
   difference?: number;
   reason?: string;
+  adjustmentDate?: string;
   adjustedAt?: string;
   createdAt?: string;
 }
@@ -366,8 +367,8 @@ export default function InventoryAdjustmentsPage() {
                         <p className="line-clamp-2">{adj.reason || "—"}</p>
                       </td>
                       <td className="py-3.5 px-5 text-right text-xs text-gray-500 font-medium">
-                        {adj.adjustedAt || adj.createdAt
-                          ? new Date(adj.adjustedAt || adj.createdAt!).toLocaleString("vi-VN")
+                        {adj.adjustmentDate || adj.adjustedAt || adj.createdAt
+                          ? new Date(adj.adjustmentDate || adj.adjustedAt || adj.createdAt!).toLocaleString("vi-VN")
                           : "—"}
                       </td>
                     </tr>

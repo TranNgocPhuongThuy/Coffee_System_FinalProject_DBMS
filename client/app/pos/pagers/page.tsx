@@ -379,68 +379,7 @@ export default function PagersManagementPage() {
   return (
     <div className="min-h-screen bg-[#FAF6F0] dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 font-sans antialiased pb-12">
       {/* 1. HEADER */}
-      <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-6 py-4 sticky top-0 z-20 shadow-2xs">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/pos/terminal"
-              className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-              title="Quay lại POS Terminal"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-[#6F4E37] text-white flex items-center justify-center font-bold shadow-xs">
-                <BellRing className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
-                  Bảng Điều Phối & Thu Hồi Thẻ Rung
-                </h1>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Giám sát thẻ đang phục vụ, thời gian chờ khách và quản lý phần
-                  cứng Pager
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            {isManagerOrAdmin && (
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
-              >
-                <LayoutDashboard className="h-4 w-4 text-[#6F4E37] dark:text-[#D4A373]" />
-                <span>Về Dashboard</span>
-              </Link>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                if (activeTab === "active_dashboard") fetchDashboard();
-                else fetchDevices(meta.page);
-              }}
-              className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-              title="Làm mới dữ liệu"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-            <Link
-              href="/pos/terminal"
-              className="px-4 py-2 rounded-xl bg-[#6F4E37] hover:bg-[#5A3F2C] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
-            >
-              <Coffee className="w-4 h-4" />
-              <span>Về Thu Ngân POS</span>
-            </Link>
-
-            {/* User Dropdown */}
-            <div className="h-6 w-px bg-zinc-200 dark:bg-zinc-700 mx-1" />
-            <PosUserDropdown />
-          </div>
-        </div>
-      </header>
+      
 
       {/* 2. TOAST THÔNG BÁO */}
       {toastMessage && (

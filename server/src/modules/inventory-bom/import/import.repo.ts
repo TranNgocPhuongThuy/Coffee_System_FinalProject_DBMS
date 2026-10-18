@@ -30,6 +30,14 @@ export class ImportRepo {
       req.input('supplierName', sql.NVarChar(255), `%${query.supplierName}%`)
       sqlStr += ' AND ii.supplierName LIKE @supplierName'
     }
+    if (query.fromDate) {
+      req.input('fromDate', sql.Date, query.fromDate)
+      sqlStr += ' AND CAST(ii.importDate AS DATE) >= @fromDate'
+    }
+    if (query.toDate) {
+      req.input('toDate', sql.Date, query.toDate)
+      sqlStr += ' AND CAST(ii.importDate AS DATE) <= @toDate'
+    }
     sqlStr += ' ORDER BY ii.importDate DESC'
     const result = await req.query(sqlStr)
     return result.recordset

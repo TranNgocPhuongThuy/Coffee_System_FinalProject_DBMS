@@ -226,15 +226,6 @@ export default function CustomerStorefrontPage() {
     }
   }, [activeView, fetchCustomerOrders]);
 
-  // Set default recipient info from user profile
-  useEffect(() => {
-    if (user) {
-      if (!cart.contactName && user.fullName)
-        cart.setContactName(user.fullName);
-      if (!cart.contactPhone && user.phoneNumber)
-        cart.setContactPhone(user.phoneNumber);
-    }
-  }, [user, cart]);
 
   // Open modal for product options
   const handleOpenOptionModal = (product: Product) => {
@@ -334,35 +325,52 @@ export default function CustomerStorefrontPage() {
   // Handle Checkout (Place Order)
   const handlePlaceOrder = async () => {
     if (cart.items.length === 0) return;
-    if (!cart.deliveryAddress.trim()) {
+    // Chỉ bắt buộc nhập địa chỉ khi chọn Giao tận nơi (DELIVERY)
+    if (orderType === "DELIVERY" && !cart.deliveryAddress.trim()) {
       showToast("Vui lòng nhập địa chỉ giao hàng nhận món (COD)", "error");
       return;
     }
 
     setIsSubmittingOrder(true);
     try {
-      const orderItems = cart.items.map((item) => ({
-        variantId: item.variantId,
-        quantity: item.quantity,
-        note: item.note || null,
-        itemSnapshotName: item.productName,
-        sizeSnapshot: item.size,
-        unitPrice: item.unitPrice,
-        totalToppingPriceSnapshot: item.totalToppingPrice,
-        totalPrice: item.totalPrice,
-        toppings: item.toppings.map((t) => ({
-          toppingId: t.toppingId || null,
-          toppingSnapshotName: t.toppingSnapshotName,
-          toppingPrice: t.toppingPrice,
-          quantity: t.quantity,
-        })),
-      }));
+      const deliverySummary = [
+        cart.contactName ? `KH: ${cart.contactName}` : '',
+        cart.contactPhone ? `SĐT: ${cart.contactPhone}` : '',
+        orderType === 'DELIVERY' && cart.deliveryAddress ? `Đ/c: ${cart.deliveryAddress}` : 'Lấy tại quán',
+        cart.customerNote ? `Lưu ý: ${cart.customerNote}` : '',
+      ]
+        .filter(Boolean)
+        .join(' | ');
+
+      const orderItems = cart.items.map((item, idx) => {
+        const combinedNote =
+          idx === 0 && deliverySummary
+            ? [item.note, `[${deliverySummary}]`].filter(Boolean).join(' - ').slice(0, 255)
+            : item.note || null;
+
+        return {
+          variantId: item.variantId,
+          quantity: item.quantity,
+          note: combinedNote,
+          itemSnapshotName: item.productName,
+          sizeSnapshot: item.size,
+          unitPrice: item.unitPrice,
+          totalToppingPriceSnapshot: item.totalToppingPrice,
+          totalPrice: item.totalPrice,
+          toppings: item.toppings.map((t) => ({
+            toppingId: t.toppingId || null,
+            toppingSnapshotName: t.toppingSnapshotName,
+            toppingPrice: t.toppingPrice,
+            quantity: t.quantity,
+          })),
+        };
+      });
 
       // Đưa chiết khấu điểm vào đơn hàng
       const payload = {
         employeeId: 2,
         customerId: user?.id || null,
-        orderChannel: "DELIVERY" as const,
+        orderChannel: (orderType === 'DELIVERY' ? 'DELIVERY' : 'APP') as any,
         subTotal: cart.subTotal,
         discountAmount: 0,
         totalAmount: cart.subTotal,
