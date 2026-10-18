@@ -16,6 +16,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import inventoryService from "@/api/inventory.service";
+import InventoryNavTabs from '@/components/inventory/InventoryNavTabs';
 
 interface Ingredient {
   id: number;
@@ -205,6 +206,8 @@ export default function InventoryAdjustmentsPage() {
           </button>
         </div>
       </div>
+
+      <InventoryNavTabs />
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -186,10 +186,14 @@ BEGIN
         DECLARE @CustomerId INT, 
                 @TotalAmount DECIMAL(18, 2), 
                 @CurrentStatus NVARCHAR(50),
-                @CurrentPoints INT;
+                @CurrentPoints INT,
+                @ExistingPaidAt DATETIME2(7);
 
-        -- Khóa dòng Order để kiểm tra trạng thái
-        SELECT @CustomerId = customerId, @TotalAmount = totalAmount, @CurrentStatus = status
+        SELECT 
+            @CustomerId = customerId, 
+            @TotalAmount = totalAmount, 
+            @CurrentStatus = status,
+            @ExistingPaidAt = paidAt
         FROM [Order] WITH (UPDLOCK)
         WHERE id = @OrderId;
 
@@ -202,59 +206,49 @@ BEGIN
 
         IF @CurrentStatus = N'CANCELLED'
         BEGIN
-            RAISERROR(N'Không thể hoàn tất thanh toán cho đơn hàng đã bị hủy!', 16, 1);
+            RAISERROR(N'Không thể hoàn tất đơn hàng đã bị hủy!', 16, 1);
             ROLLBACK TRANSACTION;
             RETURN;
         END
 
         IF @CurrentStatus = N'COMPLETED'
         BEGIN
-            RAISERROR(N'Đơn hàng này đã được thanh toán trước đó!', 16, 1);
+            RAISERROR(N'Đơn hàng này đã hoàn tất trước đó!', 16, 1);
             ROLLBACK TRANSACTION;
             RETURN;
         END
 
-        -- Cập nhật trạng thái đơn hàng sang COMPLETED
+        -- Chuyển trạng thái sang COMPLETED, ghi nhận pickupAt, giữ nguyên paidAt cũ nếu có
         UPDATE [Order]
         SET status = N'COMPLETED',
-            paymentMethod = @PaymentMethod,
-            paidAt = GETDATE(),
-            updatedAt = GETDATE()
+            paymentMethod = ISNULL(@PaymentMethod, paymentMethod),
+            paidAt = ISNULL(@ExistingPaidAt, SYSDATETIME()),
+            pickupAt = SYSDATETIME(),
+            pagerId = NULL,
+            updatedAt = SYSDATETIME()
         WHERE id = @OrderId;
 
-        -- Tích điểm hội viên (10,000 VNĐ = 1 Điểm)
-        IF @CustomerId IS NOT NULL AND @TotalAmount >= 10000
+        -- Tích điểm hội viên (10,000 VNĐ = 1 Điểm) nếu chưa từng tích điểm cho đơn này
+        IF @CustomerId IS NOT NULL AND @TotalAmount >= 10000 
+           AND NOT EXISTS (SELECT 1 FROM LoyaltyTransaction WHERE orderId = @OrderId AND transactionType = N'EARN')
         BEGIN
             DECLARE @PointsEarned INT = FLOOR(@TotalAmount / 10000.0);
             
             IF @PointsEarned > 0
             BEGIN
-                -- Khóa dòng Customer và lấy số dư điểm hiện tại
                 SELECT @CurrentPoints = rewardPoints 
                 FROM Customer WITH (UPDLOCK) 
                 WHERE id = @CustomerId;
 
                 DECLARE @NewBalance INT = ISNULL(@CurrentPoints, 0) + @PointsEarned;
 
-                -- Ghi vào sổ cái LoyaltyTransaction
-                -- Trigger trg_LoyaltyTransaction_SyncPoints sẽ tự động đồng bộ sang Customer.rewardPoints
                 INSERT INTO LoyaltyTransaction (
-                    customerId, 
-                    orderId, 
-                    transactionType, 
-                    points, 
-                    balanceAfter, 
-                    description, 
-                    createdAt
+                    customerId, orderId, transactionType, points, balanceAfter, description, createdAt
                 )
                 VALUES (
-                    @CustomerId, 
-                    @OrderId, 
-                    N'EARN', 
-                    @PointsEarned, 
-                    @NewBalance, 
+                    @CustomerId, @OrderId, N'EARN', @PointsEarned, @NewBalance, 
                     N'Tích điểm từ đơn hàng #' + CAST(@OrderId AS NVARCHAR(20)), 
-                    GETDATE()
+                    SYSDATETIME()
                 );
             END
         END

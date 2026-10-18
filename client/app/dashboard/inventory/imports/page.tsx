@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useAuthContext } from "@/context/AuthContext";
 import inventoryService from "@/api/inventory.service";
+import InventoryNavTabs from '@/components/inventory/InventoryNavTabs';
 
 interface ImportDetail {
   id?: number;
@@ -253,6 +254,8 @@ export default function InventoryImportsPage() {
           </button>
         </div>
       </div>
+
+      <InventoryNavTabs />
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

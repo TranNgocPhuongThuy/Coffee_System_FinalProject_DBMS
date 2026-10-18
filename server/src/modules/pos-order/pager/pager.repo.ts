@@ -341,15 +341,22 @@ export class PagerRepo {
    * Gỡ liên kết thẻ rung khỏi các đơn hàng đang chờ pha chế hoặc chờ lấy món khi thu hồi thẻ
    */
   async detachPagerFromPendingOrders(pagerId: number): Promise<void> {
-    const pool = await getPool();
-    const request = pool.request();
-    request.input('pagerId', sql.Int, pagerId);
-    await request.query(`
-      UPDATE [Order] 
-      SET pagerId = NULL, updatedAt = SYSDATETIME() 
-      WHERE pagerId = @pagerId AND status IN ('PENDING_PREP', 'READY_FOR_PICKUP');
-    `);
-  }
+  const pool = await getPool();
+  const request = pool.request();
+  request.input('pagerId', sql.Int, pagerId);
+
+  // Khi thu hồi thẻ: Hoàn tất đơn hàng, lưu giờ nhận món và giải phóng liên kết thẻ
+  await request.query(`
+    UPDATE [Order] 
+    SET status = 'COMPLETED',
+        pickupAt = ISNULL(pickupAt, SYSDATETIME()),
+        pagerId = NULL,
+        updatedAt = SYSDATETIME() 
+    WHERE pagerId = @pagerId 
+      AND status IN ('PENDING_PREP', 'PREPARING', 'READY_FOR_PICKUP') 
+      AND deletedAt IS NULL;
+  `);
+}
 
   /**
    * Xóa mềm thiết bị thẻ rung

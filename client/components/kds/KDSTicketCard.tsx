@@ -33,50 +33,56 @@ export const KDSTicketCard: React.FC<KDSTicketCardProps> = ({
       }`}
     >
       {/* Ticket Header */}
-      <div className="p-4 border-b border-gray-100 bg-[#FAF6F0]/40 flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-base text-gray-900 tracking-tight font-mono">
-              #{item.orderCode || item.orderId}
-            </span>
-            {item.pagerCode && (
-              <span className="text-xs font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
-                Thẻ rung #{item.pagerCode}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-            <Clock className="w-3.5 h-3.5 text-gray-400" />
-            <span>{item.itemCreatedAt ? new Date(item.itemCreatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
-            <span>•</span>
-            <span className={`font-semibold ${isUrgent ? 'text-rose-600' : 'text-gray-600'}`}>
-              {item.waitingMinutes} phút trước
-            </span>
-          </div>
-        </div>
-
-        {/* Order Channel */}
-        <span
-          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${
-            item.orderChannel === 'ONLINE'
-              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-              : 'bg-[#F5EBE6] text-[#6F4E37]'
-          }`}
-        >
-          {item.orderChannel === 'ONLINE' ? (
-            <>
-              <ShoppingBag className="w-3 h-3" />
-              Online
-            </>
-          ) : (
-            <>
-              <Utensils className="w-3 h-3" />
-              Tại quầy
-            </>
-          )}
+      <div className="p-4 border-b border-gray-100 bg-[#FAF6F0]/40 flex items-center justify-between gap-3 min-h-[72px]">
+  <div className="flex-1 min-w-0">
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="font-mono font-bold text-base text-gray-900 tracking-tight">
+        #{item.orderCode || item.orderId}
+      </span>
+      {item.pagerCode ? (
+        <span className="text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
+          Thẻ #{item.pagerCode}
         </span>
-      </div>
+      ) : (
+        <span className="text-[11px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">
+          Không thẻ
+        </span>
+      )}
+    </div>
+
+    <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+      <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+      <span>{item.itemCreatedAt ? new Date(item.itemCreatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+      <span>•</span>
+      <span className={`font-semibold ${isUrgent ? 'text-rose-600' : 'text-gray-600'}`}>
+        {item.waitingMinutes} phút trước
+      </span>
+    </div>
+  </div>
+
+  {/* Order Channel Badge luôn cố định bên phải */}
+  <div className="shrink-0 self-start">
+    <span
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${
+        item.orderChannel === 'ONLINE' || item.orderChannel === 'DELIVERY'
+          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+          : 'bg-[#F5EBE6] text-[#6F4E37] border border-[#EADBCC]'
+      }`}
+    >
+      {item.orderChannel === 'ONLINE' || item.orderChannel === 'DELIVERY' ? (
+        <>
+          <ShoppingBag className="w-3 h-3" />
+          <span>Giao đi</span>
+        </>
+      ) : (
+        <>
+          <Utensils className="w-3 h-3" />
+          <span>Tại quầy</span>
+        </>
+      )}
+    </span>
+  </div>
+</div>
 
       {/* Ticket Body: Item Info */}
       <div className="p-4 space-y-3 flex-1 bg-white">

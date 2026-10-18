@@ -4,84 +4,82 @@ import { QueryKdsQueueType, UpdateItemStatusType } from "./kds.schema";
 export class KDSRepo {
   // 1. Lấy danh sách hàng đợi các món cần pha chế trên KDS (UC17)
   async getKdsQueue(query: QueryKdsQueueType) {
-    const pool = await getPool();
-    const req = pool.request();
+  const pool = await getPool();
+  const req = pool.request();
 
-    const conditions: string[] = [
-      "o.status IN ('PENDING_PREP', 'READY_FOR_PICKUP')",
-      "od.itemStatus NOT IN ('DONE', 'CANCELLED')",
-      "o.deletedAt IS NULL",
-    ];
+  // BỔ SUNG 'PREPARING' vào điều kiện o.status bên dưới:
+  const conditions: string[] = [
+    "o.status IN ('PENDING_PREP', 'PREPARING', 'READY_FOR_PICKUP')",
+    "od.itemStatus NOT IN ('DONE', 'CANCELLED')",
+    "o.deletedAt IS NULL",
+  ];
 
-    if (query.status !== "ALL") {
-      req.input("itemStatus", sql.NVarChar(50), query.status);
-      conditions.push("od.itemStatus = @itemStatus");
-    }
-
-    const sqlStr = `
-      SELECT 
-        o.id AS orderId,
-        o.orderCode,
-        o.orderChannel,
-        p.pagerCode,
-        p.batteryLevel,
-        od.id AS orderDetailId,
-        od.itemSnapshotName,
-        od.sizeSnapshot,
-        od.quantity,
-        od.note,
-        od.itemStatus,
-        od.createdAt AS itemCreatedAt,
-        DATEDIFF(MINUTE, od.createdAt, SYSDATETIME()) AS waitingMinutes
-      FROM OrderDetail od
-      JOIN [Order] o ON od.orderId = o.id
-      LEFT JOIN PagerDevice p ON o.pagerId = p.id
-      WHERE ${conditions.join(" AND ")}
-      ORDER BY od.createdAt ASC
-    `;
-    const itemsResult = await req.query(sqlStr);
-
-    // Nếu không có món nào
-    if (itemsResult.recordset.length === 0) {
-      return [];
-    }
-
-    // Lấy kèm topping cho từng ly
-    const detailIds = itemsResult.recordset.map((item) => item.orderDetailId);
-    let toppingsByDetailId: Record<number, any[]> = {};
-
-    if (detailIds.length > 0) {
-      const topReq = pool.request();
-      const paramNames = detailIds.map((id, index) => {
-        topReq.input(`id${index}`, sql.Int, id);
-        return `@id${index}`;
-      });
-
-      const toppingResult = await topReq.query(`
-    SELECT orderDetailId, toppingSnapshotName, quantity 
-    FROM OrderDetailTopping
-    WHERE orderDetailId IN (${paramNames.join(",")})
-  `);
-
-      toppingsByDetailId = toppingResult.recordset.reduce(
-        (acc: any, top: any) => {
-          if (!acc[top.orderDetailId]) acc[top.orderDetailId] = [];
-          acc[top.orderDetailId].push({
-            name: top.toppingSnapshotName,
-            quantity: top.quantity,
-          });
-          return acc;
-        },
-        {},
-      );
-    }
-
-    // Ghép topping vào từng dòng ly nước
-    return itemsResult.recordset.map((item) => ({
-      ...item,
-      toppings: toppingsByDetailId[item.orderDetailId] || [],
-    }));
+  if (query.status !== "ALL") {
+    req.input("itemStatus", sql.NVarChar(50), query.status);
+    conditions.push("od.itemStatus = @itemStatus");
   }
+
+  const sqlStr = `
+    SELECT 
+      o.id AS orderId,
+      o.orderCode,
+      o.orderChannel,
+      p.pagerCode,
+      p.batteryLevel,
+      od.id AS orderDetailId,
+      od.itemSnapshotName,
+      od.sizeSnapshot,
+      od.quantity,
+      od.note,
+      od.itemStatus,
+      od.createdAt AS itemCreatedAt,
+      DATEDIFF(MINUTE, od.createdAt, SYSDATETIME()) AS waitingMinutes
+    FROM OrderDetail od
+    JOIN [Order] o ON od.orderId = o.id
+    LEFT JOIN PagerDevice p ON o.pagerId = p.id
+    WHERE ${conditions.join(" AND ")}
+    ORDER BY od.createdAt ASC
+  `;
+  const itemsResult = await req.query(sqlStr);
+
+  if (itemsResult.recordset.length === 0) {
+    return [];
+  }
+
+  const detailIds = itemsResult.recordset.map((item) => item.orderDetailId);
+  let toppingsByDetailId: Record<number, any[]> = {};
+
+  if (detailIds.length > 0) {
+    const topReq = pool.request();
+    const paramNames = detailIds.map((id, index) => {
+      topReq.input(`id${index}`, sql.Int, id);
+      return `@id${index}`;
+    });
+
+    const toppingResult = await topReq.query(`
+      SELECT orderDetailId, toppingSnapshotName, quantity 
+      FROM OrderDetailTopping
+      WHERE orderDetailId IN (${paramNames.join(",")})
+    `);
+
+    toppingsByDetailId = toppingResult.recordset.reduce(
+      (acc: any, top: any) => {
+        if (!acc[top.orderDetailId]) acc[top.orderDetailId] = [];
+        acc[top.orderDetailId].push({
+          name: top.toppingSnapshotName,
+          quantity: top.quantity,
+        });
+        return acc;
+      },
+      {}
+    );
+  }
+
+  return itemsResult.recordset.map((item) => ({
+    ...item,
+    toppings: toppingsByDetailId[item.orderDetailId] || [],
+  }));
+}
 
   // 2. Barista cập nhật trạng thái món -> Nếu chuyển sang 'DONE',
   // Trigger trg_Ingredient_TruKho_KhiHoanThanhMon dưới CSDL sẽ tự động trừ kho BOM!
@@ -118,6 +116,15 @@ export class KDSRepo {
         INSERTED.updatedAt
       INTO @updatedItems
       WHERE id = @orderDetailId;
+
+      
+      IF @itemStatus = N'PREPARING'
+      BEGIN
+        UPDATE [Order]
+        SET status = N'PREPARING', updatedAt = SYSDATETIME()
+        WHERE id = (SELECT TOP 1 orderId FROM @updatedItems)
+          AND status = N'PENDING_PREP';
+      END;
 
       COMMIT TRANSACTION;
 

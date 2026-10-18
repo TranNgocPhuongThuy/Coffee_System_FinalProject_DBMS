@@ -1,4 +1,6 @@
-import React from 'react';
+// client/components/common/Modal.tsx
+import React, { useEffect } from 'react';
+import { X } from 'lucide-react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -8,13 +10,38 @@ interface ModalProps {
 }
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
-        {title && <h2 className="text-xl font-bold mb-4">{title}</h2>}
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in">
+      <div className="fixed inset-0" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl z-10 animate-in zoom-in-95">
+        <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+          {title && <h2 className="text-lg font-bold text-gray-900">{title}</h2>}
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer ml-auto"
+            title="Đóng (Esc)"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
         {children}
-        <button onClick={onClose} className="mt-4 px-4 py-2 bg-gray-200 rounded">Đóng</button>
       </div>
     </div>
   );

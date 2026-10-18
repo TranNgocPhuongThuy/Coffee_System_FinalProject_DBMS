@@ -146,59 +146,49 @@ export default function KDSQueuePage() {
       )}
 
       {/* 1. Thẻ Metric Cards (Bố cục 'Icon bên trái - Thông số bên phải' chuẩn MePhaPhin) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Tổng số món chờ pha chế */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-[#F5EBE6] text-[#6F4E37] flex items-center justify-center shrink-0 font-bold">
-            <CookingPot className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Hàng đợi hiện tại</p>
-            <p className="text-xl font-bold text-gray-900 mt-0.5">
-              {queueItems.length.toLocaleString('vi-VN')} <span className="text-xs font-normal text-gray-500">món</span>
-            </p>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  {/* Card 1: Chờ pha chế (PENDING) */}
+  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+    <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 font-bold">
+      <Clock className="w-6 h-6" />
+    </div>
+    <div>
+      <p className="text-xs text-gray-400 font-medium">Chờ pha chế</p>
+      <p className="text-xl font-bold text-amber-800 mt-0.5">
+        {pendingCount.toLocaleString('vi-VN')}{' '}
+        <span className="text-xs font-normal text-amber-700/80">món</span>
+      </p>
+    </div>
+  </div>
 
-        {/* Card 2: Chờ pha chế (PENDING) */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 font-bold">
-            <Clock className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Chờ pha chế</p>
-            <p className="text-xl font-bold text-amber-800 mt-0.5">
-              {pendingCount.toLocaleString('vi-VN')} <span className="text-xs font-normal text-amber-700/80">món</span>
-            </p>
-          </div>
-        </div>
+  {/* Card 2: Đang pha chế (PREPARING) */}
+  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 font-bold">
+      <Play className="w-6 h-6 fill-blue-600/20" />
+    </div>
+    <div>
+      <p className="text-xs text-gray-400 font-medium">Đang thực hiện</p>
+      <p className="text-xl font-bold text-blue-700 mt-0.5">
+        {preparingCount.toLocaleString('vi-VN')}{' '}
+        <span className="text-xs font-normal text-blue-600/80">món</span>
+      </p>
+    </div>
+  </div>
 
-        {/* Card 3: Đang pha chế (PREPARING) */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 font-bold">
-            <Play className="w-6 h-6 fill-blue-600/20" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Đang thực hiện</p>
-            <p className="text-xl font-bold text-blue-700 mt-0.5">
-              {preparingCount.toLocaleString('vi-VN')} <span className="text-xs font-normal text-blue-600/80">món</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Card 4: Đã hoàn tất */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Đã xong ca làm việc</p>
-            <p className="text-xl font-bold text-emerald-700 mt-0.5">
-              {doneCount.toLocaleString('vi-VN')} <span className="text-xs font-normal text-emerald-600/80">món</span>
-            </p>
-          </div>
-        </div>
-      </div>
+  {/* Card 3: Đã hoàn tất (DONE) */}
+  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+    <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold">
+      <CheckCircle2 className="w-6 h-6" />
+    </div>
+    <div>
+      <p className="text-xs text-gray-400 font-medium">Đã xong ca làm việc</p>
+      <p className="text-xl font-bold text-emerald-700 mt-0.5">
+        {doneCount.toLocaleString('vi-VN')}{' '}
+        <span className="text-xs font-normal text-emerald-600/80">món</span>
+      </p>
+    </div>
+  </div>
+</div>
 
       {/* 2. Toolbar & Controls (Đóng gói trong Card trắng độc lập chuẩn MePhaPhin) */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">

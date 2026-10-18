@@ -15,4 +15,9 @@ orderRouter.get('/:id', authGuard, roleGuard('CASHIER', 'MANAGER', 'BARISTA', 'C
 orderRouter.get('/:id/invoice', authGuard, roleGuard('CASHIER', 'MANAGER'), controller.invoice)
 orderRouter.patch('/:id/pay', authGuard, roleGuard('CASHIER', 'MANAGER'), controller.completePayment)
 orderRouter.patch('/:id/cancel', authGuard, roleGuard('CASHIER', 'MANAGER'), controller.cancel)
-orderRouter.post('/:id/apply-points', authGuard, roleGuard('CASHIER', 'MANAGER'), controller.applyPoints)
+orderRouter.post(
+  '/:id/apply-points',
+  authGuard,
+  roleGuard('CASHIER', 'MANAGER', 'CUSTOMER'),
+  controller.applyPoints
+);

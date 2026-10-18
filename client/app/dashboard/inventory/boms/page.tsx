@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import inventoryService from "@/api/inventory.service";
 import menuService from "@/api/menu.service";
+import InventoryNavTabs from '@/components/inventory/InventoryNavTabs';
 
 type BomTab = "RECIPE_BOM" | "TOPPING_BOM";
 
@@ -259,6 +260,8 @@ export default function BOMManagementPage() {
           </div>
         </div>
       </div>
+
+      <InventoryNavTabs />
 
       {/* Main Tabs Navigation */}
       <div className="flex items-center gap-3 border-b border-gray-200 pb-2">

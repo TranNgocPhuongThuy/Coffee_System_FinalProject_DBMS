@@ -25,26 +25,26 @@ export default function DashboardOverviewPage() {
     setLoading(true);
     try {
       const [revRes, topRes] = await Promise.all([
-        reportService.getDailyRevenue().catch(() => []),
+        reportService.getRevenueOverview().catch(() => null),
         reportService.getTopProducts().catch(() => []),
       ]);
 
-      const revList = Array.isArray(revRes) ? revRes : [];
-      const totalRev = revList.reduce(
-        (sum: number, item: any) => sum + (Number(item.totalNetRevenue) || Number(item.revenue) || 0),
-        0
-      );
-      const totalOrders = revList.reduce(
-        (sum: number, item: any) => sum + (Number(item.totalOrders) || Number(item.orders) || 0),
-        0
-      );
+      // Backend trả về Object { netRevenue, totalOrders, ... }, không phải Array!
+      const overviewData = revRes?.data || revRes;
+      const totalRev = Number(overviewData?.netRevenue || 0);
+      const totalOrders = Number(overviewData?.totalOrders || 0);
+
       setRevenue(totalRev);
       setTotalOrdersCount(totalOrders);
 
-      const topList = Array.isArray(topRes) ? topRes : [];
+      const topList = Array.isArray(topRes)
+        ? topRes
+        : (topRes as any)?.data || [];
       if (topList.length > 0) {
         setTopProductName(topList[0].productName || topList[0].name || "—");
-        setTopProductQty(topList[0].totalQuantitySold || topList[0].totalQuantity || 0);
+        setTopProductQty(
+          topList[0].totalQuantitySold || topList[0].totalQuantity || 0,
+        );
       }
     } catch (err) {
       console.error("Error fetching overview:", err);
@@ -114,9 +114,15 @@ export default function DashboardOverviewPage() {
               className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start justify-between"
             >
               <div>
-                <p className="text-xs font-medium text-gray-500">{stat.title}</p>
+                <p className="text-xs font-medium text-gray-500">
+                  {stat.title}
+                </p>
                 <h3 className="text-xl font-bold text-gray-900 mt-1">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#6F4E37]" /> : stat.value}
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-[#6F4E37]" />
+                  ) : (
+                    stat.value
+                  )}
                 </h3>
                 <div className="flex items-center gap-1 mt-2 text-xs font-medium text-emerald-600">
                   <TrendingUp className="w-3.5 h-3.5" />
@@ -151,7 +157,9 @@ export default function DashboardOverviewPage() {
                 <h4 className="text-sm font-semibold text-gray-900 group-hover:text-[#6F4E37]">
                   Quản lý Thực đơn
                 </h4>
-                <p className="text-xs text-gray-400">Xem và chỉnh sửa danh mục món</p>
+                <p className="text-xs text-gray-400">
+                  Xem và chỉnh sửa danh mục món
+                </p>
               </div>
             </div>
             <ArrowUpRight className="w-4 h-4 text-gray-400 group-hover:text-[#6F4E37]" />

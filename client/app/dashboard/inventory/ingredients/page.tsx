@@ -16,6 +16,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import inventoryService from "@/api/inventory.service";
+import InventoryNavTabs from '@/components/inventory/InventoryNavTabs';
 
 interface Ingredient {
   id: number;
@@ -202,6 +203,8 @@ export default function IngredientsPage() {
           </button>
         </div>
       </div>
+
+      <InventoryNavTabs />
 
       {/* 2. Thống kê tổng quan (4 Thẻ Metric Cards: Icon Trái - Thông Số Phải) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

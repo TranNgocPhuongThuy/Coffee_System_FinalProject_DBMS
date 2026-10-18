@@ -10,7 +10,6 @@ import {
   Clock,
   User,
   Radio,
-  CreditCard,
   Coffee,
 } from 'lucide-react';
 import { OrderItemResponse } from '@/types/pos';
@@ -57,9 +56,11 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
   };
 
   const isCompletedOrCancelled = order.status === 'COMPLETED' || order.status === 'CANCELLED';
+  const isAlreadyPaid = Boolean(order.paidAt);
+  const isReady = order.status === 'READY_FOR_PICKUP';
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs animate-fade-in">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs animate-fade-in">
       <div className="flex h-full w-full max-w-lg flex-col bg-white shadow-2xl dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 overflow-hidden">
         {/* Header Drawer */}
         <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
@@ -76,17 +77,17 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors"
+            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Nội dung chi tiết */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Thông tin đối tượng liên quan (Thu ngân, Khách hàng, Thẻ rung) */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Thông tin đối tượng liên quan (Thu ngân & Thẻ rung) */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-850/60">
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 dark:border-zinc-700 dark:bg-zinc-800 shadow-2xs">
               <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-1">
                 <User className="h-3.5 w-3.5" />
                 <span>Thu ngân:</span>
@@ -96,7 +97,7 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
               </div>
             </div>
 
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-850/60">
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 dark:border-zinc-700 dark:bg-zinc-800 shadow-2xs">
               <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-1">
                 <Radio className="h-3.5 w-3.5" />
                 <span>Thẻ rung:</span>
@@ -113,7 +114,7 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
 
           {/* Thông tin Khách hàng hội viên */}
           {order.customerName && (
-            <div className="rounded-xl border border-[#EBE3D5] bg-[#FAF6F0] p-3.5 dark:border-[#6F4E37]/30 dark:bg-zinc-850">
+            <div className="rounded-xl border border-[#EBE3D5] bg-[#FAF6F0] p-3.5 dark:border-zinc-700 dark:bg-zinc-800 shadow-2xs">
               <div className="text-xs font-bold text-[#6F4E37] dark:text-[#D4A373] uppercase tracking-wider mb-1">
                 Khách hàng hội viên
               </div>
@@ -123,7 +124,7 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
                   <span className="text-zinc-500 dark:text-zinc-400 ml-2">({order.customerPhone})</span>
                 </div>
                 {order.customerTier && (
-                  <span className="rounded-md bg-[#F5EBE6] px-2 py-0.5 text-xs font-black text-[#6F4E37] dark:bg-[#6F4E37]/20 dark:text-[#D4A373]">
+                  <span className="rounded-md bg-[#F5EBE6] px-2 py-0.5 text-xs font-black text-[#6F4E37] dark:bg-amber-950/40 dark:text-[#D4A373]">
                     Hạng {order.customerTier}
                   </span>
                 )}
@@ -133,24 +134,24 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
 
           {/* Danh sách món trong đơn */}
           <div>
-            <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2.5">
               Danh sách món ({order.items?.length || 0} món)
             </h4>
             <div className="space-y-2.5">
               {order.items?.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-xl border border-zinc-200/90 bg-white p-3.5 dark:border-zinc-800 dark:bg-zinc-850/50"
+                  className="rounded-xl border border-zinc-200 bg-white p-3.5 dark:border-zinc-700 dark:bg-zinc-800 shadow-2xs"
                 >
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
                         {item.itemSnapshotName}{' '}
-                        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-extrabold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-extrabold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
                           {item.sizeSnapshot}
                         </span>
                       </div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                         Số lượng: <strong className="text-zinc-900 dark:text-zinc-100">x{item.quantity}</strong> • Đơn giá:{' '}
                         {formatCurrency(item.unitPrice)}
                       </div>
@@ -161,7 +162,7 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
                           {item.toppings.map((t) => (
                             <span
                               key={t.id}
-                              className="rounded-md bg-[#F5EBE6] px-2 py-0.5 text-[11px] font-medium text-[#6F4E37] dark:bg-[#6F4E37]/20 dark:text-[#D4A373]"
+                              className="rounded-md bg-[#F5EBE6] px-2 py-0.5 text-[11px] font-medium text-[#6F4E37] dark:bg-[#6F4E37]/30 dark:text-[#E8DDD4]"
                             >
                               +{t.toppingSnapshotName} ({formatCurrency(t.toppingPrice)})
                             </span>
@@ -186,13 +187,13 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
 
           {/* Lý do hủy nếu có */}
           {order.cancelReason && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300">
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300">
               <span className="font-bold">Lý do hủy đơn:</span> {order.cancelReason}
             </div>
           )}
 
           {/* Tổng quan thanh toán */}
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 space-y-2 dark:border-zinc-800 dark:bg-zinc-850/60 text-sm">
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 space-y-2 dark:border-zinc-700 dark:bg-zinc-800 text-sm shadow-2xs">
             <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
               <span>Tạm tính:</span>
               <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatCurrency(order.subTotal)}</span>
@@ -203,11 +204,11 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
                 <span>-{formatCurrency(order.discountAmount)}</span>
               </div>
             )}
-            <div className="flex justify-between font-extrabold text-base text-zinc-900 dark:text-zinc-100 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+            <div className="flex justify-between font-extrabold text-base text-zinc-900 dark:text-zinc-100 pt-2 border-t border-zinc-200 dark:border-zinc-700">
               <span>Tổng thanh toán:</span>
               <span className="text-[#6F4E37] dark:text-[#D4A373]">{formatCurrency(order.totalAmount)}</span>
             </div>
-            <div className="flex justify-between text-xs text-zinc-500 pt-1">
+            <div className="flex justify-between text-xs text-zinc-500 dark:text-zinc-400 pt-1">
               <span>Phương thức:</span>
               <span className="font-bold text-zinc-800 dark:text-zinc-200">{order.paymentMethod || 'Tiền mặt'}</span>
             </div>
@@ -221,11 +222,11 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="border-t border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900 flex items-center justify-between gap-3">
+        <div className="border-t border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900 flex items-center justify-between gap-3 shrink-0">
           <button
             type="button"
             onClick={() => onPrintInvoice(order.id)}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white py-2.5 text-sm font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 shadow-xs"
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white py-2.5 text-sm font-bold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 shadow-xs cursor-pointer"
           >
             <Printer className="h-4 w-4" />
             <span>In hóa đơn</span>
@@ -237,7 +238,8 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
                 <button
                   type="button"
                   onClick={() => onCancelOrder(order.id)}
-                  className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300"
+                  className="rounded-xl border border-rose-300 bg-rose-50 px-3.5 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300 cursor-pointer"
+                  title="Hủy đơn hàng"
                 >
                   <Ban className="h-4 w-4" />
                 </button>
@@ -247,10 +249,12 @@ export const OrderDetailDrawer: React.FC<OrderDetailDrawerProps> = ({
                 <button
                   type="button"
                   onClick={() => onPayOrder(order.id)}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-600/30 hover:bg-emerald-700"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-600/30 cursor-pointer active:scale-[0.98] transition-all"
                 >
                   <CheckCircle2 className="h-4 w-4" />
-                  <span>Thanh toán</span>
+                  <span>
+                    {isReady || isAlreadyPaid ? 'Hoàn tất đơn hàng' : 'Thanh toán'}
+                  </span>
                 </button>
               )}
             </>

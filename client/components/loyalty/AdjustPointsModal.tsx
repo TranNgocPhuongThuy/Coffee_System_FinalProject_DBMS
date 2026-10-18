@@ -1,3 +1,4 @@
+// client/components/loyalty/AdjustPointsModal.tsx
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/common/Modal';
 import { Input } from '@/components/common/Input';
@@ -18,32 +19,33 @@ export const AdjustPointsModal: React.FC<AdjustPointsModalProps> = ({
   onClose,
   onSuccess,
   customer,
-  customersList = [],
+  customersList,
 }) => {
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | ''>('');
   const [transactionType, setTransactionType] = useState<'EARN' | 'REDEEM'>('EARN');
   const [points, setPoints] = useState<number | ''>('');
-  const [orderId, setOrderId] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // CHỈ reset và gán dữ liệu ban đầu KHI MODAL ĐƯỢC MỞ (isOpen = true)
   useEffect(() => {
-    if (customer) {
-      setSelectedCustomerId(customer.id);
-    } else if (customersList.length > 0) {
-      setSelectedCustomerId(customersList[0].id);
-    } else {
-      setSelectedCustomerId('');
+    if (isOpen) {
+      if (customer) {
+        setSelectedCustomerId(customer.id);
+      } else if (customersList && customersList.length > 0) {
+        setSelectedCustomerId(customersList[0].id);
+      } else {
+        setSelectedCustomerId('');
+      }
+      setTransactionType('EARN');
+      setPoints('');
+      setDescription('');
+      setError(null);
     }
-    setTransactionType('EARN');
-    setPoints('');
-    setOrderId('');
-    setDescription('');
-    setError(null);
-  }, [customer, customersList, isOpen]);
+  }, [isOpen, customer?.id]);
 
-  const activeCustomer = customer || customersList.find((c) => c.id === Number(selectedCustomerId));
+  const activeCustomer = customer || (customersList ? customersList.find((c) => c.id === Number(selectedCustomerId)) : null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +67,7 @@ export const AdjustPointsModal: React.FC<AdjustPointsModalProps> = ({
         customerId: Number(selectedCustomerId),
         transactionType,
         points: numPoints,
-        orderId: orderId ? Number(orderId) : null,
+        orderId: null, // Không gắn orderId khi chỉnh thủ công
         description: description.trim() || undefined,
       };
 
@@ -111,11 +113,11 @@ export const AdjustPointsModal: React.FC<AdjustPointsModalProps> = ({
             <select
               value={selectedCustomerId}
               onChange={(e) => setSelectedCustomerId(Number(e.target.value))}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20 transition-all"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 text-sm focus:outline-none focus:border-[#6F4E37] focus:ring-2 focus:ring-[#6F4E37]/20 transition-all cursor-pointer"
               required
             >
               <option value="">-- Chọn khách hàng --</option>
-              {customersList.map((c) => (
+              {customersList?.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.fullName} - {c.phoneNumber} ({c.rewardPoints || 0} pts)
                 </option>
@@ -162,17 +164,11 @@ export const AdjustPointsModal: React.FC<AdjustPointsModalProps> = ({
           min="1"
           placeholder="Nhập số điểm..."
           value={points}
-          onChange={(e) => setPoints(e.target.value ? Number(e.target.value) : '')}
+          onChange={(e) => {
+            const val = e.target.value;
+            setPoints(val === '' ? '' : Number(val));
+          }}
           required
-        />
-
-        {/* Order ID (Optional) */}
-        <Input
-          label="Mã đơn hàng liên quan (Tùy chọn)"
-          type="number"
-          placeholder="Nhập Order ID nếu có (ví dụ: 102)"
-          value={orderId}
-          onChange={(e) => setOrderId(e.target.value)}
         />
 
         {/* Description */}
@@ -190,7 +186,7 @@ export const AdjustPointsModal: React.FC<AdjustPointsModalProps> = ({
         </div>
 
         {/* Summary preview */}
-        {activeCustomer && points && Number(points) > 0 && (
+        {activeCustomer && points !== '' && Number(points) > 0 && (
           <div className="p-3 bg-gray-50 rounded-xl text-xs space-y-1">
             <div className="flex justify-between text-gray-600">
               <span>Điểm hiện tại:</span>

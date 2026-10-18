@@ -1,8 +1,8 @@
 // app/pos/orders/page.tsx
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Search,
   Eye,
@@ -25,70 +25,86 @@ import {
   X,
   LogOut,
   LayoutDashboard,
-} from 'lucide-react';
-import { useAuthContext } from '@/context/AuthContext';
-import { posService } from '@/api/pos.service';
-import { OrderItemResponse } from '@/types/pos';
-import { OrderStatus } from '@/types/enums';
-import { OrderDetailDrawer } from '@/components/pos/OrderDetailDrawer';
-import { PrintReceiptModal } from '@/components/pos/PrintReceiptModal';
-import { CancelOrderModal } from '@/components/pos/CancelOrderModal';
-import { PosUserDropdown } from '@/components/pos/PosUserDropdown';
+} from "lucide-react";
+import { useAuthContext } from "@/context/AuthContext";
+import { posService } from "@/api/pos.service";
+import { OrderItemResponse } from "@/types/pos";
+import { OrderStatus } from "@/types/enums";
+import { OrderDetailDrawer } from "@/components/pos/OrderDetailDrawer";
+import { PrintReceiptModal } from "@/components/pos/PrintReceiptModal";
+import { CancelOrderModal } from "@/components/pos/CancelOrderModal";
+import { PosUserDropdown } from "@/components/pos/PosUserDropdown";
 
-const STATUS_FILTERS: { key: OrderStatus | 'ALL'; label: string }[] = [
-  { key: 'ALL', label: 'Tất cả' },
-  { key: 'PENDING_PREP', label: 'Chờ pha chế' },
-  { key: 'PREPARING', label: 'Đang pha chế' },
-  { key: 'READY_FOR_PICKUP', label: 'Chờ lấy món' },
-  { key: 'COMPLETED', label: 'Hoàn tất' },
-  { key: 'CANCELLED', label: 'Đã hủy' },
+const STATUS_FILTERS: { key: OrderStatus | "ALL"; label: string }[] = [
+  { key: "ALL", label: "Tất cả" },
+  { key: "PENDING_PREP", label: "Chờ pha chế" },
+  { key: "PREPARING", label: "Đang pha chế" },
+  { key: "READY_FOR_PICKUP", label: "Chờ lấy món" },
+  { key: "COMPLETED", label: "Hoàn tất" },
+  { key: "CANCELLED", label: "Đã hủy" },
 ];
 
 export default function PosOrdersPage() {
   const { user, logout } = useAuthContext();
-  const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const isManagerOrAdmin = user?.role === "ADMIN" || user?.role === "MANAGER";
   const [orders, setOrders] = useState<OrderItemResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [meta, setMeta] = useState({ page: 1, limit: 10, totalItems: 0, totalPages: 1 });
+  const [meta, setMeta] = useState({
+    page: 1,
+    limit: 10,
+    totalItems: 0,
+    totalPages: 1,
+  });
 
   // Bộ lọc
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | "ALL">("ALL");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   // Modals & Drawer States
-  const [selectedOrder, setSelectedOrder] = useState<OrderItemResponse | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderItemResponse | null>(
+    null,
+  );
   const [printOrderId, setPrintOrderId] = useState<number | null>(null);
   const [cancelOrderId, setCancelOrderId] = useState<number | null>(null);
-  const [cancelOrderCode, setCancelOrderCode] = useState<string>('');
+  const [cancelOrderCode, setCancelOrderCode] = useState<string>("");
 
-  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
-  const fetchOrders = useCallback(async (page = 1) => {
-    setLoading(true);
-    try {
-      const params: any = {
-        page,
-        limit: 10,
-      };
+  const fetchOrders = useCallback(
+    async (page = 1) => {
+      setLoading(true);
+      try {
+        const params: any = {
+          page,
+          limit: 10,
+        };
 
-      if (search.trim()) params.search = search.trim();
-      if (statusFilter !== 'ALL') params.status = statusFilter;
-      if (fromDate) params.fromDate = fromDate;
-      if (toDate) params.toDate = toDate;
+        if (search.trim()) params.search = search.trim();
+        if (statusFilter !== "ALL") params.status = statusFilter;
+        if (fromDate) params.fromDate = fromDate;
+        if (toDate) params.toDate = toDate;
 
-      const res = await posService.getOrders(params);
-      setOrders(res.items || res.data || []);
-      if (res.meta) {
-        setMeta(res.meta);
+        const res = await posService.getOrders(params);
+        setOrders(res.items || res.data || []);
+        if (res.meta) {
+          setMeta(res.meta);
+        }
+      } catch (err: any) {
+        setToastMessage({
+          type: "error",
+          message: err.message || "Không thể tải danh sách đơn hàng",
+        });
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      setToastMessage({ type: 'error', message: err.message || 'Không thể tải danh sách đơn hàng' });
-    } finally {
-      setLoading(false);
-    }
-  }, [search, statusFilter, fromDate, toDate]);
+    },
+    [search, statusFilter, fromDate, toDate],
+  );
 
   useEffect(() => {
     fetchOrders(1);
@@ -103,14 +119,17 @@ export default function PosOrdersPage() {
   }, [toastMessage]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
   };
 
   const getTodayRange = () => {
     const today = new Date();
     const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
     const dateStr = `${yyyy}-${mm}-${dd}`;
     return { from: dateStr, to: dateStr };
   };
@@ -119,18 +138,18 @@ export default function PosOrdersPage() {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yyyy = yesterday.getFullYear();
-    const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
-    const dd = String(yesterday.getDate()).padStart(2, '0');
+    const mm = String(yesterday.getMonth() + 1).padStart(2, "0");
+    const dd = String(yesterday.getDate()).padStart(2, "0");
     const dateStr = `${yyyy}-${mm}-${dd}`;
     return { from: dateStr, to: dateStr };
   };
 
-  const setDatePreset = (type: 'TODAY' | 'YESTERDAY') => {
-    if (type === 'TODAY') {
+  const setDatePreset = (type: "TODAY" | "YESTERDAY") => {
+    if (type === "TODAY") {
       const { from, to } = getTodayRange();
       setFromDate(from);
       setToDate(to);
-    } else if (type === 'YESTERDAY') {
+    } else if (type === "YESTERDAY") {
       const { from, to } = getYesterdayRange();
       setFromDate(from);
       setToDate(to);
@@ -138,8 +157,8 @@ export default function PosOrdersPage() {
   };
 
   const clearDateFilter = () => {
-    setFromDate('');
-    setToDate('');
+    setFromDate("");
+    setToDate("");
   };
 
   const isTodayActive = () => {
@@ -154,18 +173,42 @@ export default function PosOrdersPage() {
 
   const getStatusBadge = (status: OrderStatus) => {
     switch (status) {
-      case 'PENDING_PREP':
-        return <span className="rounded-md bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">Chờ pha chế</span>;
-      case 'PREPARING':
-        return <span className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300">Đang pha chế</span>;
-      case 'READY_FOR_PICKUP':
-        return <span className="rounded-md bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:border-purple-800 dark:text-purple-300">Chờ lấy món</span>;
-      case 'COMPLETED':
-        return <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">Hoàn tất</span>;
-      case 'CANCELLED':
-        return <span className="rounded-md bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300">Đã hủy</span>;
+      case "PENDING_PREP":
+        return (
+          <span className="rounded-md bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300">
+            Chờ pha chế
+          </span>
+        );
+      case "PREPARING":
+        return (
+          <span className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300">
+            Đang pha chế
+          </span>
+        );
+      case "READY_FOR_PICKUP":
+        return (
+          <span className="rounded-md bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:border-purple-800 dark:text-purple-300">
+            Chờ lấy món
+          </span>
+        );
+      case "COMPLETED":
+        return (
+          <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+            Hoàn tất
+          </span>
+        );
+      case "CANCELLED":
+        return (
+          <span className="rounded-md bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300">
+            Đã hủy
+          </span>
+        );
       default:
-        return <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700">{status}</span>;
+        return (
+          <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700">
+            {status}
+          </span>
+        );
     }
   };
 
@@ -174,20 +217,29 @@ export default function PosOrdersPage() {
       const data = await posService.getOrderById(id);
       setSelectedOrder(data);
     } catch (err: any) {
-      setToastMessage({ type: 'error', message: err.message || 'Không thể xem chi tiết đơn hàng' });
+      setToastMessage({
+        type: "error",
+        message: err.message || "Không thể xem chi tiết đơn hàng",
+      });
     }
   };
 
   const handlePayOrder = async (orderId: number) => {
     try {
-      await posService.completePayment(orderId, 'CASH');
-      setToastMessage({ type: 'success', message: `Thanh toán thành công đơn #${orderId}` });
+      await posService.completePayment(orderId, "CASH");
+      setToastMessage({
+        type: "success",
+        message: `Thanh toán thành công đơn #${orderId}`,
+      });
       fetchOrders(meta.page);
       if (selectedOrder?.id === orderId) {
         handleOpenDetail(orderId);
       }
     } catch (err: any) {
-      setToastMessage({ type: 'error', message: err.message || 'Thanh toán thất bại' });
+      setToastMessage({
+        type: "error",
+        message: err.message || "Thanh toán thất bại",
+      });
     }
   };
 
@@ -211,7 +263,9 @@ export default function PosOrdersPage() {
               <h1 className="font-extrabold text-base text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight">
                 QUẢN LÝ ĐƠN HÀNG POS
               </h1>
-              <p className="text-xs text-zinc-400 font-medium leading-none">Danh sách & Tra cứu hóa đơn</p>
+              <p className="text-xs text-zinc-400 font-medium leading-none">
+                Danh sách & Tra cứu hóa đơn
+              </p>
             </div>
           </div>
         </div>
@@ -254,12 +308,16 @@ export default function PosOrdersPage() {
         <div className="fixed top-20 right-6 z-50 animate-bounce">
           <div
             className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold shadow-xl ${
-              toastMessage.type === 'success'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-rose-600 text-white'
+              toastMessage.type === "success"
+                ? "bg-emerald-600 text-white"
+                : "bg-rose-600 text-white"
             }`}
           >
-            {toastMessage.type === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+            {toastMessage.type === "success" ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              <AlertCircle className="h-4 w-4" />
+            )}
             <span>{toastMessage.message}</span>
           </div>
         </div>
@@ -288,22 +346,22 @@ export default function PosOrdersPage() {
               <div className="flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-xl">
                 <button
                   type="button"
-                  onClick={() => setDatePreset('TODAY')}
+                  onClick={() => setDatePreset("TODAY")}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     isTodayActive()
-                      ? 'bg-[#6F4E37] text-white shadow-xs'
-                      : 'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white'
+                      ? "bg-[#6F4E37] text-white shadow-xs"
+                      : "text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
                   }`}
                 >
                   Hôm nay
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDatePreset('YESTERDAY')}
+                  onClick={() => setDatePreset("YESTERDAY")}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     isYesterdayActive()
-                      ? 'bg-[#6F4E37] text-white shadow-xs'
-                      : 'text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white'
+                      ? "bg-[#6F4E37] text-white shadow-xs"
+                      : "text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
                   }`}
                 >
                   Hôm qua
@@ -321,20 +379,19 @@ export default function PosOrdersPage() {
               </div>
 
               {/* Date range inputs on the right */}
-              <div className="flex items-center gap-1.5 bg-zinc-50 dark:bg-zinc-850 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-1">
-                <Calendar className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs shadow-inner">
                 <input
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  className="bg-transparent text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none cursor-pointer"
+                  className="bg-transparent text-zinc-100 font-medium focus:outline-none cursor-pointer [color-scheme:dark]"
                 />
-                <span className="text-zinc-400 font-bold px-0.5">-</span>
+                <span className="text-zinc-500 font-bold">-</span>
                 <input
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  className="bg-transparent text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none cursor-pointer"
+                  className="bg-transparent text-zinc-100 font-medium focus:outline-none cursor-pointer [color-scheme:dark]"
                 />
               </div>
             </div>
@@ -351,8 +408,8 @@ export default function PosOrdersPage() {
                   onClick={() => setStatusFilter(f.key)}
                   className={`rounded-xl px-3.5 py-1.5 text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                     active
-                      ? 'bg-[#6F4E37] text-white shadow-xs'
-                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
+                      ? "bg-[#6F4E37] text-white shadow-xs"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400"
                   }`}
                 >
                   {f.label}
@@ -381,36 +438,56 @@ export default function PosOrdersPage() {
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-zinc-400 font-medium">
+                    <td
+                      colSpan={8}
+                      className="py-12 text-center text-zinc-400 font-medium"
+                    >
                       Đang tải dữ liệu đơn hàng...
                     </td>
                   </tr>
                 ) : orders.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-zinc-400 font-medium">
+                    <td
+                      colSpan={8}
+                      className="py-12 text-center text-zinc-400 font-medium"
+                    >
                       Không tìm thấy đơn hàng nào
                     </td>
                   </tr>
                 ) : (
                   orders.map((order) => (
-                    <tr key={order.id} className="hover:bg-zinc-50/80 dark:hover:bg-zinc-850/40 transition-colors">
+                    <tr
+                      key={order.id}
+                      className="hover:bg-zinc-50/80 dark:hover:bg-zinc-850/40 transition-colors"
+                    >
                       <td className="py-3 px-4 font-extrabold text-zinc-900 dark:text-zinc-100">
                         #{order.orderCode}
                       </td>
                       <td className="py-3 px-4 text-zinc-500 dark:text-zinc-400">
-                        {new Date(order.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(order.createdAt).toLocaleTimeString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                         <div className="text-[10px] text-zinc-400">
-                          {new Date(order.createdAt).toLocaleDateString('vi-VN')}
+                          {new Date(order.createdAt).toLocaleDateString(
+                            "vi-VN",
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         {order.customerName ? (
                           <div>
-                            <div className="font-bold text-zinc-800 dark:text-zinc-200">{order.customerName}</div>
-                            <div className="text-[10px] text-zinc-400">{order.customerPhone}</div>
+                            <div className="font-bold text-zinc-800 dark:text-zinc-200">
+                              {order.customerName}
+                            </div>
+                            <div className="text-[10px] text-zinc-400">
+                              {order.customerPhone}
+                            </div>
                           </div>
                         ) : (
-                          <span className="text-zinc-400 italic">Khách vãng lai</span>
+                          <span className="text-zinc-400 italic">
+                            Khách vãng lai
+                          </span>
                         )}
                       </td>
                       <td className="py-3 px-4">
@@ -426,9 +503,11 @@ export default function PosOrdersPage() {
                         {formatCurrency(order.totalAmount)}
                       </td>
                       <td className="py-3 px-4 font-medium text-zinc-600 dark:text-zinc-300">
-                        {order.paymentMethod || 'Tiền mặt'}
+                        {order.paymentMethod || "Tiền mặt"}
                       </td>
-                      <td className="py-3 px-4">{getStatusBadge(order.status)}</td>
+                      <td className="py-3 px-4">
+                        {getStatusBadge(order.status)}
+                      </td>
                       <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
                         <button
                           type="button"
@@ -446,19 +525,20 @@ export default function PosOrdersPage() {
                         >
                           <Printer className="h-4 w-4" />
                         </button>
-                        {order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCancelOrderId(order.id);
-                              setCancelOrderCode(order.orderCode);
-                            }}
-                            title="Hủy đơn"
-                            className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                          >
-                            <Ban className="h-4 w-4" />
-                          </button>
-                        )}
+                        {order.status !== "COMPLETED" &&
+                          order.status !== "CANCELLED" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCancelOrderId(order.id);
+                                setCancelOrderCode(order.orderCode);
+                              }}
+                              title="Hủy đơn"
+                              className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                            >
+                              <Ban className="h-4 w-4" />
+                            </button>
+                          )}
                       </td>
                     </tr>
                   ))
@@ -471,8 +551,11 @@ export default function PosOrdersPage() {
           {meta.totalPages > 1 && (
             <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
               <div className="text-xs text-zinc-500">
-                Hiển thị trang <strong className="text-zinc-800 dark:text-zinc-200">{meta.page}</strong> /{' '}
-                {meta.totalPages} ({meta.totalItems} đơn hàng)
+                Hiển thị trang{" "}
+                <strong className="text-zinc-800 dark:text-zinc-200">
+                  {meta.page}
+                </strong>{" "}
+                / {meta.totalPages} ({meta.totalItems} đơn hàng)
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -506,7 +589,7 @@ export default function PosOrdersPage() {
         onPayOrder={handlePayOrder}
         onCancelOrder={(id) => {
           setCancelOrderId(id);
-          setCancelOrderCode(selectedOrder?.orderCode || '');
+          setCancelOrderCode(selectedOrder?.orderCode || "");
         }}
       />
 
@@ -524,7 +607,10 @@ export default function PosOrdersPage() {
         orderCode={cancelOrderCode}
         onClose={() => setCancelOrderId(null)}
         onSuccess={() => {
-          setToastMessage({ type: 'success', message: 'Hủy đơn hàng và giải phóng thẻ rung thành công!' });
+          setToastMessage({
+            type: "success",
+            message: "Hủy đơn hàng và giải phóng thẻ rung thành công!",
+          });
           fetchOrders(meta.page);
           if (selectedOrder?.id === cancelOrderId) {
             handleOpenDetail(cancelOrderId);

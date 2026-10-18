@@ -124,22 +124,23 @@ export class OrderService {
    * Hoàn tất thanh toán đơn hàng & tự động tích điểm hội viên
    */
   async completePayment(orderId: number, body: CompletePaymentType) {
-    const order = await this.getOrderById(orderId)
-    if (order.status === 'CANCELLED') {
-      throw new Error('Không thể thanh toán đơn hàng đã bị hủy')
-    }
-    if (order.status === 'COMPLETED' || order.paidAt) {
-      throw new Error('Đơn hàng này đã được thanh toán trước đó')
-    }
-
-    await this.orderRepo.completeOrderPayment(orderId, body.paymentMethod)
-    const updatedOrder = await this.getOrderById(orderId)
-
-    return {
-      message: 'Thanh toán đơn hàng thành công và đã cập nhật điểm thưởng hội viên',
-      data: updatedOrder,
-    }
+  const order = await this.getOrderById(orderId);
+  if (order.status === 'CANCELLED') {
+    throw new Error('Không thể hoàn tất đơn hàng đã bị hủy');
   }
+  // CHỈ chặn khi đơn ĐÃ HOÀN TẤT (bỏ điều kiện || order.paidAt)
+  if (order.status === 'COMPLETED') {
+    throw new Error('Đơn hàng này đã hoàn tất trước đó');
+  }
+
+  await this.orderRepo.completeOrderPayment(orderId, body.paymentMethod);
+  const updatedOrder = await this.getOrderById(orderId);
+
+  return {
+    message: 'Hoàn tất đơn hàng thành công',
+    data: updatedOrder,
+  };
+}
 
   /**
    * Hủy đơn hàng và tự động giải phóng thẻ rung

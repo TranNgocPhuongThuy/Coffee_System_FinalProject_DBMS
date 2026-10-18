@@ -1,7 +1,7 @@
 // components/pos/CartSidebar.tsx
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Trash2,
   Plus,
@@ -17,12 +17,12 @@ import {
   X,
   Loader2,
   ReceiptText,
-} from 'lucide-react';
-import { CartItem, SelectedCustomer, SelectedPager } from '@/hooks/usePosCart';
-import { PagerDevice } from '@/types/pager';
-import { CustomerItem, loyaltyService } from '@/api/loyalty.service';
-import { OrderChannel, PaymentMethod } from '@/types/enums';
-import { useDebounce } from '@/hooks/useDebounce';
+} from "lucide-react";
+import { CartItem, SelectedCustomer, SelectedPager } from "@/hooks/usePosCart";
+import { PagerDevice } from "@/types/pager";
+import { CustomerItem, loyaltyService } from "@/api/loyalty.service";
+import { OrderChannel, PaymentMethod } from "@/types/enums";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface CartSidebarProps {
   items: CartItem[];
@@ -73,17 +73,53 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
   onOpenApplyLoyalty,
   onSubmitOrder,
 }) => {
-  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-  const [searchedCustomers, setSearchedCustomers] = useState<CustomerItem[]>([]);
+  const [searchedCustomers, setSearchedCustomers] = useState<CustomerItem[]>(
+    [],
+  );
   const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
-  const [receivedCashStr, setReceivedCashStr] = useState<string>('');
+  const [receivedCashStr, setReceivedCashStr] = useState<string>("");
+  const isManualDeselectRef = React.useRef(false);
 
   const debouncedCustomerSearch = useDebounce(customerSearchQuery, 300);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
   };
+
+  useEffect(() => {
+    if (items.length === 0) {
+      isManualDeselectRef.current = false;
+    }
+  }, [items.length]);
+
+  // 3. TỰ ĐỘNG GÁN THẺ SẴN SÀNG: Khi giỏ hàng có món và kênh bán là Tại quầy hoặc Mang đi
+  useEffect(() => {
+    if (
+      orderChannel !== "DELIVERY" &&
+      !selectedPager &&
+      !isManualDeselectRef.current &&
+      availablePagers.length > 0 &&
+      items.length > 0
+    ) {
+      const defaultPager = availablePagers[0];
+      onSelectPager({
+        id: defaultPager.id,
+        pagerCode: defaultPager.pagerCode,
+        batteryLevel: defaultPager.batteryLevel,
+      });
+    }
+  }, [
+    items.length,
+    orderChannel,
+    availablePagers,
+    selectedPager,
+    onSelectPager,
+  ]);
 
   useEffect(() => {
     if (!debouncedCustomerSearch.trim()) {
@@ -97,12 +133,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
       .getCustomers({ search: debouncedCustomerSearch.trim(), limit: 20 })
       .then((res: any) => {
         if (active) {
-          const fetchedItems = res?.items || res?.data || (Array.isArray(res) ? res : []);
+          const fetchedItems =
+            res?.items || res?.data || (Array.isArray(res) ? res : []);
           setSearchedCustomers(fetchedItems);
         }
       })
       .catch((err) => {
-        console.error('Lỗi tìm kiếm khách hàng:', err);
+        console.error("Lỗi tìm kiếm khách hàng:", err);
       })
       .finally(() => {
         if (active) setIsSearchingCustomer(false);
@@ -123,9 +160,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
         <div className="grid grid-cols-3 gap-1 rounded-xl bg-zinc-200/70 dark:bg-zinc-800 p-1">
           {(
             [
-              { key: 'ORDER_AT_COUNTER', label: 'Tại quầy' },
-              { key: 'POS', label: 'Mang đi' },
-              { key: 'DELIVERY', label: 'Giao hàng' },
+              { key: "ORDER_AT_COUNTER", label: "Tại quầy" },
+              { key: "POS", label: "Mang đi" },
+              { key: "DELIVERY", label: "Giao hàng" },
             ] as const
           ).map((tab) => (
             <button
@@ -133,14 +170,25 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
               type="button"
               onClick={() => {
                 onSetOrderChannel(tab.key);
-                if (tab.key === 'DELIVERY') {
+                if (tab.key === "DELIVERY") {
                   onSelectPager(null);
+                } else {
+                  // Reset cờ và tự động gán thẻ rung khả dụng đầu tiên nếu chưa chọn thẻ
+                  isManualDeselectRef.current = false;
+                  if (!selectedPager && availablePagers.length > 0) {
+                    const p = availablePagers[0];
+                    onSelectPager({
+                      id: p.id,
+                      pagerCode: p.pagerCode,
+                      batteryLevel: p.batteryLevel,
+                    });
+                  }
                 }
               }}
               className={`rounded-lg py-1 text-center font-bold transition-all cursor-pointer ${
                 orderChannel === tab.key
-                  ? 'bg-white text-[#6F4E37] shadow-xs dark:bg-zinc-900 dark:text-[#D4A373]'
-                  : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
+                  ? "bg-white text-[#6F4E37] shadow-xs dark:bg-zinc-900 dark:text-[#D4A373]"
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
               }`}
             >
               {tab.label}
@@ -154,23 +202,30 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
           <div className="flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2.5 py-1">
             <Radio className="h-3.5 w-3.5 text-[#6F4E37] dark:text-[#D4A373] shrink-0" />
             <select
-              value={orderChannel === 'DELIVERY' ? '' : (selectedPager?.id || '')}
-              disabled={orderChannel === 'DELIVERY'}
+              value={orderChannel === "DELIVERY" ? "" : selectedPager?.id || ""}
+              disabled={orderChannel === "DELIVERY"}
               onChange={(e) => {
                 const val = e.target.value;
                 if (!val) {
+                  isManualDeselectRef.current = true; // Thu ngân chủ động bỏ thẻ
                   onSelectPager(null);
                 } else {
+                  isManualDeselectRef.current = false;
                   const p = availablePagers.find((x) => x.id === Number(val));
-                  if (p) onSelectPager({ id: p.id, pagerCode: p.pagerCode, batteryLevel: p.batteryLevel });
+                  if (p)
+                    onSelectPager({
+                      id: p.id,
+                      pagerCode: p.pagerCode,
+                      batteryLevel: p.batteryLevel,
+                    });
                 }
               }}
               className="w-full bg-transparent font-bold text-zinc-800 dark:text-zinc-200 focus:outline-none cursor-pointer"
             >
               <option value="" className="dark:bg-zinc-900">
-                {orderChannel === 'DELIVERY' ? 'Giao đi' : 'Không thẻ'}
+                {orderChannel === "DELIVERY" ? "Giao đi" : "Không thẻ"}
               </option>
-              {orderChannel !== 'DELIVERY' &&
+              {orderChannel !== "DELIVERY" &&
                 availablePagers.map((p) => (
                   <option key={p.id} value={p.id} className="dark:bg-zinc-900">
                     {p.pagerCode} (Pin {p.batteryLevel}%)
@@ -188,7 +243,8 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                     {selectedCustomer.fullName}
                   </span>
                   <span className="text-[10px] text-[#6F4E37] dark:text-[#D4A373] font-bold">
-                    {selectedCustomer.phoneNumber} • {selectedCustomer.rewardPoints} điểm
+                    {selectedCustomer.phoneNumber} •{" "}
+                    {selectedCustomer.rewardPoints} điểm
                   </span>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -262,16 +318,20 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                           fullName: c.fullName,
                           phoneNumber: c.phoneNumber,
                           rewardPoints: c.rewardPoints || 0,
-                          membershipTier: c.membershipTier || 'STANDARD',
+                          membershipTier: c.membershipTier || "STANDARD",
                         });
                         setShowCustomerDropdown(false);
-                        setCustomerSearchQuery('');
+                        setCustomerSearchQuery("");
                       }}
                       className="w-full rounded-lg px-2.5 py-1.5 text-left text-xs hover:bg-[#F5EBE6] dark:hover:bg-zinc-700 flex items-center justify-between cursor-pointer transition-colors"
                     >
                       <div className="truncate">
-                        <div className="font-bold text-zinc-900 dark:text-zinc-100 truncate">{c.fullName}</div>
-                        <div className="text-[10px] text-zinc-500 dark:text-zinc-400">{c.phoneNumber}</div>
+                        <div className="font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                          {c.fullName}
+                        </div>
+                        <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                          {c.phoneNumber}
+                        </div>
                       </div>
                       <span className="font-extrabold text-[#6F4E37] dark:text-[#D4A373] ml-2 shrink-0">
                         {c.rewardPoints || 0} pts
@@ -312,7 +372,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
           <div className="flex flex-col items-center justify-center h-full text-center text-zinc-400 py-10">
             <ShoppingBag className="h-10 w-10 stroke-[1.5] mb-2 opacity-40 text-[#6F4E37]" />
             <p className="font-bold text-xs">Chưa có món nào được chọn</p>
-            <p className="text-[11px] text-zinc-500 mt-0.5">Bấm vào thực đơn bên trái để thêm món</p>
+            <p className="text-[11px] text-zinc-500 mt-0.5">
+              Bấm vào thực đơn bên trái để thêm món
+            </p>
           </div>
         ) : (
           items.map((item) => (
@@ -323,7 +385,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-xs text-zinc-900 dark:text-white flex items-center gap-1.5 flex-wrap">
-                    <span className="text-zinc-950 dark:text-zinc-50 font-extrabold">{item.productName}</span>
+                    <span className="text-zinc-950 dark:text-zinc-50 font-extrabold">
+                      {item.productName}
+                    </span>
                     <span className="rounded bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-black text-zinc-800 dark:text-zinc-200">
                       Size {item.size}
                     </span>
@@ -337,7 +401,8 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                           key={idx}
                           className="rounded-md bg-[#F5EBE6] dark:bg-[#6F4E37]/40 px-1.5 py-0.5 text-[10px] font-semibold text-[#6F4E37] dark:text-[#E8DDD4]"
                         >
-                          +{t.toppingSnapshotName} {t.quantity > 1 ? `x${t.quantity}` : ''}
+                          +{t.toppingSnapshotName}{" "}
+                          {t.quantity > 1 ? `x${t.quantity}` : ""}
                         </span>
                       ))}
                     </div>
@@ -397,11 +462,11 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
         {/* Phương thức thanh toán */}
         <div className="grid grid-cols-5 gap-1">
           {[
-            { key: 'CASH', label: 'Tiền mặt', icon: Banknote },
-            { key: 'BANK_TRANSFER', label: 'Ngân hàng', icon: QrCode },
-            { key: 'CARD', label: 'Quẹt thẻ', icon: CreditCard },
-            { key: 'MOMO', label: 'MoMo', icon: CreditCard },
-            { key: 'VNPAY', label: 'VNPay', icon: QrCode },
+            { key: "CASH", label: "Tiền mặt", icon: Banknote },
+            { key: "BANK_TRANSFER", label: "Ngân hàng", icon: QrCode },
+            { key: "CARD", label: "Quẹt thẻ", icon: CreditCard },
+            { key: "MOMO", label: "MoMo", icon: CreditCard },
+            { key: "VNPAY", label: "VNPay", icon: QrCode },
           ].map((pm) => {
             const Icon = pm.icon;
             const isSelected = paymentMethod === pm.key;
@@ -412,28 +477,36 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
                 onClick={() => onSetPaymentMethod(pm.key as PaymentMethod)}
                 className={`flex flex-col items-center justify-center rounded-xl border py-1.5 px-1 text-center transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-[#D4A373] bg-[#6F4E37]/25 text-[#D4A373] ring-1 ring-[#D4A373]'
-                    : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                    ? "border-[#D4A373] bg-[#6F4E37]/25 text-[#D4A373] ring-1 ring-[#D4A373]"
+                    : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                 }`}
               >
                 <Icon className="h-3.5 w-3.5 mb-0.5 text-[#6F4E37] dark:text-[#D4A373]" />
-                <span className="text-[10px] font-bold leading-tight">{pm.label}</span>
+                <span className="text-[10px] font-bold leading-tight">
+                  {pm.label}
+                </span>
               </button>
             );
           })}
         </div>
 
         {/* Tiền khách đưa (khi chọn tiền mặt) */}
-        {paymentMethod === 'CASH' && (
+        {paymentMethod === "CASH" && (
           <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2 space-y-1.5 text-xs">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-zinc-700 dark:text-zinc-300">Khách đưa:</span>
+              <span className="font-bold text-zinc-700 dark:text-zinc-300">
+                Khách đưa:
+              </span>
               <input
                 type="text"
                 placeholder="0 đ"
-                value={receivedCashStr ? Number(receivedCashStr).toLocaleString('vi-VN') : ''}
+                value={
+                  receivedCashStr
+                    ? Number(receivedCashStr).toLocaleString("vi-VN")
+                    : ""
+                }
                 onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, '');
+                  const raw = e.target.value.replace(/\D/g, "");
                   setReceivedCashStr(raw);
                 }}
                 className="w-32 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 py-0.5 text-right font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none"
@@ -443,9 +516,17 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
             {receivedCashNum > 0 && (
               <div className="flex items-center justify-between text-xs font-black border-t border-zinc-200 dark:border-zinc-800 pt-1.5">
                 <span className="text-zinc-800 dark:text-zinc-200 font-extrabold">
-                  {receivedCashNum >= totalAmount ? 'Tiền thối lại:' : 'Khách đưa thiếu:'}
+                  {receivedCashNum >= totalAmount
+                    ? "Tiền thối lại:"
+                    : "Khách đưa thiếu:"}
                 </span>
-                <span className={receivedCashNum >= totalAmount ? 'text-emerald-600 dark:text-emerald-400 text-sm font-black' : 'text-rose-500 font-bold'}>
+                <span
+                  className={
+                    receivedCashNum >= totalAmount
+                      ? "text-emerald-600 dark:text-emerald-400 text-sm font-black"
+                      : "text-rose-500 font-bold"
+                  }
+                >
                   {formatCurrency(Math.abs(receivedCashNum - totalAmount))}
                 </span>
               </div>
@@ -457,7 +538,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
         <div className="space-y-1 text-xs">
           <div className="flex justify-between text-zinc-500 dark:text-zinc-400">
             <span>Tạm tính:</span>
-            <span className="font-bold text-zinc-900 dark:text-zinc-200">{formatCurrency(subTotal)}</span>
+            <span className="font-bold text-zinc-900 dark:text-zinc-200">
+              {formatCurrency(subTotal)}
+            </span>
           </div>
           {discountAmount > 0 && (
             <div className="flex justify-between text-[#D4A373] font-bold">
@@ -467,7 +550,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({
           )}
           <div className="flex justify-between text-sm font-black text-zinc-900 dark:text-zinc-100 pt-1 border-t border-zinc-200 dark:border-zinc-800">
             <span>TỔNG CỘNG:</span>
-            <span className="text-[#6F4E37] dark:text-[#D4A373] text-base">{formatCurrency(totalAmount)}</span>
+            <span className="text-[#6F4E37] dark:text-[#D4A373] text-base">
+              {formatCurrency(totalAmount)}
+            </span>
           </div>
         </div>
 

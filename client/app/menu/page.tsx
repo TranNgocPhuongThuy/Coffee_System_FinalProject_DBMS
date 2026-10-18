@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import Link from "next/link";
 import {
   Coffee,
   ShoppingBag,
@@ -27,14 +27,18 @@ import {
   Check,
   Package,
   Store,
-} from 'lucide-react';
-import { useAuthContext } from '@/context/AuthContext';
-import { menuService } from '@/api/menu.service';
-import { posService } from '@/api/pos.service';
-import { Category, Product, Topping, ProductVariant } from '@/types/menu';
-import { SafeProductImage } from '@/components/common/SafeProductImage';
-import { useCustomerCart, CustomerCartItem, CustomerCartTopping } from '@/hooks/useCustomerCart';
-import { loyaltyService } from '@/api';
+} from "lucide-react";
+import { useAuthContext } from "@/context/AuthContext";
+import { menuService } from "@/api/menu.service";
+import { posService } from "@/api/pos.service";
+import { Category, Product, Topping, ProductVariant } from "@/types/menu";
+import { SafeProductImage } from "@/components/common/SafeProductImage";
+import {
+  useCustomerCart,
+  CustomerCartItem,
+  CustomerCartTopping,
+} from "@/hooks/useCustomerCart";
+import { loyaltyService } from "@/api";
 
 export default function CustomerStorefrontPage() {
   const { user, logout, refreshUser } = useAuthContext();
@@ -46,16 +50,20 @@ export default function CustomerStorefrontPage() {
   const [loading, setLoading] = useState(true);
 
   // Active view tab: 'MENU' | 'MY_ORDERS'
-  const [activeView, setActiveView] = useState<'MENU' | 'MY_ORDERS'>('MENU');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'ALL'>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeView, setActiveView] = useState<"MENU" | "MY_ORDERS">("MENU");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | "ALL">(
+    "ALL",
+  );
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Cart & Order states
   const cart = useCustomerCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [orderSuccessData, setOrderSuccessData] = useState<any | null>(null);
-  const [orderType, setOrderType] = useState<'DELIVERY' | 'TAKE_AWAY'>('DELIVERY');
+  const [orderType, setOrderType] = useState<"DELIVERY" | "TAKE_AWAY">(
+    "DELIVERY",
+  );
 
   // State xem Profile & Điểm thưởng
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -69,9 +77,12 @@ export default function CustomerStorefrontPage() {
   // Tính số tiền giảm giá và tổng thanh toán COD
   const maxRedeemablePoints = Math.min(
     user?.rewardPoints || 0,
-    Math.floor(cart.subTotal / conversionRate)
+    Math.floor(cart.subTotal / conversionRate),
   );
-  const discountAmount = Math.min(cart.subTotal, pointsToRedeem * conversionRate);
+  const discountAmount = Math.min(
+    cart.subTotal,
+    pointsToRedeem * conversionRate,
+  );
   const finalTotalAmount = Math.max(0, cart.subTotal - discountAmount);
 
   // Xem lịch sử điểm khi mở Profile
@@ -80,7 +91,10 @@ export default function CustomerStorefrontPage() {
     if (user?.id) {
       setLoadingPointsHistory(true);
       try {
-        const res: any = await loyaltyService.getLoyaltyHistory({ customerId: user.id, limit: 10 });
+        const res: any = await loyaltyService.getLoyaltyHistory({
+          customerId: user.id,
+          limit: 10,
+        });
         setPointsHistory(res?.items || res?.data || []);
       } catch (err) {
         setPointsHistory([]);
@@ -115,9 +129,13 @@ export default function CustomerStorefrontPage() {
 
   // Product Customization Modal
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
-  const [modalToppings, setModalToppings] = useState<Record<number, { topping: Topping; quantity: number }>>({});
-  const [modalNote, setModalNote] = useState('');
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+    null,
+  );
+  const [modalToppings, setModalToppings] = useState<
+    Record<number, { topping: Topping; quantity: number }>
+  >({});
+  const [modalNote, setModalNote] = useState("");
   const [modalQuantity, setModalQuantity] = useState(1);
 
   // Customer Orders List state
@@ -125,15 +143,24 @@ export default function CustomerStorefrontPage() {
   const [loadingOrders, setLoadingOrders] = useState(false);
 
   // Toast notification
-  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  const showToast = (
+    message: string,
+    type: "success" | "error" = "success",
+  ) => {
     setToastMessage({ message, type });
     setTimeout(() => setToastMessage(null), 3500);
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
   };
 
   // 1. Fetch Menu Data
@@ -141,24 +168,34 @@ export default function CustomerStorefrontPage() {
     setLoading(true);
     try {
       const [catsRes, prodsRes, topsRes] = await Promise.all([
-        menuService.getCategories({ displayStatus: 'SHOW' as any }).catch(() => [] as any),
-        menuService.getProducts({ status: 'ACTIVE' as any }).catch(() => [] as any),
+        menuService
+          .getCategories({ displayStatus: "SHOW" as any })
+          .catch(() => [] as any),
+        menuService
+          .getProducts({ status: "ACTIVE" as any })
+          .catch(() => [] as any),
         // Không truyền param status để Backend không ép lọc WHERE
         menuService.getToppings().catch(() => [] as any),
       ]);
 
-      setCategories(Array.isArray(catsRes) ? catsRes : (catsRes as any)?.data || []);
-      setProducts(Array.isArray(prodsRes) ? prodsRes : (prodsRes as any)?.data || []);
+      setCategories(
+        Array.isArray(catsRes) ? catsRes : (catsRes as any)?.data || [],
+      );
+      setProducts(
+        Array.isArray(prodsRes) ? prodsRes : (prodsRes as any)?.data || [],
+      );
 
       // Tương thích mềm: Nhận cả 'AVAILABLE' lẫn 'ACTIVE'
-      const rawToppings = Array.isArray(topsRes) ? topsRes : (topsRes as any)?.data || [];
+      const rawToppings = Array.isArray(topsRes)
+        ? topsRes
+        : (topsRes as any)?.data || [];
       const validToppings = rawToppings.filter(
-        (t: any) => t.status === 'AVAILABLE' || t.status === 'ACTIVE'
+        (t: any) => t.status === "AVAILABLE" || t.status === "ACTIVE",
       );
       setToppings(validToppings);
     } catch (err) {
-      console.error('Lỗi khi tải thực đơn:', err);
-      showToast('Không thể tải thực đơn. Vui lòng thử lại sau', 'error');
+      console.error("Lỗi khi tải thực đơn:", err);
+      showToast("Không thể tải thực đơn. Vui lòng thử lại sau", "error");
     } finally {
       setLoading(false);
     }
@@ -173,7 +210,7 @@ export default function CustomerStorefrontPage() {
       const items = res?.items || res?.data || (Array.isArray(res) ? res : []);
       setCustomerOrders(items);
     } catch (err) {
-      console.error('Lỗi khi tải đơn hàng:', err);
+      console.error("Lỗi khi tải đơn hàng:", err);
     } finally {
       setLoadingOrders(false);
     }
@@ -184,7 +221,7 @@ export default function CustomerStorefrontPage() {
   }, [fetchMenuData]);
 
   useEffect(() => {
-    if (activeView === 'MY_ORDERS') {
+    if (activeView === "MY_ORDERS") {
       fetchCustomerOrders();
     }
   }, [activeView, fetchCustomerOrders]);
@@ -192,8 +229,10 @@ export default function CustomerStorefrontPage() {
   // Set default recipient info from user profile
   useEffect(() => {
     if (user) {
-      if (!cart.contactName && user.fullName) cart.setContactName(user.fullName);
-      if (!cart.contactPhone && user.phoneNumber) cart.setContactPhone(user.phoneNumber);
+      if (!cart.contactName && user.fullName)
+        cart.setContactName(user.fullName);
+      if (!cart.contactPhone && user.phoneNumber)
+        cart.setContactPhone(user.phoneNumber);
     }
   }, [user, cart]);
 
@@ -202,7 +241,7 @@ export default function CustomerStorefrontPage() {
     setSelectedProduct(product);
     setSelectedVariant(product.variants?.[0] || null);
     setModalToppings({});
-    setModalNote('');
+    setModalNote("");
     setModalQuantity(1);
   };
 
@@ -274,7 +313,7 @@ export default function CustomerStorefrontPage() {
     if (!selectedVariant) return 0;
     const toppingSum = Object.values(modalToppings).reduce(
       (sum, item) => sum + item.topping.price * item.quantity,
-      0
+      0,
     );
     return (selectedVariant.price + toppingSum) * modalQuantity;
   }, [selectedVariant, modalToppings, modalQuantity]);
@@ -283,11 +322,11 @@ export default function CustomerStorefrontPage() {
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       const matchesCategory =
-        selectedCategoryId === 'ALL' || p.categoryId === selectedCategoryId;
+        selectedCategoryId === "ALL" || p.categoryId === selectedCategoryId;
       const matchesSearch =
         !searchQuery.trim() ||
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+        (p.description || "").toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
   }, [products, selectedCategoryId, searchQuery]);
@@ -296,7 +335,7 @@ export default function CustomerStorefrontPage() {
   const handlePlaceOrder = async () => {
     if (cart.items.length === 0) return;
     if (!cart.deliveryAddress.trim()) {
-      showToast('Vui lòng nhập địa chỉ giao hàng nhận món (COD)', 'error');
+      showToast("Vui lòng nhập địa chỉ giao hàng nhận món (COD)", "error");
       return;
     }
 
@@ -323,11 +362,11 @@ export default function CustomerStorefrontPage() {
       const payload = {
         employeeId: 2,
         customerId: user?.id || null,
-        orderChannel: 'DELIVERY' as const,
+        orderChannel: "DELIVERY" as const,
         subTotal: cart.subTotal,
-        discountAmount: discountAmount,
-        totalAmount: finalTotalAmount,
-        paymentMethod: 'CASH' as const,
+        discountAmount: 0,
+        totalAmount: cart.subTotal,
+        paymentMethod: "CASH" as const,
         items: orderItems,
       };
 
@@ -338,20 +377,28 @@ export default function CustomerStorefrontPage() {
       // Nếu có đổi điểm thưởng: Gọi API trừ điểm ngay lập tức
       if (orderId && pointsToRedeem > 0 && user?.id) {
         try {
-          await posService.applyLoyaltyPoints(orderId, user.id, pointsToRedeem, conversionRate);
+          await posService.applyLoyaltyPoints(
+            orderId,
+            user.id,
+            pointsToRedeem,
+            conversionRate,
+          );
           setPointsToRedeem(0);
-          await refreshUser()
+          await refreshUser();
         } catch (pointErr) {
-          console.error('Lỗi trừ điểm thưởng:', pointErr);
+          console.error("Lỗi trừ điểm thưởng:", pointErr);
         }
       }
 
       cart.clearCart();
       setIsCartOpen(false);
       setOrderSuccessData(created);
-      showToast('Đặt hàng thành công! Đơn hàng đang được chuẩn bị.');
+      showToast("Đặt hàng thành công! Đơn hàng đang được chuẩn bị.");
     } catch (err: any) {
-      showToast(err.response?.data?.message || err.message || 'Đặt hàng thất bại.', 'error');
+      showToast(
+        err.response?.data?.message || err.message || "Đặt hàng thất bại.",
+        "error",
+      );
     } finally {
       setIsSubmittingOrder(false);
     }
@@ -359,35 +406,35 @@ export default function CustomerStorefrontPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'PENDING_PREP':
+      case "PENDING_PREP":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
             <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
             Đang chờ quán xác nhận
           </span>
         );
-      case 'PREPARING':
+      case "PREPARING":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
             <Coffee className="w-3.5 h-3.5 text-blue-600" />
             Đang pha chế món
           </span>
         );
-      case 'READY_FOR_PICKUP':
+      case "READY_FOR_PICKUP":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
             <Truck className="w-3.5 h-3.5 text-emerald-600" />
             Sẵn sàng giao / Nhận món
           </span>
         );
-      case 'COMPLETED':
+      case "COMPLETED":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-zinc-100 text-zinc-800 border border-zinc-200">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             Đã hoàn thành
           </span>
         );
-      case 'CANCELLED':
+      case "CANCELLED":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
             <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
@@ -409,10 +456,10 @@ export default function CustomerStorefrontPage() {
       {toastMessage && (
         <div
           className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5 text-white font-semibold text-sm ${
-            toastMessage.type === 'error' ? 'bg-rose-600' : 'bg-[#6F4E37]'
+            toastMessage.type === "error" ? "bg-rose-600" : "bg-[#6F4E37]"
           }`}
         >
-          {toastMessage.type === 'error' ? (
+          {toastMessage.type === "error" ? (
             <AlertCircle className="w-5 h-5 text-rose-200" />
           ) : (
             <CheckCircle2 className="w-5 h-5 text-emerald-300" />
@@ -425,13 +472,20 @@ export default function CustomerStorefrontPage() {
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-[#F0E6DD] shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between gap-4">
           {/* Logo Brand */}
-          <Link href="/menu" className="flex items-center gap-2.5 shrink-0 group">
+          <Link
+            href="/menu"
+            className="flex items-center gap-2.5 shrink-0 group"
+          >
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#6F4E37] to-[#5A3F2C] text-white flex items-center justify-center shadow-md shadow-[#6F4E37]/20 group-hover:scale-105 transition-transform">
               <Coffee className="w-5 h-5 stroke-[2.2]" />
             </div>
             <div>
-              <span className="text-xl font-black tracking-tight text-[#6F4E37]">MePhaPhin</span>
-              <span className="block text-[10px] font-bold text-amber-700 tracking-widest uppercase">Coffee & Tea</span>
+              <span className="text-xl font-black tracking-tight text-[#6F4E37]">
+                MePhaPhin
+              </span>
+              <span className="block text-[10px] font-bold text-amber-700 tracking-widest uppercase">
+                Coffee & Tea
+              </span>
             </div>
           </Link>
 
@@ -439,22 +493,22 @@ export default function CustomerStorefrontPage() {
           <div className="hidden md:flex items-center gap-1 bg-[#FAF6F0] p-1 rounded-xl border border-[#F0E6DD]">
             <button
               type="button"
-              onClick={() => setActiveView('MENU')}
+              onClick={() => setActiveView("MENU")}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeView === 'MENU'
-                  ? 'bg-white text-[#6F4E37] shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                activeView === "MENU"
+                  ? "bg-white text-[#6F4E37] shadow-xs"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               Thực đơn đặt món
             </button>
             <button
               type="button"
-              onClick={() => setActiveView('MY_ORDERS')}
+              onClick={() => setActiveView("MY_ORDERS")}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeView === 'MY_ORDERS'
-                  ? 'bg-white text-[#6F4E37] shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                activeView === "MY_ORDERS"
+                  ? "bg-white text-[#6F4E37] shadow-xs"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               <Receipt className="w-3.5 h-3.5" />
@@ -473,13 +527,20 @@ export default function CustomerStorefrontPage() {
                   title="Bấm để xem hạng thẻ và điểm thưởng"
                 >
                   <div className="w-8 h-8 rounded-full bg-[#6F4E37] text-white flex items-center justify-center text-xs font-bold shadow-xs">
-                    {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'K'}
+                    {user.fullName
+                      ? user.fullName.charAt(0).toUpperCase()
+                      : "K"}
                   </div>
                   <div className="hidden sm:block text-xs leading-tight">
-                    <div className="font-extrabold text-gray-900 line-clamp-1">{user.fullName}</div>
+                    <div className="font-extrabold text-gray-900 line-clamp-1">
+                      {user.fullName}
+                    </div>
                     <div className="flex items-center gap-1 text-[11px] text-[#6F4E37] font-bold">
                       <Award className="w-3 h-3 text-amber-600 fill-amber-500" />
-                      <span>{user.rewardPoints || 0} pts • Hạng {user.membershipTier || 'STANDARD'}</span>
+                      <span>
+                        {user.rewardPoints || 0} pts • Hạng{" "}
+                        {user.membershipTier || "STANDARD"}
+                      </span>
                     </div>
                   </div>
                 </button>
@@ -530,18 +591,22 @@ export default function CustomerStorefrontPage() {
         <div className="md:hidden flex border-t border-gray-100 bg-[#FAF6F0] p-1.5">
           <button
             type="button"
-            onClick={() => setActiveView('MENU')}
+            onClick={() => setActiveView("MENU")}
             className={`flex-1 py-1.5 rounded-lg text-xs font-bold text-center cursor-pointer ${
-              activeView === 'MENU' ? 'bg-white text-[#6F4E37] shadow-xs' : 'text-gray-500'
+              activeView === "MENU"
+                ? "bg-white text-[#6F4E37] shadow-xs"
+                : "text-gray-500"
             }`}
           >
             Thực đơn đặt món
           </button>
           <button
             type="button"
-            onClick={() => setActiveView('MY_ORDERS')}
+            onClick={() => setActiveView("MY_ORDERS")}
             className={`flex-1 py-1.5 rounded-lg text-xs font-bold text-center cursor-pointer ${
-              activeView === 'MY_ORDERS' ? 'bg-white text-[#6F4E37] shadow-xs' : 'text-gray-500'
+              activeView === "MY_ORDERS"
+                ? "bg-white text-[#6F4E37] shadow-xs"
+                : "text-gray-500"
             }`}
           >
             Đơn hàng của tôi
@@ -551,7 +616,7 @@ export default function CustomerStorefrontPage() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {activeView === 'MENU' ? (
+        {activeView === "MENU" ? (
           <>
             {/* Banner Khuyến Mãi / Lời chào */}
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#6F4E37] via-[#855D40] to-[#A27B5C] text-white p-6 sm:p-8 shadow-xl shadow-[#6F4E37]/15">
@@ -561,10 +626,12 @@ export default function CustomerStorefrontPage() {
                   Đậm đà phong vị cà phê Việt
                 </span>
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight">
-                  Chào mừng {user?.fullName || 'bạn'} đến với MePhaPhin!
+                  Chào mừng {user?.fullName || "bạn"} đến với MePhaPhin!
                 </h1>
                 <p className="text-xs sm:text-sm text-white/90 leading-relaxed max-w-xl">
-                  Khám phá hương vị cà phê phin truyền thống và thức uống hiện đại. Đặt món giao tận nơi với hình thức thanh toán COD nhanh chóng, tiện lợi.
+                  Khám phá hương vị cà phê phin truyền thống và thức uống hiện
+                  đại. Đặt món giao tận nơi với hình thức thanh toán COD nhanh
+                  chóng, tiện lợi.
                 </p>
               </div>
               <div className="absolute right-4 -bottom-6 opacity-15 pointer-events-none hidden sm:block">
@@ -578,17 +645,19 @@ export default function CustomerStorefrontPage() {
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
                 <button
                   type="button"
-                  onClick={() => setSelectedCategoryId('ALL')}
+                  onClick={() => setSelectedCategoryId("ALL")}
                   className={`px-4 py-2.5 rounded-2xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                    selectedCategoryId === 'ALL'
-                      ? 'bg-[#6F4E37] text-white shadow-md shadow-[#6F4E37]/20'
-                      : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200/80'
+                    selectedCategoryId === "ALL"
+                      ? "bg-[#6F4E37] text-white shadow-md shadow-[#6F4E37]/20"
+                      : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200/80"
                   }`}
                 >
                   Tất cả ({products.length})
                 </button>
                 {categories.map((c) => {
-                  const count = products.filter((p) => p.categoryId === c.id).length;
+                  const count = products.filter(
+                    (p) => p.categoryId === c.id,
+                  ).length;
                   const isSelected = selectedCategoryId === c.id;
                   return (
                     <button
@@ -597,14 +666,16 @@ export default function CustomerStorefrontPage() {
                       onClick={() => setSelectedCategoryId(c.id)}
                       className={`px-4 py-2.5 rounded-2xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
                         isSelected
-                          ? 'bg-[#6F4E37] text-white shadow-md shadow-[#6F4E37]/20'
-                          : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200/80'
+                          ? "bg-[#6F4E37] text-white shadow-md shadow-[#6F4E37]/20"
+                          : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200/80"
                       }`}
                     >
                       <span>{c.name}</span>
                       <span
                         className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                          isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                          isSelected
+                            ? "bg-white/20 text-white"
+                            : "bg-gray-100 text-gray-500"
                         }`}
                       >
                         {count}
@@ -627,7 +698,7 @@ export default function CustomerStorefrontPage() {
                 {searchQuery && (
                   <button
                     type="button"
-                    onClick={() => setSearchQuery('')}
+                    onClick={() => setSearchQuery("")}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -640,7 +711,10 @@ export default function CustomerStorefrontPage() {
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                  <div key={n} className="bg-white rounded-3xl p-4 border border-gray-100 animate-pulse space-y-3">
+                  <div
+                    key={n}
+                    className="bg-white rounded-3xl p-4 border border-gray-100 animate-pulse space-y-3"
+                  >
                     <div className="aspect-4/3 w-full bg-gray-200 rounded-2xl" />
                     <div className="h-4 bg-gray-200 rounded w-3/4" />
                     <div className="h-3 bg-gray-100 rounded w-1/2" />
@@ -653,11 +727,11 @@ export default function CustomerStorefrontPage() {
                 {filteredProducts.map((p) => {
                   const minPrice = p.variants?.reduce(
                     (min, v) => (v.price < min ? v.price : min),
-                    p.variants[0]?.price || 0
+                    p.variants[0]?.price || 0,
                   );
                   const maxPrice = p.variants?.reduce(
                     (max, v) => (v.price > max ? v.price : max),
-                    p.variants[0]?.price || 0
+                    p.variants[0]?.price || 0,
                   );
 
                   return (
@@ -672,7 +746,9 @@ export default function CustomerStorefrontPage() {
                             src={p.image}
                             alt={p.name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            fallbackIcon={<Coffee className="w-10 h-10 text-[#6F4E37]/40 stroke-[1.5]" />}
+                            fallbackIcon={
+                              <Coffee className="w-10 h-10 text-[#6F4E37]/40 stroke-[1.5]" />
+                            }
                           />
                           {p.categoryName && (
                             <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-xs text-[10px] font-bold text-white">
@@ -681,7 +757,7 @@ export default function CustomerStorefrontPage() {
                           )}
                           {p.variants && p.variants.length > 0 && (
                             <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-amber-500/90 text-[10px] font-bold text-white shadow-xs">
-                              {p.variants.map((v) => v.size).join(' • ')}
+                              {p.variants.map((v) => v.size).join(" • ")}
                             </span>
                           )}
                         </div>
@@ -691,14 +767,17 @@ export default function CustomerStorefrontPage() {
                           {p.name}
                         </h3>
                         <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">
-                          {p.description || 'Hương vị thơm ngon đậm đà, được pha chế từ nguyên liệu sạch nguyên chất.'}
+                          {p.description ||
+                            "Hương vị thơm ngon đậm đà, được pha chế từ nguyên liệu sạch nguyên chất."}
                         </p>
                       </div>
 
                       {/* Footer & Add Button */}
                       <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
                         <div>
-                          <span className="text-[10px] text-gray-400 font-semibold block">Giá chỉ từ</span>
+                          <span className="text-[10px] text-gray-400 font-semibold block">
+                            Giá chỉ từ
+                          </span>
                           <span className="font-black text-sm text-[#6F4E37]">
                             {minPrice === maxPrice
                               ? formatCurrency(minPrice || 0)
@@ -724,15 +803,18 @@ export default function CustomerStorefrontPage() {
                 <div className="w-16 h-16 rounded-full bg-[#FAF6F0] flex items-center justify-center mx-auto text-[#6F4E37]">
                   <CupSoda className="w-8 h-8 stroke-[1.5]" />
                 </div>
-                <h4 className="font-bold text-base text-gray-900">Không tìm thấy món phù hợp</h4>
+                <h4 className="font-bold text-base text-gray-900">
+                  Không tìm thấy món phù hợp
+                </h4>
                 <p className="text-xs text-gray-500">
-                  Thử tìm kiếm với từ khóa khác hoặc chuyển sang danh mục món khác.
+                  Thử tìm kiếm với từ khóa khác hoặc chuyển sang danh mục món
+                  khác.
                 </p>
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedCategoryId('ALL');
-                    setSearchQuery('');
+                    setSelectedCategoryId("ALL");
+                    setSearchQuery("");
                   }}
                   className="px-4 py-2 rounded-xl bg-[#6F4E37] text-white text-xs font-bold hover:bg-[#5A3F2C]"
                 >
@@ -746,8 +828,12 @@ export default function CustomerStorefrontPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-black text-gray-900">Lịch sử đơn hàng của bạn</h2>
-                <p className="text-xs text-gray-500 mt-0.5">Theo dõi trạng thái các đơn giao hàng COD và tại quầy</p>
+                <h2 className="text-xl font-black text-gray-900">
+                  Lịch sử đơn hàng của bạn
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Theo dõi trạng thái các đơn giao hàng COD và tại quầy
+                </p>
               </div>
               <button
                 type="button"
@@ -755,7 +841,9 @@ export default function CustomerStorefrontPage() {
                 disabled={loadingOrders}
                 className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center gap-1.5 cursor-pointer"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${loadingOrders ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${loadingOrders ? "animate-spin" : ""}`}
+                />
                 <span>Làm mới</span>
               </button>
             </div>
@@ -763,7 +851,9 @@ export default function CustomerStorefrontPage() {
             {loadingOrders ? (
               <div className="bg-white rounded-3xl p-16 text-center border border-gray-100 shadow-sm">
                 <RefreshCw className="w-8 h-8 text-[#6F4E37] animate-spin mx-auto mb-3" />
-                <p className="text-xs font-bold text-gray-600">Đang đồng bộ danh sách đơn hàng...</p>
+                <p className="text-xs font-bold text-gray-600">
+                  Đang đồng bộ danh sách đơn hàng...
+                </p>
               </div>
             ) : customerOrders.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -781,18 +871,23 @@ export default function CustomerStorefrontPage() {
                           <Clock className="w-3 h-3" />
                           <span>
                             {ord.createdAt
-                              ? new Date(ord.createdAt).toLocaleString('vi-VN', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                })
-                              : 'Vừa đặt'}
+                              ? new Date(ord.createdAt).toLocaleString(
+                                  "vi-VN",
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                  },
+                                )
+                              : "Vừa đặt"}
                           </span>
                           <span>•</span>
                           <span className="font-semibold text-amber-800">
-                            {ord.orderChannel === 'DELIVERY' ? 'Giao hàng (COD)' : 'Tại quầy'}
+                            {ord.orderChannel === "DELIVERY"
+                              ? "Giao hàng (COD)"
+                              : "Tại quầy"}
                           </span>
                         </div>
                       </div>
@@ -800,7 +895,9 @@ export default function CustomerStorefrontPage() {
                     </div>
 
                     <div className="flex items-center justify-between text-xs pt-1">
-                      <span className="text-gray-500 font-medium">Tổng thanh toán (COD):</span>
+                      <span className="text-gray-500 font-medium">
+                        Tổng thanh toán (COD):
+                      </span>
                       <span className="font-black text-base text-[#6F4E37]">
                         {formatCurrency(ord.totalAmount || 0)}
                       </span>
@@ -813,13 +910,16 @@ export default function CustomerStorefrontPage() {
                 <div className="w-16 h-16 rounded-full bg-[#FAF6F0] flex items-center justify-center mx-auto text-[#6F4E37]">
                   <ShoppingBag className="w-8 h-8 stroke-[1.5]" />
                 </div>
-                <h4 className="font-bold text-base text-gray-900">Bạn chưa có đơn hàng nào</h4>
+                <h4 className="font-bold text-base text-gray-900">
+                  Bạn chưa có đơn hàng nào
+                </h4>
                 <p className="text-xs text-gray-500">
-                  Hãy chọn những món thức uống yêu thích từ thực đơn để lên đơn ngay!
+                  Hãy chọn những món thức uống yêu thích từ thực đơn để lên đơn
+                  ngay!
                 </p>
                 <button
                   type="button"
-                  onClick={() => setActiveView('MENU')}
+                  onClick={() => setActiveView("MENU")}
                   className="px-5 py-2.5 rounded-xl bg-[#6F4E37] text-white text-xs font-bold hover:bg-[#5A3F2C]"
                 >
                   Khám phá thực đơn
@@ -845,8 +945,12 @@ export default function CustomerStorefrontPage() {
                   />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-gray-900">{selectedProduct.name}</h3>
-                  <p className="text-xs text-gray-500 font-medium">{selectedProduct.categoryName || 'Tùy chọn món'}</p>
+                  <h3 className="font-bold text-base text-gray-900">
+                    {selectedProduct.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 font-medium">
+                    {selectedProduct.categoryName || "Tùy chọn món"}
+                  </p>
                 </div>
               </div>
               <button
@@ -875,12 +979,14 @@ export default function CustomerStorefrontPage() {
                         onClick={() => setSelectedVariant(v)}
                         className={`rounded-2xl border p-3 text-center transition-all cursor-pointer ${
                           isSelected
-                            ? 'border-[#6F4E37] bg-[#F5EBE6] text-[#6F4E37] ring-2 ring-[#6F4E37]/20 shadow-xs'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                            ? "border-[#6F4E37] bg-[#F5EBE6] text-[#6F4E37] ring-2 ring-[#6F4E37]/20 shadow-xs"
+                            : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
                         }`}
                       >
                         <div className="text-sm font-black">Size {v.size}</div>
-                        <div className="text-xs font-semibold mt-0.5">{formatCurrency(v.price)}</div>
+                        <div className="text-xs font-semibold mt-0.5">
+                          {formatCurrency(v.price)}
+                        </div>
                       </button>
                     );
                   })}
@@ -903,8 +1009,8 @@ export default function CustomerStorefrontPage() {
                           key={t.id}
                           className={`flex items-center justify-between p-2.5 rounded-2xl border transition-all ${
                             isChecked
-                              ? 'border-[#6F4E37] bg-[#FAF6F0]'
-                              : 'border-gray-200/80 bg-white hover:border-gray-300'
+                              ? "border-[#6F4E37] bg-[#FAF6F0]"
+                              : "border-gray-200/80 bg-white hover:border-gray-300"
                           }`}
                         >
                           <div
@@ -914,14 +1020,18 @@ export default function CustomerStorefrontPage() {
                             <div
                               className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
                                 isChecked
-                                  ? 'border-[#6F4E37] bg-[#6F4E37] text-white'
-                                  : 'border-gray-300 bg-white'
+                                  ? "border-[#6F4E37] bg-[#6F4E37] text-white"
+                                  : "border-gray-300 bg-white"
                               }`}
                             >
-                              {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                              {isChecked && (
+                                <Check className="w-3 h-3 stroke-[3]" />
+                              )}
                             </div>
                             <div>
-                              <div className="text-xs font-bold text-gray-900">{t.name}</div>
+                              <div className="text-xs font-bold text-gray-900">
+                                {t.name}
+                              </div>
                               <div className="text-[10px] font-semibold text-[#6F4E37]">
                                 +{formatCurrency(t.price)}
                               </div>
@@ -937,7 +1047,9 @@ export default function CustomerStorefrontPage() {
                               >
                                 <Minus className="w-3 h-3" />
                               </button>
-                              <span className="text-xs font-bold w-4 text-center">{selectedItem.quantity}</span>
+                              <span className="text-xs font-bold w-4 text-center">
+                                {selectedItem.quantity}
+                              </span>
                               <button
                                 type="button"
                                 onClick={() => handleUpdateToppingQty(t.id, 1)}
@@ -973,7 +1085,9 @@ export default function CustomerStorefrontPage() {
             {/* Modal Footer Actions: Thêm vào giỏ hàng & Mua ngay */}
             <div className="border-t border-gray-100 bg-[#FAF6F0]/60 p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Số lượng:</span>
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Số lượng:
+                </span>
                 <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-2 py-1 shadow-2xs">
                   <button
                     type="button"
@@ -982,7 +1096,9 @@ export default function CustomerStorefrontPage() {
                   >
                     <Minus className="w-4 h-4" />
                   </button>
-                  <span className="w-6 text-center text-sm font-black text-gray-900">{modalQuantity}</span>
+                  <span className="w-6 text-center text-sm font-black text-gray-900">
+                    {modalQuantity}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setModalQuantity((q) => q + 1)}
@@ -1029,8 +1145,12 @@ export default function CustomerStorefrontPage() {
                   <ShoppingBag className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-gray-900">Giỏ hàng của bạn</h3>
-                  <p className="text-xs text-gray-500">{cart.totalItemCount} ly món đang chọn</p>
+                  <h3 className="font-extrabold text-base text-gray-900">
+                    Giỏ hàng của bạn
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    {cart.totalItemCount} ly món đang chọn
+                  </p>
                 </div>
               </div>
               <button
@@ -1047,8 +1167,12 @@ export default function CustomerStorefrontPage() {
               {cart.items.length === 0 ? (
                 <div className="py-16 text-center text-gray-400 space-y-2">
                   <ShoppingBag className="w-12 h-12 stroke-[1.5] mx-auto opacity-30 text-[#6F4E37]" />
-                  <p className="text-sm font-bold text-gray-700">Giỏ hàng chưa có món nào</p>
-                  <p className="text-xs text-gray-400">Chọn những món yêu thích từ thực đơn để thưởng thức</p>
+                  <p className="text-sm font-bold text-gray-700">
+                    Giỏ hàng chưa có món nào
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Chọn những món yêu thích từ thực đơn để thưởng thức
+                  </p>
                 </div>
               ) : (
                 <>
@@ -1073,14 +1197,20 @@ export default function CustomerStorefrontPage() {
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <div className="font-bold text-sm text-gray-900">
-                              {item.productName}{' '}
+                              {item.productName}{" "}
                               <span className="text-xs px-1.5 py-0.5 rounded-md bg-white border border-gray-200 text-gray-700 font-bold">
                                 Size {item.size}
                               </span>
                             </div>
                             {item.toppings.length > 0 && (
                               <div className="text-[11px] text-gray-500 mt-0.5">
-                                + {item.toppings.map((t) => `${t.toppingSnapshotName} (x${t.quantity})`).join(', ')}
+                                +{" "}
+                                {item.toppings
+                                  .map(
+                                    (t) =>
+                                      `${t.toppingSnapshotName} (x${t.quantity})`,
+                                  )
+                                  .join(", ")}
                               </div>
                             )}
                             {item.note && (
@@ -1107,7 +1237,9 @@ export default function CustomerStorefrontPage() {
                             >
                               <Minus className="w-3 h-3" />
                             </button>
-                            <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+                            <span className="text-xs font-bold w-4 text-center">
+                              {item.quantity}
+                            </span>
                             <button
                               type="button"
                               onClick={() => cart.updateQuantity(item.id, 1)}
@@ -1128,11 +1260,11 @@ export default function CustomerStorefrontPage() {
                   <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-2xl text-xs font-bold">
                     <button
                       type="button"
-                      onClick={() => setOrderType('DELIVERY')}
+                      onClick={() => setOrderType("DELIVERY")}
                       className={`py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                        orderType === 'DELIVERY'
-                          ? 'bg-white text-[#6F4E37] shadow-xs'
-                          : 'text-gray-500 hover:text-gray-700'
+                        orderType === "DELIVERY"
+                          ? "bg-white text-[#6F4E37] shadow-xs"
+                          : "text-gray-500 hover:text-gray-700"
                       }`}
                     >
                       <Truck className="w-3.5 h-3.5" />
@@ -1140,11 +1272,11 @@ export default function CustomerStorefrontPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setOrderType('TAKE_AWAY')}
+                      onClick={() => setOrderType("TAKE_AWAY")}
                       className={`py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                        orderType === 'TAKE_AWAY'
-                          ? 'bg-white text-[#6F4E37] shadow-xs'
-                          : 'text-gray-500 hover:text-gray-700'
+                        orderType === "TAKE_AWAY"
+                          ? "bg-white text-[#6F4E37] shadow-xs"
+                          : "text-gray-500 hover:text-gray-700"
                       }`}
                     >
                       <Store className="w-3.5 h-3.5" />
@@ -1155,7 +1287,7 @@ export default function CustomerStorefrontPage() {
                   {/* Thông tin nhận món */}
                   <div className="p-4 rounded-3xl border border-amber-200 bg-amber-50/50 space-y-3">
                     <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
-                      {orderType === 'DELIVERY' ? (
+                      {orderType === "DELIVERY" ? (
                         <>
                           <Truck className="w-4 h-4 text-amber-700" />
                           <span>Thông tin giao hàng nhận món (COD)</span>
@@ -1195,16 +1327,19 @@ export default function CustomerStorefrontPage() {
                         />
                       </div>
 
-                      {orderType === 'DELIVERY' && (
+                      {orderType === "DELIVERY" && (
                         <div>
                           <label className="block text-gray-600 font-semibold mb-1">
-                            Địa chỉ giao hàng nhận món <span className="text-rose-500">*</span>:
+                            Địa chỉ giao hàng nhận món{" "}
+                            <span className="text-rose-500">*</span>:
                           </label>
                           <input
                             type="text"
                             required
                             value={cart.deliveryAddress}
-                            onChange={(e) => cart.setDeliveryAddress(e.target.value)}
+                            onChange={(e) =>
+                              cart.setDeliveryAddress(e.target.value)
+                            }
                             placeholder="Số nhà, tên đường, tòa nhà/phòng..."
                             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs focus:outline-none focus:border-[#6F4E37]"
                           />
@@ -1230,8 +1365,12 @@ export default function CustomerStorefrontPage() {
                   {!user && (
                     <div className="p-3 rounded-2xl bg-[#FAF6F0] border border-[#EADBCC] text-xs text-gray-600 flex items-center justify-between">
                       <div className="space-y-0.5">
-                        <div className="font-bold text-[#6F4E37]">Tích điểm hội viên</div>
-                        <div className="text-[11px] text-gray-500">Đăng nhập để nhận 1 điểm / 10.000 đ</div>
+                        <div className="font-bold text-[#6F4E37]">
+                          Tích điểm hội viên
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          Đăng nhập để nhận 1 điểm / 10.000 đ
+                        </div>
                       </div>
                       <Link
                         href="/login?callbackUrl=/menu"
@@ -1248,14 +1387,22 @@ export default function CustomerStorefrontPage() {
                       <div className="flex items-center justify-between font-bold text-amber-900">
                         <span className="flex items-center gap-1.5">
                           <Award className="w-4 h-4 text-amber-600 fill-amber-500" />
-                          <span>Dùng điểm giảm giá (Có {user.rewardPoints} pts)</span>
+                          <span>
+                            Dùng điểm giảm giá (Có {user.rewardPoints} pts)
+                          </span>
                         </span>
                         <button
                           type="button"
-                          onClick={() => setPointsToRedeem(pointsToRedeem > 0 ? 0 : maxRedeemablePoints)}
+                          onClick={() =>
+                            setPointsToRedeem(
+                              pointsToRedeem > 0 ? 0 : maxRedeemablePoints,
+                            )
+                          }
                           className="text-[11px] text-[#6F4E37] font-extrabold underline cursor-pointer"
                         >
-                          {pointsToRedeem > 0 ? 'Bỏ dùng' : `Dùng hết (${maxRedeemablePoints} pts)`}
+                          {pointsToRedeem > 0
+                            ? "Bỏ dùng"
+                            : `Dùng hết (${maxRedeemablePoints} pts)`}
                         </button>
                       </div>
 
@@ -1264,8 +1411,15 @@ export default function CustomerStorefrontPage() {
                           type="number"
                           min={0}
                           max={maxRedeemablePoints}
-                          value={pointsToRedeem || ''}
-                          onChange={(e) => setPointsToRedeem(Math.min(maxRedeemablePoints, Math.max(0, Number(e.target.value) || 0)))}
+                          value={pointsToRedeem || ""}
+                          onChange={(e) =>
+                            setPointsToRedeem(
+                              Math.min(
+                                maxRedeemablePoints,
+                                Math.max(0, Number(e.target.value) || 0),
+                              ),
+                            )
+                          }
                           placeholder="Nhập số điểm muốn đổi..."
                           className="flex-1 bg-white border border-amber-300 rounded-xl px-3 py-1.5 font-bold text-xs text-gray-900 focus:outline-none"
                         />
@@ -1284,9 +1438,13 @@ export default function CustomerStorefrontPage() {
                       </div>
                       <div>
                         <div className="font-bold text-emerald-900">
-                          {orderType === 'DELIVERY' ? 'Thanh toán tiền mặt khi nhận hàng (COD)' : 'Thanh toán khi nhận món tại quầy'}
+                          {orderType === "DELIVERY"
+                            ? "Thanh toán tiền mặt khi nhận hàng (COD)"
+                            : "Thanh toán khi nhận món tại quầy"}
                         </div>
-                        <div className="text-[11px] text-emerald-700">Kiểm tra đồ uống và thanh toán an toàn</div>
+                        <div className="text-[11px] text-emerald-700">
+                          Kiểm tra đồ uống và thanh toán an toàn
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1300,15 +1458,21 @@ export default function CustomerStorefrontPage() {
                 <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between text-gray-500">
                     <span>Tạm tính ({cart.totalItemCount} món):</span>
-                    <span className="font-bold text-gray-900">{formatCurrency(cart.subTotal)}</span>
+                    <span className="font-bold text-gray-900">
+                      {formatCurrency(cart.subTotal)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-gray-500">
                     <span>Phí vận chuyển:</span>
-                    <span className="font-bold text-emerald-600">Miễn phí (0 đ)</span>
+                    <span className="font-bold text-emerald-600">
+                      Miễn phí (0 đ)
+                    </span>
                   </div>
                   <div className="flex justify-between text-base font-black text-gray-900 pt-2 border-t border-gray-200">
                     <span>TỔNG CỘNG:</span>
-                    <span className="text-[#6F4E37]">{formatCurrency(cart.subTotal)}</span>
+                    <span className="text-[#6F4E37]">
+                      {formatCurrency(cart.subTotal)}
+                    </span>
                   </div>
                 </div>
 
@@ -1324,15 +1488,20 @@ export default function CustomerStorefrontPage() {
                       <RefreshCw className="w-4 h-4 animate-spin" />
                       <span>Đang gửi đơn hàng...</span>
                     </>
-                  ) : orderType === 'DELIVERY' ? (
+                  ) : orderType === "DELIVERY" ? (
                     <>
                       <Truck className="w-4 h-4" />
-                      <span>Xác nhận đặt hàng COD ({formatCurrency(cart.subTotal)})</span>
+                      <span>
+                        Xác nhận đặt hàng COD ({formatCurrency(cart.subTotal)})
+                      </span>
                     </>
                   ) : (
                     <>
                       <Store className="w-4 h-4" />
-                      <span>Xác nhận đặt lấy tại quán ({formatCurrency(cart.subTotal)})</span>
+                      <span>
+                        Xác nhận đặt lấy tại quán (
+                        {formatCurrency(cart.subTotal)})
+                      </span>
                     </>
                   )}
                 </button>
@@ -1351,9 +1520,15 @@ export default function CustomerStorefrontPage() {
             </div>
 
             <div>
-              <h3 className="font-black text-xl text-gray-900">Đặt hàng thành công!</h3>
+              <h3 className="font-black text-xl text-gray-900">
+                Đặt hàng thành công!
+              </h3>
               <p className="text-xs text-gray-500 mt-1">
-                Đơn hàng #{orderSuccessData.orderCode || orderSuccessData.id || orderSuccessData.newOrderId} của bạn đã được tiếp nhận.
+                Đơn hàng #
+                {orderSuccessData.orderCode ||
+                  orderSuccessData.id ||
+                  orderSuccessData.newOrderId}{" "}
+                của bạn đã được tiếp nhận.
               </p>
             </div>
 
@@ -1361,16 +1536,23 @@ export default function CustomerStorefrontPage() {
               <div className="flex justify-between">
                 <span className="text-gray-500">Mã đơn hàng:</span>
                 <span className="font-mono font-bold text-gray-900">
-                  #{orderSuccessData.orderCode || orderSuccessData.id || orderSuccessData.newOrderId}
+                  #
+                  {orderSuccessData.orderCode ||
+                    orderSuccessData.id ||
+                    orderSuccessData.newOrderId}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Phương thức:</span>
-                <span className="font-bold text-amber-800">Thanh toán COD khi nhận món</span>
+                <span className="font-bold text-amber-800">
+                  Thanh toán COD khi nhận món
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Trạng thái:</span>
-                <span className="font-bold text-blue-600">Đang chờ pha chế</span>
+                <span className="font-bold text-blue-600">
+                  Đang chờ pha chế
+                </span>
               </div>
             </div>
 
@@ -1379,7 +1561,7 @@ export default function CustomerStorefrontPage() {
                 type="button"
                 onClick={() => {
                   setOrderSuccessData(null);
-                  setActiveView('MY_ORDERS');
+                  setActiveView("MY_ORDERS");
                 }}
                 className="w-full py-3 rounded-2xl bg-[#6F4E37] text-white font-bold text-xs hover:bg-[#5A3F2C] cursor-pointer shadow-md shadow-[#6F4E37]/20"
               >
@@ -1404,11 +1586,15 @@ export default function CustomerStorefrontPage() {
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-[#6F4E37] text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                  {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'K'}
+                  {user.fullName ? user.fullName.charAt(0).toUpperCase() : "K"}
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-gray-900">{user.fullName}</h3>
-                  <p className="text-xs text-gray-400 font-mono">{user.phoneNumber}</p>
+                  <h3 className="font-extrabold text-base text-gray-900">
+                    {user.fullName}
+                  </h3>
+                  <p className="text-xs text-gray-400 font-mono">
+                    {user.phoneNumber}
+                  </p>
                 </div>
               </div>
               <button
@@ -1423,39 +1609,63 @@ export default function CustomerStorefrontPage() {
             {/* Thẻ Thống Kê Hạng và Điểm */}
             <div className="p-4 bg-gradient-to-br from-[#FAF6F0] to-[#F5EBE6] rounded-2xl border border-[#EBE3D5] flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Hạng thành viên</span>
-                <span className="text-lg font-black text-[#6F4E37]">HẠNG {user.membershipTier || 'STANDARD'}</span>
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
+                  Hạng thành viên
+                </span>
+                <span className="text-lg font-black text-[#6F4E37]">
+                  HẠNG {user.membershipTier || "STANDARD"}
+                </span>
               </div>
               <div className="text-right">
-                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Điểm khả dụng</span>
-                <span className="text-2xl font-black text-amber-700">{user.rewardPoints || 0} pts</span>
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
+                  Điểm khả dụng
+                </span>
+                <span className="text-2xl font-black text-amber-700">
+                  {user.rewardPoints || 0} pts
+                </span>
               </div>
             </div>
 
             {/* Lịch sử điểm thưởng */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Lịch sử tích / đổi điểm gần đây</h4>
+              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                Lịch sử tích / đổi điểm gần đây
+              </h4>
               <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
                 {loadingPointsHistory ? (
-                  <p className="text-xs text-center text-gray-400 py-6">Đang tải lịch sử điểm...</p>
+                  <p className="text-xs text-center text-gray-400 py-6">
+                    Đang tải lịch sử điểm...
+                  </p>
                 ) : pointsHistory.length > 0 ? (
                   pointsHistory.map((tx) => (
-                    <div key={tx.id} className="p-2.5 bg-gray-50 rounded-xl flex items-center justify-between text-xs">
+                    <div
+                      key={tx.id}
+                      className="p-2.5 bg-gray-50 rounded-xl flex items-center justify-between text-xs"
+                    >
                       <div>
                         <span className="font-bold text-gray-900 block">
-                          {tx.transactionType === 'EARN' ? 'Tích điểm đơn hàng' : 'Đổi điểm giảm giá'}
+                          {tx.transactionType === "EARN"
+                            ? "Tích điểm đơn hàng"
+                            : "Đổi điểm giảm giá"}
                         </span>
                         <span className="text-[10px] text-gray-400">
-                          {new Date(tx.createdAt).toLocaleDateString('vi-VN')}
+                          {new Date(tx.createdAt).toLocaleDateString("vi-VN")}
                         </span>
                       </div>
-                      <span className={`font-black ${tx.transactionType === 'EARN' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {tx.transactionType === 'EARN' ? `+${tx.points}` : `-${tx.points}`} pts
+                      <span
+                        className={`font-black ${tx.transactionType === "EARN" ? "text-emerald-600" : "text-rose-600"}`}
+                      >
+                        {tx.transactionType === "EARN"
+                          ? `+${tx.points}`
+                          : `-${tx.points}`}{" "}
+                        pts
                       </span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-center text-gray-400 py-6">Chưa có giao dịch điểm nào.</p>
+                  <p className="text-xs text-center text-gray-400 py-6">
+                    Chưa có giao dịch điểm nào.
+                  </p>
                 )}
               </div>
             </div>

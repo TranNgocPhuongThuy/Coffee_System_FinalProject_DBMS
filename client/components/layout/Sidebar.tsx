@@ -12,6 +12,7 @@ import {
   PieChart,
   LogOut,
   CookingPot,
+  Radio,
 } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
 import { isRouteAllowed } from '@/constants/roles';
@@ -21,42 +22,47 @@ export default function Sidebar() {
   const { user, logout } = useAuthContext();
 
   const allMenuItems = [
-    {
-      name: 'Tổng quan',
-      path: '/dashboard',
-      icon: LayoutDashboard,
-    },
-    {
-      name: 'Bán hàng POS',
-      path: '/pos/terminal',
-      icon: MonitorSmartphone,
-    },
-    {
-      name: 'Bếp / Pha chế',
-      path: '/kds/queue',
-      icon: CookingPot,
-    },
-    {
-      name: 'Thực đơn',
-      path: '/dashboard/menu/products',
-      icon: CupSoda,
-    },
-    {
-      name: 'Kho nguyên liệu',
-      path: '/dashboard/inventory/ingredients',
-      icon: Package,
-    },
-    {
-      name: 'Khách hàng',
-      path: '/dashboard/customers',
-      icon: Users,
-    },
-    {
-      name: 'Báo cáo',
-      path: '/dashboard/reports',
-      icon: PieChart,
-    },
-  ];
+  {
+    name: 'Tổng quan',
+    path: '/dashboard',
+    icon: LayoutDashboard,
+  },
+  {
+    name: 'Bán hàng POS',
+    path: '/pos/terminal',
+    icon: MonitorSmartphone,
+  },
+  {
+    name: 'Bếp / Pha chế',
+    path: '/kds/queue',
+    icon: CookingPot,
+  },
+  {
+    name: 'Thực đơn',
+    path: '/dashboard/menu', // Trỏ trực tiếp đến trang Menu Hub tổng quan
+    icon: CupSoda,
+  },
+  {
+    name: 'Kho nguyên liệu',
+    path: '/dashboard/inventory/ingredients',
+    icon: Package,
+  },
+  {
+    name: 'Thẻ rung',
+    path: '/pos/pagers', // Cho phép Manager quản lý thẻ rung trực tiếp
+    icon: Radio,
+  },
+  {
+    name: 'Khách hàng',
+    path: '/dashboard/customers',
+    icon: Users,
+  },
+  {
+    name: 'Báo cáo',
+    path: '/dashboard/reports',
+    icon: PieChart,
+  },
+];
 
   // Lọc menu theo quyền của Role hiện tại
   const allowedMenuItems = user?.role

@@ -2,12 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CupSoda, Layers, Sparkles } from 'lucide-react';
+import { CupSoda, Layers, LayoutGrid, Sparkles } from 'lucide-react';
 
 export default function MenuNavTabs() {
   const pathname = usePathname();
 
   const tabs = [
+    {
+    name: 'Tổng quan Menu',
+    href: '/dashboard/menu',
+    icon: LayoutGrid,
+    isActive: pathname === '/dashboard/menu',
+  },
+ 
     {
       name: 'Món ăn & Đồ uống',
       href: '/dashboard/menu/products',

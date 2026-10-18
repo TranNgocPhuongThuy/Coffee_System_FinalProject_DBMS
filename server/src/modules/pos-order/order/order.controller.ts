@@ -117,15 +117,21 @@ export class OrderController {
    * Đổi điểm thưởng hội viên lấy chiết khấu giảm giá đơn hàng
    */
   applyPoints = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { id } = OrderParamSchema.parse(req.params);
-      const body = ApplyLoyaltyPointsSchema.parse(req.body);
-      const result = await this.orderService.applyLoyaltyPoints(id, body);
-      res.status(200).json({ success: true, ...result });
-    } catch (error) {
-      next(error);
+  try {
+    const { id } = OrderParamSchema.parse(req.params);
+    const body = ApplyLoyaltyPointsSchema.parse(req.body);
+
+    // Nếu là Khách hàng đăng nhập, bắt buộc customerId là ID của chính khách đó
+    if (req.user?.role === 'CUSTOMER') {
+      body.customerId = req.user.id;
     }
-  };
+
+    const result = await this.orderService.applyLoyaltyPoints(id, body);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
 
   /**
    * Xóa một món khỏi đơn hàng chưa chế biến
