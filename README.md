@@ -118,33 +118,65 @@ npm -v
 
 ---
 
+
 ## Cài đặt và chạy chương trình
 
 Chạy **ba phần theo đúng thứ tự**: cơ sở dữ liệu → backend → frontend. Backend không khởi động được nếu chưa có database `COFFEE_SYSTEM`.
 
-### Bước 1 — Tạo cơ sở dữ liệu
+### Bước 1 — Thiết lập Cơ sở dữ liệu (SQL Server)
 
-1. Mở SSMS (hoặc Azure Data Studio) và đăng nhập SQL Server.
-2. Mở thư mục `server/database/`.
-3. Chạy **lần lượt** các file sau. Không đổi thứ tự — script sau phụ thuộc object của script trước.
+Người cài đặt có thể chọn **1 trong 3 phương án** dưới đây tùy theo môi trường làm việc:
 
-| Thứ tự | File | Việc file này làm |
-| --- | --- | --- |
-| 1 | `01_schema_tables.sql` | Tạo database `COFFEE_SYSTEM` và 16 bảng. |
-| 2 | `02_constraints.sql` | UNIQUE, DEFAULT, CHECK và khóa ngoại. |
-| 3 | `03_triggers.sql` | 8 trigger kho, thẻ rung, điểm thưởng. |
-| 4 | `04_views.sql` | 7 view báo cáo, hóa đơn, cảnh báo kho. |
-| 5 | `05_stored_procedures.sql` | TVP và stored procedure giao dịch. |
-| 6 | `06_functions.sql` | Hàm scalar và table-valued. |
-| 7 | `07_indexes.sql` | Non-clustered index (kể cả filtered index). |
-| 8 | `08_security_roles.sql` | 4 database role và lệnh GRANT / REVOKE / DENY. |
-| 9 | `09_backup_recovery.sql` | Recovery model FULL và thủ tục backup. |
-| 10 | `seed_data.sql` | 22 món, BOM, nhân viên, kho và đơn mẫu. |
+---
+
+#### Phương án 1: Khôi phục từ file Backup (`.bak`) — *Khuyến nghị (Nhanh nhất)*
+
+1. Mở **SSMS** hoặc **DBeaver**, kết nối tới máy chủ SQL Server.
+2. Mở một cửa sổ SQL Query mới và chạy lệnh khôi phục (sửa lại đường dẫn file `.bak` cho đúng vị trí trên máy):
+
+```sql
+RESTORE DATABASE [COFFEE_SYSTEM]
+FROM DISK = N'D:\Path\To\Database\COFFEE_SYSTEM.bak'
+WITH REPLACE;
+```
+
+> **Lưu ý (nếu dùng Docker):** Copy file `.bak` vào container hoặc trỏ đúng đường dẫn nội bộ bên trong Linux container (ví dụ: `/var/opt/mssql/data/COFFEE_SYSTEM.bak`).
+
+---
+
+#### Phương án 2: Chạy 1 file script tổng hợp (`Full_Database_MePhaPhin.sql`)
+
+Dành cho trường hợp không thể restore file `.bak` do khác biệt phiên bản SQL Server giữa các máy:
+
+1. Mở file `Full_Database_MePhaPhin.sql` (đã bao gồm toàn bộ cấu trúc bảng, logic T-SQL và dữ liệu mẫu) bằng SSMS hoặc DBeaver.
+2. Chọn kết nối tới SQL Server của bạn.
+3. Nhấn **Execute** (F5) để thực thi. Script sẽ tự động khởi tạo CSDL `COFFEE_SYSTEM`, toàn bộ bảng, trigger, thủ tục, phân quyền và nạp dữ liệu mẫu ban đầu.
+
+---
+
+#### Phương án 3: Chạy lần lượt từng file `.sql` theo thứ tự phụ thuộc
+
+Dành cho trường hợp muốn rà soát, kiểm tra từng thành phần CSDL:
+
+Mở thư mục `server/database/` (hoặc `Database/scripts/`), kết nối SQL Server và thực thi lần lượt từ file **01 đến 10** theo đúng bảng dưới đây (**bắt buộc tuân thủ thứ tự** do script sau phụ thuộc đối tượng của script trước):
+
+| Thứ tự | Tên File Script              | Chức năng & Nghiệp vụ khởi tạo                                                              |
+| ------ | ---------------------------- | ------------------------------------------------------------------------------------------- |
+| 01     | `01_schema_tables.sql`       | Khởi tạo CSDL `COFFEE_SYSTEM` và cấu trúc 18 bảng dữ liệu.                                  |
+| 02     | `02_constraints.sql`         | Thiết lập Khóa ngoại (CASCADE), ràng buộc UNIQUE, DEFAULT và CHECK enum.                    |
+| 03     | `03_triggers.sql`            | Cài đặt 8 Triggers (tự trừ kho BOM, cộng dồn nhập kho, chặn âm kho, thẻ rung, khóa sổ cái). |
+| 04     | `04_views.sql`               | Tạo 7 Views phục vụ in bill K80 snapshot, dashboard thẻ rung, cảnh báo kho, doanh thu.      |
+| 05     | `05_stored_procedures.sql`   | Khởi tạo 3 kiểu dữ liệu bảng (TVP) và các Stored Procedures bọc Transaction/ACID.           |
+| 06     | `06_functions.sql`           | Tạo 7 User-Defined Functions (5 hàm Scalar tính tiền/điểm + 2 hàm Table-Valued).            |
+| 07     | `07_indexes.sql`             | Xây dựng 6 Non-Clustered Indexes kết hợp INCLUDE và Filtered Index tối ưu truy vấn.         |
+| 08     | `08_security_roles.sql`      | Thiết lập 4 Database Roles (CASHIER, BARISTA, STOREKEEPER, MANAGER) và GRANT/DENY.          |
+| 09     | `09_backup_recovery.sql`     | Chuyển Recovery Model sang FULL và tạo các thủ tục sao lưu tự động.                         |
+| 10     | `seed_data.sql`              | Nạp dữ liệu mẫu ban đầu (22 món, công thức BOM, nguyên vật liệu kho, tài khoản nhân viên).  |
 
 Trong SSMS: mở file → chọn đúng instance → **Execute** (F5).  
 Nếu script báo database đã tồn tại, xóa database cũ rồi chạy lại từ file 01, hoặc chỉ chạy phần còn thiếu nếu bạn đang vá script.
 
-Kiểm tra sau khi seed:
+**Kiểm tra sau khi seed:**
 
 ```sql
 USE COFFEE_SYSTEM;

@@ -147,3 +147,52 @@ GRANT EXECUTE ON TYPE::udt_OrderDetailList TO MANAGER;
 GRANT EXECUTE ON TYPE::udt_InventoryImportDetailList TO MANAGER;
 GRANT EXECUTE ON TYPE::udt_OrderDetailToppingList TO MANAGER;
 GO
+
+-- ==============================================================
+-- 6. TẠO LOGINS, DATABASE USERS VÀ GÁN THÀNH VIÊN VÀO ROLE (RBAC)
+-- ==============================================================
+
+USE master;
+GO
+
+-- 1. Tạo Logins ở cấp Server (nếu chưa có)
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'login_manager')
+    CREATE LOGIN login_manager WITH PASSWORD = N'Manager@123', CHECK_POLICY = OFF;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'login_cashier')
+    CREATE LOGIN login_cashier WITH PASSWORD = N'Cashier@123', CHECK_POLICY = OFF;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'login_barista')
+    CREATE LOGIN login_barista WITH PASSWORD = N'Barista@123', CHECK_POLICY = OFF;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'login_storekeeper')
+    CREATE LOGIN login_storekeeper WITH PASSWORD = N'Storekeeper@123', CHECK_POLICY = OFF;
+GO
+
+
+-- 2. Tạo Database Users tương ứng cho từng Login
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_manager')
+    CREATE USER user_manager FOR LOGIN login_manager;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_cashier')
+    CREATE USER user_cashier FOR LOGIN login_cashier;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_barista')
+    CREATE USER user_barista FOR LOGIN login_barista;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'user_storekeeper')
+    CREATE USER user_storekeeper FOR LOGIN login_storekeeper;
+GO
+
+-- 3. Gán User vào Database Role tương ứng (theo chuẩn cú pháp SQL Server)
+ALTER ROLE MANAGER ADD MEMBER user_manager;
+ALTER ROLE CASHIER ADD MEMBER user_cashier;
+ALTER ROLE BARISTA ADD MEMBER user_barista;
+ALTER ROLE STOREKEEPER ADD MEMBER user_storekeeper;
+GO
