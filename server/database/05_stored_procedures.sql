@@ -239,7 +239,7 @@ BEGIN
         IF @CustomerId IS NOT NULL AND @TotalAmount >= 10000 
            AND NOT EXISTS (SELECT 1 FROM LoyaltyTransaction WHERE orderId = @OrderId AND transactionType = N'EARN')
         BEGIN
-            DECLARE @PointsEarned INT = FLOOR(@TotalAmount / 10000.0);
+            DECLARE @PointsEarned INT = dbo.fnc_CalculateEarnedPoints(@TotalAmount);
             
             IF @PointsEarned > 0
             BEGIN
@@ -486,7 +486,7 @@ BEGIN
             SET @PointsToRedeem = @MaxPoints;
         END
 
-        DECLARE @ActualDiscount DECIMAL(18, 2) = @PointsToRedeem * @ConversionRate;
+        DECLARE @ActualDiscount DECIMAL(18, 2) = dbo.fn_CalculateMemberDiscount(@PointsToRedeem);
         IF @ActualDiscount > @MaxDiscount
         BEGIN
             SET @ActualDiscount = @MaxDiscount;
@@ -1037,4 +1037,4 @@ BEGIN
         THROW;
     END CATCH
 END;
-GO
+GO

@@ -96,15 +96,6 @@ export class OrderService {
       newOrderId = await this.orderRepo.createCounterOrder(data)
     }
 
-    // Tự động tích điểm hội viên nếu có gán customerId và đơn >= 10.000đ
-    if (data.customerId && data.totalAmount >= 10000) {
-      await this.orderRepo
-        .earnLoyaltyPoints(newOrderId, data.customerId, data.totalAmount)
-        .catch((err) => {
-          console.error('Lỗi khi tích điểm hội viên:', err)
-        })
-    }
-
     const createdOrder = await this.getOrderById(newOrderId)
     return {
       message: 'Tạo đơn hàng POS thành công',

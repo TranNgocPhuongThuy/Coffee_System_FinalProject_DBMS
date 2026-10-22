@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, ChevronDown, KeyRound, LogOut, User as UserIcon } from 'lucide-react';
+import { ChevronDown, KeyRound, LogOut, User as UserIcon } from 'lucide-react';
 import { useAuthContext } from '@/context/AuthContext';
 
 interface HeaderProps {
@@ -43,18 +43,6 @@ export default function Header({ title }: HeaderProps) {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-4">
-        {/* Notification Bell */}
-        <button
-          type="button"
-          aria-label="Thông báo"
-          className="relative w-10 h-10 rounded-full flex items-center justify-center text-gray-600 hover:text-[#6F4E37] hover:bg-[#F5EBE6] transition-colors cursor-pointer"
-        >
-          <Bell className="w-5 h-5" strokeWidth={1.9} />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
-        </button>
-
-        <div className="h-6 w-px bg-gray-200" />
-
         {/* User Dropdown */}
         <div className="relative">
           <button
