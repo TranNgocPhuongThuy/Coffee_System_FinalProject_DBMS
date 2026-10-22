@@ -233,7 +233,120 @@ BEGIN
 END;
     `,
   },
+  {
+    name: 'v_MenuProductCatalog',
+    sql: `
+CREATE OR ALTER VIEW v_MenuProductCatalog AS
+SELECT 
+    p.id AS productId,
+    p.categoryId,
+    c.name AS categoryName,
+    p.name AS productName,
+    p.description,
+    p.image,
+    p.status AS productStatus,
+    COUNT(pv.id) AS totalVariants,
+    MIN(pv.price) AS minPrice,
+    MAX(pv.price) AS maxPrice,
+    STRING_AGG(pv.size, N', ') WITHIN GROUP (ORDER BY pv.price ASC) AS availableSizes
+FROM Product p
+INNER JOIN Category c ON p.categoryId = c.id
+LEFT JOIN ProductVariant pv ON p.id = pv.productId AND pv.deletedAt IS NULL
+WHERE p.deletedAt IS NULL 
+  AND c.deletedAt IS NULL
+GROUP BY p.id, p.categoryId, c.name, p.name, p.description, p.image, p.status;
+    `,
+  },
+  {
+    name: 'fnc_GetProductPriceRange',
+    sql: `
+CREATE OR ALTER FUNCTION fnc_GetProductPriceRange (
+    @productId INT
+)
+RETURNS NVARCHAR(100)
+AS
+BEGIN
+    DECLARE @minPrice DECIMAL(18, 2);
+    DECLARE @maxPrice DECIMAL(18, 2);
+    DECLARE @result NVARCHAR(100);
+
+    SELECT 
+        @minPrice = MIN(price),
+        @maxPrice = MAX(price)
+    FROM ProductVariant
+    WHERE productId = @productId AND deletedAt IS NULL;
+
+    IF @minPrice IS NULL
+        SET @result = N'Chưa có giá';
+    ELSE IF @minPrice = @maxPrice
+        SET @result = FORMAT(@minPrice, 'N0') + N' đ';
+    ELSE
+        SET @result = FORMAT(@minPrice, 'N0') + N' đ - ' + FORMAT(@maxPrice, 'N0') + N' đ';
+
+    RETURN @result;
+END;
+    `,
+  },
+  {
+    name: 'sp_CreateProductWithVariants',
+    sql: `
+CREATE OR ALTER PROCEDURE sp_CreateProductWithVariants
+    @categoryId INT,
+    @name NVARCHAR(200),
+    @description NVARCHAR(MAX) = NULL,
+    @image NVARCHAR(500) = NULL,
+    @variantsJson NVARCHAR(MAX),
+    @newProductId INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        IF NOT EXISTS (SELECT 1 FROM Category WHERE id = @categoryId AND deletedAt IS NULL)
+        BEGIN
+            RAISERROR(N'Danh mục không tồn tại hoặc đã bị xóa!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END;
+
+        IF EXISTS (SELECT 1 FROM Product WHERE name = @name AND deletedAt IS NULL)
+        BEGIN
+            RAISERROR(N'Tên món này đã tồn tại trong thực đơn!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END;
+
+        INSERT INTO Product (categoryId, name, description, image, status, createdAt)
+        VALUES (@categoryId, @name, @description, @image, 'ACTIVE', SYSDATETIME());
+
+        SET @newProductId = SCOPE_IDENTITY();
+
+        INSERT INTO ProductVariant (productId, size, price, createdAt)
+        SELECT 
+            @newProductId,
+            j.[size],
+            CAST(j.price AS DECIMAL(18, 2)),
+            SYSDATETIME()
+        FROM OPENJSON(@variantsJson)
+        WITH (
+            [size] NVARCHAR(20) '$.size',
+            price DECIMAL(18, 2) '$.price'
+        ) j;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+    `,
+  },
 ]
+
 
 export async function syncDatabaseObjects(pool: ConnectionPool): Promise<void> {
   console.log('🔄 Đang đồng bộ cấu trúc Database objects (Views, Functions, Triggers, SPs)...')

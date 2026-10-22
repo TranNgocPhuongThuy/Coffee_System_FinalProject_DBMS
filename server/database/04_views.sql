@@ -144,3 +144,26 @@ LEFT JOIN LoyaltyTransaction lt ON c.id = lt.customerId
 WHERE c.deletedAt IS NULL
 GROUP BY c.id, c.fullName, c.phoneNumber, c.membershipTier, c.rewardPoints;
 GO
+
+--8. Danh mục thực đơn hoàn chỉnh kèm khoảng giá và kích cỡ (Phục vụ phân hệ Thực đơn Menu-Catalog)
+CREATE OR ALTER VIEW v_MenuProductCatalog AS
+SELECT 
+    p.id AS productId,
+    p.categoryId,
+    c.name AS categoryName,
+    p.name AS productName,
+    p.description,
+    p.image,
+    p.status AS productStatus,
+    COUNT(pv.id) AS totalVariants,
+    MIN(pv.price) AS minPrice,
+    MAX(pv.price) AS maxPrice,
+    STRING_AGG(pv.size, N', ') WITHIN GROUP (ORDER BY pv.price ASC) AS availableSizes
+FROM Product p
+INNER JOIN Category c ON p.categoryId = c.id
+LEFT JOIN ProductVariant pv ON p.id = pv.productId AND pv.deletedAt IS NULL
+WHERE p.deletedAt IS NULL 
+  AND c.deletedAt IS NULL
+GROUP BY p.id, p.categoryId, c.name, p.name, p.description, p.image, p.status;
+GO
+

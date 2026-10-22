@@ -130,3 +130,32 @@ RETURN (
       AND lt.createdAt BETWEEN @fromDate AND @toDate
 );
 GO
+
+--8. Tính và định dạng khoảng giá bán (Min - Max) của một sản phẩm dựa trên các kích cỡ (Menu-Catalog)
+CREATE OR ALTER FUNCTION fnc_GetProductPriceRange (
+    @productId INT
+)
+RETURNS NVARCHAR(100)
+AS
+BEGIN
+    DECLARE @minPrice DECIMAL(18, 2);
+    DECLARE @maxPrice DECIMAL(18, 2);
+    DECLARE @result NVARCHAR(100);
+
+    SELECT 
+        @minPrice = MIN(price),
+        @maxPrice = MAX(price)
+    FROM ProductVariant
+    WHERE productId = @productId AND deletedAt IS NULL;
+
+    IF @minPrice IS NULL
+        SET @result = N'Chưa có giá';
+    ELSE IF @minPrice = @maxPrice
+        SET @result = FORMAT(@minPrice, 'N0') + N' đ';
+    ELSE
+        SET @result = FORMAT(@minPrice, 'N0') + N' đ - ' + FORMAT(@maxPrice, 'N0') + N' đ';
+
+    RETURN @result;
+END;
+GO
+
