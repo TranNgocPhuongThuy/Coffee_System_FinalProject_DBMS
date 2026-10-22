@@ -69,6 +69,7 @@ export default function ProductsPage() {
         image: p.image ?? p.imageUrl ?? p.image_url ?? null,
         status: p.status ?? 'ACTIVE',
         createdAt: p.createdAt ?? new Date().toISOString(),
+        priceRange: p.priceRange || undefined,
         variants: Array.isArray(p.variants)
           ? p.variants.map((v: any) => ({
               id: Number(v.id ?? 0),
@@ -377,6 +378,13 @@ export default function ProductsPage() {
                       </td>
 
                       <td className="py-4 px-5">
+                        {item.priceRange && (
+                          <div className="text-xs font-bold text-[#6F4E37] mb-1.5 flex items-center gap-1.5">
+                            <span className="px-2 py-0.5 rounded bg-amber-50 text-[#6F4E37] border border-amber-200/60 font-semibold">
+                              {item.priceRange}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex flex-wrap items-center gap-1.5">
                           {sortedVariants.length > 0 ? (
                             sortedVariants.map((v) => (

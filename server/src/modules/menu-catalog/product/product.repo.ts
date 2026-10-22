@@ -66,6 +66,7 @@ export class ProductRepository {
         p.status, 
         p.createdAt, 
         p.updatedAt,
+        dbo.fnc_GetProductPriceRange(p.id) AS priceRange,
         (
           SELECT id, productId, size, price, createdAt, updatedAt
           FROM ProductVariant pv
@@ -91,6 +92,7 @@ export class ProductRepository {
       status: row.status,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      priceRange: row.priceRange,
       variants: row.variantsJson ? JSON.parse(row.variantsJson) : [],
     }))
   }

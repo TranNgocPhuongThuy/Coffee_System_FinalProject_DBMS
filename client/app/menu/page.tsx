@@ -811,12 +811,12 @@ export default function CustomerStorefrontPage() {
                       <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
                         <div>
                           <span className="text-[10px] text-gray-400 font-semibold block">
-                            Giá chỉ từ
+                            {p.priceRange?.includes('-') ? 'Khoảng giá' : 'Đơn giá'}
                           </span>
                           <span className="font-black text-sm text-[#6F4E37]">
-                            {minPrice === maxPrice
+                            {p.priceRange || (minPrice === maxPrice
                               ? formatCurrency(minPrice || 0)
-                              : `${formatCurrency(minPrice || 0)}`}
+                              : `${formatCurrency(minPrice || 0)} - ${formatCurrency(maxPrice || 0)}`)}
                           </span>
                         </div>
 

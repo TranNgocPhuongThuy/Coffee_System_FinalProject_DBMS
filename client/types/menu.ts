@@ -22,6 +22,7 @@ export interface Product extends SoftDeletableEntity {
     status: ProductStatus;
     categoryName?: string;
     variants?: ProductVariant[];
+    priceRange?: string;
 }
 
 export interface Topping extends BaseEntity {

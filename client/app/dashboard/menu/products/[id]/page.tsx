@@ -45,6 +45,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [image, setImage] = useState('');
   const [status, setStatus] = useState<ProductStatus>('ACTIVE');
   const [variants, setVariants] = useState<VariantFormItem[]>([]);
+  const [priceRange, setPriceRange] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -71,6 +72,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           setDescription(prodData.description || '');
           setImage(prodData.image || '');
           setStatus(prodData.status || 'ACTIVE');
+          setPriceRange(prodData.priceRange || '');
 
           if (prodData.variants && prodData.variants.length > 0) {
             setVariants(
@@ -228,6 +230,11 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               <span className="px-2.5 py-0.5 bg-[#FAF6F0] text-[#6F4E37] font-mono text-xs font-bold rounded-lg border border-amber-200">
                 ID: #{productId}
               </span>
+              {priceRange && (
+                <span className="px-2.5 py-0.5 bg-amber-50 text-[#6F4E37] text-xs font-bold rounded-lg border border-amber-200">
+                  {priceRange}
+                </span>
+              )}
             </div>
             <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
               Cập nhật thông tin thực đơn, biến thể kích cỡ và thiết lập định mức nguyên liệu
