@@ -921,6 +921,65 @@ BEGIN
 END
 GO
 
+CREATE OR ALTER PROCEDURE sp_KDS_UpdateItemStatus
+    @OrderDetailId INT,
+    @ItemStatus NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON; 
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- Bảng biến tạm để hứng OUTPUT (Bắt buộc khi bảng có Trigger)
+        DECLARE @updatedItems TABLE (
+            id INT,
+            orderId INT,
+            itemSnapshotName NVARCHAR(200),
+            sizeSnapshot NVARCHAR(50),
+            itemStatus NVARCHAR(50),
+            updatedAt DATETIME2(7)
+        );
+
+        -- 1. Cập nhật trạng thái ly nước
+        -- (Nếu chuyển sang 'DONE', trigger trg_OrderDetail_DeductInventory sẽ tự động trừ kho)
+        UPDATE OrderDetail
+        SET itemStatus = @ItemStatus,
+            updatedAt = SYSDATETIME()
+        OUTPUT 
+            INSERTED.id,
+            INSERTED.orderId,
+            INSERTED.itemSnapshotName,
+            INSERTED.sizeSnapshot,
+            INSERTED.itemStatus,
+            INSERTED.updatedAt
+        INTO @updatedItems
+        WHERE id = @OrderDetailId;
+
+        -- 2. Tự động đồng bộ trạng thái đơn cha sang 'PREPARING' nếu bắt đầu làm món
+        IF @ItemStatus = N'PREPARING'
+        BEGIN
+            UPDATE [Order]
+            SET status = N'PREPARING', 
+                updatedAt = SYSDATETIME()
+            WHERE id = (SELECT TOP 1 orderId FROM @updatedItems)
+              AND status = N'PENDING_PREP';
+        END;
+
+        COMMIT TRANSACTION;
+
+        -- Trả về đúng 1 bảng kết quả duy nhất cho Node.js
+        SELECT id, orderId, itemSnapshotName, sizeSnapshot, itemStatus, updatedAt
+        FROM @updatedItems;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
 CREATE OR ALTER PROCEDURE dbo.sp_KDS_NotifyOrderReady
     @OrderId INT,
     @PagerId INT OUTPUT,

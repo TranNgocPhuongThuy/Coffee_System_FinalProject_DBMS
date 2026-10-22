@@ -72,4 +72,17 @@ export class ProductController {
       res.status(statusCode).json({ success: false, message })
     }
   }
+
+  /**
+   * Lấy danh mục thực đơn đầy đủ từ View v_MenuProductCatalog
+   */
+  getCatalog = async (req: Request, res: Response) => {
+    try {
+      const categoryId = req.query.categoryId ? Number(req.query.categoryId) : undefined
+      const catalog = await this.productService.getMenuCatalog(categoryId)
+      res.status(200).json({ success: true, data: catalog })
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message || 'Lỗi hệ thống khi tải thực đơn' })
+    }
+  }
 }

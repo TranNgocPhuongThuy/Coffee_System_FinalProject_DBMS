@@ -215,11 +215,14 @@ GRANT SELECT ON dbo.ProductVariant TO BARISTA;
 GRANT SELECT ON dbo.Topping TO BARISTA;
 GRANT SELECT ON dbo.Employee TO BARISTA;
 
+
 -- Quyền Trigger & Log
 GRANT UPDATE (stockQuantity, updatedAt) ON dbo.Ingredient TO BARISTA;
 GRANT INSERT ON dbo.SystemLog TO BARISTA;
 
 -- Quyền SPs, Views
+GRANT EXECUTE ON sp_KDS_UpdateItemStatus TO BARISTA;
+GRANT EXECUTE ON sp_KDS_UpdateItemStatus TO MANAGER;
 GRANT EXECUTE ON dbo.sp_KDS_NotifyOrderReady TO BARISTA;
 GRANT SELECT ON dbo.v_ProductRecipeDetails TO BARISTA;
 GRANT SELECT ON dbo.v_ActivePagerDashboard TO BARISTA;
