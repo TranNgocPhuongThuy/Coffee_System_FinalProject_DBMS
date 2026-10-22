@@ -307,7 +307,24 @@ export class ProductRepository {
   }
 
   /**
-   * Xóa mềm Sản phẩm và toàn bộ Biến thể liên quan
+   * Đếm số lượng đơn hàng đang chờ hoặc đang pha chế (PENDING, PREPARING) có chứa sản phẩm này
+   */
+  async countActiveOrdersByProductId(productId: number): Promise<number> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('productId', sql.Int, productId)
+    const result = await req.query<{ count: number }>(`
+      SELECT COUNT(1) AS count
+      FROM OrderDetail od
+      INNER JOIN ProductVariant pv ON od.variantId = pv.id
+      WHERE pv.productId = @productId
+        AND od.itemStatus IN ('PENDING', 'PREPARING')
+    `)
+    return result.recordset[0]?.count || 0
+  }
+
+  /**
+   * Xóa mềm Sản phẩm và toàn bộ Biến thể liên quan (Đảm bảo tính nguyên tử)
    */
   async softDelete(id: number): Promise<boolean> {
     const pool = await getPool()
@@ -315,6 +332,9 @@ export class ProductRepository {
     req.input('id', sql.Int, id)
 
     const result = await req.query(`
+      SET XACT_ABORT ON;
+      BEGIN TRANSACTION;
+
       UPDATE Product
       SET deletedAt = SYSDATETIME(), updatedAt = SYSDATETIME()
       WHERE id = @id AND deletedAt IS NULL;
@@ -322,6 +342,8 @@ export class ProductRepository {
       UPDATE ProductVariant
       SET deletedAt = SYSDATETIME(), updatedAt = SYSDATETIME()
       WHERE productId = @id AND deletedAt IS NULL;
+
+      COMMIT TRANSACTION;
     `)
 
     return (result.rowsAffected[0] ?? 0) > 0

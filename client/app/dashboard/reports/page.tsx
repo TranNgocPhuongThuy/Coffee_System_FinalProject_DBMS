@@ -30,7 +30,31 @@ export default function ReportsPage() {
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const todayStr = (() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
+
+  const handleApplyCustomDate = () => {
+    if (customFromDate && customFromDate > todayStr) {
+      showToast('⚠️ Thời gian bắt đầu không được vượt quá ngày hiện tại!');
+      return;
+    }
+    if (customToDate && customToDate > todayStr) {
+      showToast('⚠️ Thời gian kết thúc không được vượt quá ngày hiện tại!');
+      return;
+    }
+    if (customFromDate && customToDate && customFromDate > customToDate) {
+      showToast('⚠️ Thời gian bắt đầu phải trước hoặc bằng thời gian kết thúc!');
+      return;
+    }
+    fetchReportData();
   };
 
   // Compute date range based on timeFilter
@@ -167,10 +191,16 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
-      {/* Toast Notification */}
+      {/* Single Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg text-sm font-semibold z-50 animate-in fade-in">
-          {toastMessage}
+        <div
+          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-xl text-sm font-semibold animate-in fade-in slide-in-from-bottom-3 flex items-center gap-2 ${
+            toastMessage.includes('⚠️') || toastMessage.includes('Lỗi')
+              ? 'bg-amber-600 text-white'
+              : 'bg-emerald-600 text-white'
+          }`}
+        >
+          <span>{toastMessage}</span>
         </div>
       )}
 
@@ -233,6 +263,7 @@ export default function ReportsPage() {
           <div className="flex items-center gap-2">
             <input
               type="date"
+              max={todayStr}
               value={customFromDate}
               onChange={(e) => setCustomFromDate(e.target.value)}
               className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-mono focus:outline-none focus:border-[#6F4E37]"
@@ -240,14 +271,16 @@ export default function ReportsPage() {
             <span className="text-gray-400 text-xs">đến</span>
             <input
               type="date"
+              max={todayStr}
+              min={customFromDate || undefined}
               value={customToDate}
               onChange={(e) => setCustomToDate(e.target.value)}
               className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-mono focus:outline-none focus:border-[#6F4E37]"
             />
             <button
               type="button"
-              onClick={fetchReportData}
-              className="px-3 py-1.5 bg-[#6F4E37] text-white rounded-xl text-xs font-semibold hover:bg-[#5A3F2C]"
+              onClick={handleApplyCustomDate}
+              className="px-3.5 py-1.5 bg-[#6F4E37] text-white rounded-xl text-xs font-semibold hover:bg-[#5A3F2C] cursor-pointer shadow-2xs transition-colors"
             >
               Áp dụng
             </button>

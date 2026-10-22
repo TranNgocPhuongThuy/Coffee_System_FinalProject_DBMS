@@ -228,6 +228,13 @@ BEGIN
             updatedAt = SYSDATETIME()
         WHERE id = @OrderId;
 
+        -- Đồng bộ các món chưa hoàn tất trong đơn sang 'DONE' (Kích hoạt trừ kho và đồng bộ trạng thái món)
+        UPDATE OrderDetail
+        SET itemStatus = N'DONE',
+            updatedAt = SYSDATETIME()
+        WHERE orderId = @OrderId 
+          AND itemStatus NOT IN (N'DONE', N'CANCELLED');
+
         -- Tích điểm hội viên (10,000 VNĐ = 1 Điểm) nếu chưa từng tích điểm cho đơn này
         IF @CustomerId IS NOT NULL AND @TotalAmount >= 10000 
            AND NOT EXISTS (SELECT 1 FROM LoyaltyTransaction WHERE orderId = @OrderId AND transactionType = N'EARN')
