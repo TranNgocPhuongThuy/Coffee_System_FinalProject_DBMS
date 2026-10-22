@@ -22,6 +22,15 @@ productRouter.get(
 )
 
 /**
+ * @route   GET /api/v1/products/catalog
+ * @desc    Lấy danh sách thực đơn trực tiếp từ View v_MenuProductCatalog
+ */
+productRouter.get(
+    '/catalog',
+    controller.getCatalog
+)
+
+/**
  * @route   GET /api/v1/products/:id
  * @desc    Xem chi tiết 1 sản phẩm theo ID (Public cho Customer & Cashier)
  */

@@ -68,4 +68,12 @@ export class ProductService {
     await this.getProductById(id)
     return await this.productRepo.softDelete(id)
   }
-}
+
+  async getMenuCatalog(categoryId?: number) {
+    return await this.productRepo.getCatalog(categoryId)
+  }
+
+  async getProductPriceRange(productId: number) {
+    return await this.productRepo.getPriceRange(productId)
+  }
+}
