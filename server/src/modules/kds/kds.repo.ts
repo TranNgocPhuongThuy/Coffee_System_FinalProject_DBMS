@@ -87,62 +87,13 @@ export class KDSRepo {
     const pool = await getPool();
     const req = pool.request();
 
-    req.input("orderDetailId", sql.Int, orderDetailId);
-    req.input("itemStatus", sql.NVarChar(50), data.itemStatus);
+    req.input("OrderDetailId", sql.Int, orderDetailId);
+    req.input("ItemStatus", sql.NVarChar(50), data.itemStatus);
 
-    const result = await req.query(`
-    SET XACT_ABORT ON;
-    BEGIN TRY
-      BEGIN TRANSACTION;
+    const result = await req.execute("sp_KDS_UpdateItemStatus");
 
-      DECLARE @updatedItems TABLE (
-        id INT,
-        orderId INT,
-        itemSnapshotName NVARCHAR(200),
-        sizeSnapshot NVARCHAR(50),
-        itemStatus NVARCHAR(50),
-        updatedAt DATETIME2(7)
-      );
-
-      UPDATE OrderDetail
-      SET itemStatus = @itemStatus,
-          updatedAt = SYSDATETIME()
-      OUTPUT 
-        INSERTED.id,
-        INSERTED.orderId,
-        INSERTED.itemSnapshotName,
-        INSERTED.sizeSnapshot,
-        INSERTED.itemStatus,
-        INSERTED.updatedAt
-      INTO @updatedItems
-      WHERE id = @orderDetailId;
-
-      
-      IF @itemStatus = N'PREPARING'
-      BEGIN
-        UPDATE [Order]
-        SET status = N'PREPARING', updatedAt = SYSDATETIME()
-        WHERE id = (SELECT TOP 1 orderId FROM @updatedItems)
-          AND status = N'PENDING_PREP';
-      END;
-
-      COMMIT TRANSACTION;
-
-      SELECT id, orderId, itemSnapshotName, sizeSnapshot, itemStatus, updatedAt
-      FROM @updatedItems;
-    END TRY
-    BEGIN CATCH
-      IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-      THROW;
-    END CATCH
-  `);
-
-    const sets = Array.isArray(result.recordsets) ? result.recordsets : [];
-    const targetRecordset =
-      sets.length > 0 ? sets[sets.length - 1] : result.recordset;
-
-    return targetRecordset && targetRecordset.length > 0
-      ? targetRecordset[0]
+    return result.recordset && result.recordset.length > 0
+      ? result.recordset[0]
       : null;
   }
 
