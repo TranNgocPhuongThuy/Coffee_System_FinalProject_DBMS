@@ -96,6 +96,19 @@ export class OrderService {
       newOrderId = await this.orderRepo.createCounterOrder(data)
     }
 
+    // Tự động tích điểm hội viên dựa trên SỐ TIỀN THỰC THU (sau khi trừ chiết khấu và điểm đổi)
+    // Ví dụ: Đơn 50k đổi 10 điểm (10k) còn 40k -> tích điểm trên 40k (+4 điểm)
+    const pointsDiscount = (data.pointsToRedeem || 0) * 1000
+    const actualPayAmount = Math.max(0, (data.totalAmount || 0) - (data.discountAmount || 0) - pointsDiscount)
+
+    if (data.customerId && actualPayAmount >= 10000) {
+      await this.orderRepo
+        .earnLoyaltyPoints(newOrderId, data.customerId, actualPayAmount)
+        .catch((err) => {
+          console.error('Lỗi khi tích điểm hội viên:', err)
+        })
+    }
+
     const createdOrder = await this.getOrderById(newOrderId)
     return {
       message: 'Tạo đơn hàng POS thành công',

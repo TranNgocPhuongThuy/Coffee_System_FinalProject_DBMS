@@ -146,6 +146,7 @@ export default function PosTerminalPage() {
       if (pointsToRedeem > 0 && selectedCustId) {
         payload.discountAmount = 0;
         payload.totalAmount = subTotal;
+        (payload as any).pointsToRedeem = pointsToRedeem;
       }
 
       const res = await posService.createOrder(payload);

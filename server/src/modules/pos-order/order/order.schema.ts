@@ -34,6 +34,7 @@ export const CreateOrderSchema = z.object({
   totalAmount: z.number().nonnegative('Tổng tiền thanh toán phải >= 0'),
   paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'CARD', 'MOMO', 'VNPAY', 'POINT_EXCHANGE']).default('CASH'),
   items: z.array(OrderItemSchema).min(1, 'Đơn hàng phải có ít nhất 1 món'),
+  pointsToRedeem: z.number().int().nonnegative().optional(),
 })
 
 // 4. Schema hoàn tất thanh toán

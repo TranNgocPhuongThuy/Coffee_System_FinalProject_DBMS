@@ -391,6 +391,7 @@ export default function CustomerStorefrontPage() {
         totalAmount: cart.subTotal,
         paymentMethod: "CASH" as const,
         items: orderItems,
+        pointsToRedeem: pointsToRedeem > 0 ? pointsToRedeem : undefined,
       };
 
       const res = await posService.createOrder(payload as any);
