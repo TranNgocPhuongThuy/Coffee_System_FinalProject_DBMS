@@ -1,8 +1,8 @@
-import { ConnectionPool } from 'mssql'
+import { ConnectionPool } from "mssql";
 
 const ddlStatements: { name: string; sql: string }[] = [
   {
-    name: 'v_TopSellingProducts',
+    name: "v_TopSellingProducts",
     sql: `
 CREATE OR ALTER VIEW v_TopSellingProducts AS
 SELECT 
@@ -20,7 +20,7 @@ GROUP BY COALESCE(p.name, od.itemSnapshotName);
     `,
   },
   {
-    name: 'fn_GetTopSellingProducts',
+    name: "fn_GetTopSellingProducts",
     sql: `
 CREATE OR ALTER FUNCTION fn_GetTopSellingProducts (
     @topN INT,
@@ -48,7 +48,7 @@ RETURN (
     `,
   },
   {
-    name: 'trg_Product_SoftDeleteOnDelete',
+    name: "trg_Product_SoftDeleteOnDelete",
     sql: `
 CREATE OR ALTER TRIGGER trg_Product_SoftDeleteOnDelete
 ON Product
@@ -69,25 +69,25 @@ BEGIN
 END;
     `,
   },
-  {
-    name: 'trg_ProductVariant_SoftDeleteOnDelete',
-    sql: `
-CREATE OR ALTER TRIGGER trg_ProductVariant_SoftDeleteOnDelete
-ON ProductVariant
-INSTEAD OF DELETE
-AS
-BEGIN
-    SET NOCOUNT ON;
+//   {
+//     name: "trg_ProductVariant_SoftDeleteOnDelete",
+//     sql: `
+// CREATE OR ALTER TRIGGER trg_ProductVariant_SoftDeleteOnDelete
+// ON ProductVariant
+// INSTEAD OF DELETE
+// AS
+// BEGIN
+//     SET NOCOUNT ON;
 
-    UPDATE pv
-    SET pv.deletedAt = SYSDATETIME(), pv.updatedAt = SYSDATETIME()
-    FROM ProductVariant pv
-    INNER JOIN deleted d ON pv.id = d.id;
-END;
-    `,
-  },
+//     UPDATE pv
+//     SET pv.deletedAt = SYSDATETIME(), pv.updatedAt = SYSDATETIME()
+//     FROM ProductVariant pv
+//     INNER JOIN deleted d ON pv.id = d.id;
+// END;
+//     `,
+//   },
   {
-    name: 'trg_Topping_SoftDeleteOnDelete',
+    name: "trg_Topping_SoftDeleteOnDelete",
     sql: `
 CREATE OR ALTER TRIGGER trg_Topping_SoftDeleteOnDelete
 ON Topping
@@ -104,7 +104,7 @@ END;
     `,
   },
   {
-    name: 'trg_Category_SoftDeleteOnDelete',
+    name: "trg_Category_SoftDeleteOnDelete",
     sql: `
 CREATE OR ALTER TRIGGER trg_Category_SoftDeleteOnDelete
 ON Category
@@ -133,7 +133,7 @@ END;
     `,
   },
   {
-    name: 'sp_CompleteOrderPayment',
+    name: "sp_CompleteOrderPayment",
     sql: `
 CREATE OR ALTER PROCEDURE sp_CompleteOrderPayment
     @OrderId INT,
@@ -233,16 +233,21 @@ BEGIN
 END;
     `,
   },
-]
+];
 
 export async function syncDatabaseObjects(pool: ConnectionPool): Promise<void> {
-  console.log('🔄 Đang đồng bộ cấu trúc Database objects (Views, Functions, Triggers, SPs)...')
+  console.log(
+    "🔄 Đang đồng bộ cấu trúc Database objects (Views, Functions, Triggers, SPs)...",
+  );
   for (const item of ddlStatements) {
     try {
-      await pool.request().query(item.sql.trim())
-      console.log(`  ✅ Đã đồng bộ [${item.name}] thành công.`)
+      await pool.request().query(item.sql.trim());
+      console.log(`  ✅ Đã đồng bộ [${item.name}] thành công.`);
     } catch (err: any) {
-      console.error(`  ❌ Lỗi khi đồng bộ [${item.name}]:`, err?.message || err)
+      console.error(
+        `  ❌ Lỗi khi đồng bộ [${item.name}]:`,
+        err?.message || err,
+      );
     }
   }
 }

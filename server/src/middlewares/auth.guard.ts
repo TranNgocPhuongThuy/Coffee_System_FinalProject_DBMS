@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { envConfig } from "@/config/env.config";
 import { getPool, sql } from "@/config/database";
+import { roleStorage } from "@/config/database";
 
 declare global {
   namespace Express {
@@ -97,7 +98,7 @@ export const authGuard = async (
         role: "CUSTOMER",
         userType: "CUSTOMER",
       };
-      return next();
+      return roleStorage.run(req.user.role, () => next());
     }
 
     // 2. Nhánh Nhân viên nội bộ: Chỉ query bảng Employee
@@ -136,7 +137,7 @@ export const authGuard = async (
         role: emp.role,
         userType: "EMPLOYEE",
       };
-      return next();
+      return roleStorage.run(req.user.role, () => next());
     }
 
     res.status(401).json({
@@ -160,8 +161,10 @@ export const optionalAuthGuard = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
+    
+    // 1. Nếu không có header hoặc không đúng định dạng Bearer -> Coi là khách vãng lai (CUSTOMER)
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return next();
+      return roleStorage.run("CUSTOMER", () => next());
     }
 
     const token = authHeader.split(" ")[1];
@@ -169,12 +172,14 @@ export const optionalAuthGuard = async (
     try {
       decoded = jwt.verify(token, envConfig.JWT_SECRET) as JwtPayload;
     } catch {
-      // Token hết hạn hoặc không hợp lệ -> Tiếp tục như khách vãng lai (Guest)
-      return next();
+      // 2. Token hết hạn hoặc không hợp lệ -> Tiếp tục như khách vãng lai (CUSTOMER)
+      return roleStorage.run("CUSTOMER", () => next());
     }
 
+    // Lúc này getPool() chưa có roleStorage -> Tự động dùng defaultPool (Service Account) để SELECT thông tin tài khoản
     const pool = await getPool();
 
+    // Nhánh Khách hàng
     if (decoded.userType === "CUSTOMER") {
       const custRes = await pool
         .request()
@@ -195,9 +200,10 @@ export const optionalAuthGuard = async (
           userType: "CUSTOMER",
         };
       }
-      return next();
+      return roleStorage.run("CUSTOMER", () => next());
     }
 
+    // Nhánh Nhân viên
     if (decoded.userType === "EMPLOYEE") {
       const empRes = await pool
         .request()
@@ -218,12 +224,14 @@ export const optionalAuthGuard = async (
           role: emp.role,
           userType: "EMPLOYEE",
         };
+        // Gán Role của nhân viên vào Pool Context cho các query kế tiếp
+        return roleStorage.run(emp.role, () => next());
       }
-      return next();
+      return roleStorage.run("CUSTOMER", () => next());
     }
 
-    return next();
+    return roleStorage.run("CUSTOMER", () => next());
   } catch {
-    return next();
+    return roleStorage.run("CUSTOMER", () => next());
   }
 };
