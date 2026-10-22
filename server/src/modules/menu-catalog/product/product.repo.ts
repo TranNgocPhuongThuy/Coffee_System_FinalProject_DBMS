@@ -24,6 +24,7 @@ export interface ProductDetail {
   status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK'
   createdAt: Date
   updatedAt?: Date | null
+  priceRange?: string | null
   variants: ProductVariantRow[]
 }
 
@@ -113,6 +114,7 @@ export class ProductRepository {
         p.status, 
         p.createdAt, 
         p.updatedAt,
+        dbo.fnc_GetProductPriceRange(p.id) AS priceRange,
         (
           SELECT id, productId, size, price, createdAt, updatedAt
           FROM ProductVariant pv
@@ -139,6 +141,7 @@ export class ProductRepository {
       status: row.status,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      priceRange: row.priceRange,
       variants: row.variantsJson ? JSON.parse(row.variantsJson) : [],
     }
   }
@@ -166,42 +169,19 @@ export class ProductRepository {
    */
   async createWithVariants(data: CreateProductType): Promise<ProductDetail> {
     const pool = await getPool()
-    const transaction = new sql.Transaction(pool)
-    await transaction.begin()
+    const req = pool.request()
 
-    try {
-      const productReq = new sql.Request(transaction)
-      productReq.input('categoryId', sql.Int, data.categoryId)
-      productReq.input('name', sql.NVarChar(200), data.name)
-      productReq.input('description', sql.NVarChar(sql.MAX), data.description || null)
-      productReq.input('image', sql.NVarChar(500), data.image || null)
-      productReq.input('status', sql.NVarChar(50), data.status || 'ACTIVE')
+    req.input('categoryId', sql.Int, data.categoryId)
+    req.input('name', sql.NVarChar(200), data.name)
+    req.input('description', sql.NVarChar(sql.MAX), data.description || null)
+    req.input('image', sql.NVarChar(500), data.image || null)
+    req.input('variantsJson', sql.NVarChar(sql.MAX), JSON.stringify(data.variants))
+    req.output('newProductId', sql.Int)
 
-      const productRes = await productReq.query(`
-        INSERT INTO Product (categoryId, name, description, image, status, createdAt)
-        OUTPUT INSERTED.id, INSERTED.categoryId, INSERTED.name, INSERTED.description, INSERTED.image, INSERTED.status, INSERTED.createdAt
-        VALUES (@categoryId, @name, @description, @image, @status, SYSDATETIME())
-      `)
-      const newProduct = productRes.recordset[0]
+    const result = await req.execute('sp_CreateProductWithVariants')
+    const newId = result.output.newProductId
 
-      for (const v of data.variants) {
-        const variantReq = new sql.Request(transaction)
-        variantReq.input('productId', sql.Int, newProduct.id)
-        variantReq.input('size', sql.NVarChar(20), v.size)
-        variantReq.input('price', sql.Decimal(18, 2), v.price)
-
-        await variantReq.query(`
-          INSERT INTO ProductVariant (productId, size, price, createdAt)
-          VALUES (@productId, @size, @price, SYSDATETIME())
-        `)
-      }
-
-      await transaction.commit()
-      return (await this.findById(newProduct.id))!
-    } catch (error) {
-      await transaction.rollback()
-      throw error
-    }
+    return (await this.findById(newId))!
   }
 
   /**
@@ -347,5 +327,44 @@ export class ProductRepository {
     `)
 
     return (result.rowsAffected[0] ?? 0) > 0
+  }
+
+  /**
+   * Lấy danh sách thực đơn tổng hợp trực tiếp từ Khung nhìn v_MenuProductCatalog
+   * kết hợp định dạng khoảng giá bằng Hàm fnc_GetProductPriceRange
+   */
+  async getCatalog(categoryId?: number): Promise<any[]> {
+    const pool = await getPool()
+    const req = pool.request()
+    let query = `
+      SELECT 
+        productId, categoryId, categoryName, productName, 
+        description, image, productStatus, totalVariants, 
+        minPrice, maxPrice, availableSizes,
+        dbo.fnc_GetProductPriceRange(productId) AS priceRange
+      FROM v_MenuProductCatalog
+    `
+
+    if (categoryId) {
+      req.input('categoryId', sql.Int, categoryId)
+      query += ` WHERE categoryId = @categoryId`
+    }
+
+    query += ` ORDER BY categoryName ASC, productName ASC`
+    const result = await req.query(query)
+    return result.recordset
+  }
+
+  /**
+   * Gọi trực tiếp Hàm vô hướng fnc_GetProductPriceRange
+   */
+  async getPriceRange(productId: number): Promise<string> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('productId', sql.Int, productId)
+    const result = await req.query<{ priceRange: string }>(`
+      SELECT dbo.fnc_GetProductPriceRange(@productId) AS priceRange
+    `)
+    return result.recordset[0]?.priceRange || 'Chưa có giá'
   }
 }
