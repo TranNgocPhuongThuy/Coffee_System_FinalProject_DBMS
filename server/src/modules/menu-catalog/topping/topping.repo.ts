@@ -139,6 +139,23 @@ export class ToppingRepository {
   }
 
   /**
+   * Đếm số lượng đơn hàng đang chờ hoặc đang pha chế (PENDING, PREPARING) có sử dụng Topping này
+   */
+  async countActiveOrdersByToppingId(toppingId: number): Promise<number> {
+    const pool = await getPool()
+    const req = pool.request()
+    req.input('toppingId', sql.Int, toppingId)
+    const result = await req.query<{ count: number }>(`
+      SELECT COUNT(1) AS count
+      FROM OrderDetailTopping odt
+      INNER JOIN OrderDetail od ON odt.orderDetailId = od.id
+      WHERE odt.toppingId = @toppingId
+        AND od.itemStatus IN ('PENDING', 'PREPARING')
+    `)
+    return result.recordset[0]?.count || 0
+  }
+
+  /**
    * Xóa mềm topping
    */
   async delete(id: number): Promise<boolean> {

@@ -313,3 +313,78 @@ BEGIN
     INNER JOIN CustomerPointStats cps ON c.id = cps.customerId
 END;
 GO
+
+-- ============================================================================
+-- 4. MENU & CATALOG SOFT DELETE ENFORCEMENT TRIGGERS
+-- (Tự động chuyển đổi lệnh DELETE vật lý thành UPDATE Xóa Mềm để bảo toàn dữ liệu)
+-- ============================================================================
+
+-- 4.1. Tự động chuyển lệnh DELETE cứng thành Xóa mềm cho Product và ProductVariant
+IF OBJECT_ID('trg_Product_SoftDeleteOnDelete', 'TR') IS NOT NULL DROP TRIGGER trg_Product_SoftDeleteOnDelete;
+GO
+CREATE TRIGGER trg_Product_SoftDeleteOnDelete
+ON Product
+INSTEAD OF DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- 1. Xóa mềm Sản phẩm
+    UPDATE p
+    SET p.deletedAt = SYSDATETIME(), p.updatedAt = SYSDATETIME()
+    FROM Product p
+    INNER JOIN deleted d ON p.id = d.id;
+
+    -- 2. Xóa mềm luôn toàn bộ Biến thể Size con liên quan
+    UPDATE pv
+    SET pv.deletedAt = SYSDATETIME(), pv.updatedAt = SYSDATETIME()
+    FROM ProductVariant pv
+    INNER JOIN deleted d ON pv.productId = d.id;
+END;
+GO
+
+-- 4.2. Tự động chuyển lệnh DELETE cứng thành Xóa mềm cho Topping
+IF OBJECT_ID('trg_Topping_SoftDeleteOnDelete', 'TR') IS NOT NULL DROP TRIGGER trg_Topping_SoftDeleteOnDelete;
+GO
+CREATE TRIGGER trg_Topping_SoftDeleteOnDelete
+ON Topping
+INSTEAD OF DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE t
+    SET t.deletedAt = SYSDATETIME(), t.updatedAt = SYSDATETIME()
+    FROM Topping t
+    INNER JOIN deleted d ON t.id = d.id;
+END;
+GO
+
+-- 4.3. Kiểm tra bảo vệ Danh mục khi nhận lệnh DELETE: Chặn nếu còn món hoạt động, nếu không thì Xóa mềm
+IF OBJECT_ID('trg_Category_SoftDeleteOnDelete', 'TR') IS NOT NULL DROP TRIGGER trg_Category_SoftDeleteOnDelete;
+GO
+CREATE TRIGGER trg_Category_SoftDeleteOnDelete
+ON Category
+INSTEAD OF DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (
+        SELECT 1 
+        FROM Product p 
+        INNER JOIN deleted d ON p.categoryId = d.id 
+        WHERE p.deletedAt IS NULL
+    )
+    BEGIN
+        RAISERROR(N'Không thể xóa danh mục đang có sản phẩm hoạt động liên kết!', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END
+
+    UPDATE c
+    SET c.deletedAt = SYSDATETIME(), c.updatedAt = SYSDATETIME()
+    FROM Category c
+    INNER JOIN deleted d ON c.id = d.id;
+END;
+GO

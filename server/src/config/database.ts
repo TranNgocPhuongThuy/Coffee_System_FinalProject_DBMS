@@ -1,5 +1,6 @@
 import sql from 'mssql'
 import { envConfig } from './env.config'
+import { syncDatabaseObjects } from './dbInit'
 
 const sqlConfig: sql.config = {
   user: envConfig.DB_USER,
@@ -27,6 +28,7 @@ export const getPool = async (): Promise<sql.ConnectionPool> => {
   try {
     pool = await new sql.ConnectionPool(sqlConfig).connect()
     console.log(`✅ Kết nối thành công tới Database [${envConfig.DB_NAME}] trên SQL Server!`)
+    await syncDatabaseObjects(pool)
     return pool
   } catch (error) {
     console.error('❌ Lỗi khi kết nối tới Microsoft SQL Server:', error)

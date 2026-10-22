@@ -57,15 +57,17 @@ export class ReportRepo {
 
     let query: string
 
-    if (filter.fromDate && filter.toDate) {
-      const startOfDay = new Date(filter.fromDate);
-      startOfDay.setHours(0, 0, 0, 0);
+    const hasDateRange = Boolean(filter.fromDate || filter.toDate)
 
-      const endOfDay = new Date(filter.toDate);
-      endOfDay.setHours(23, 59, 59, 999);
+    if (hasDateRange) {
+      const startOfDay = filter.fromDate ? new Date(filter.fromDate) : new Date('2000-01-01')
+      startOfDay.setHours(0, 0, 0, 0)
 
-      request.input('fromDate', sql.DateTime2, startOfDay);
-      request.input('toDate', sql.DateTime2, endOfDay);
+      const endOfDay = filter.toDate ? new Date(filter.toDate) : new Date('2099-12-31')
+      endOfDay.setHours(23, 59, 59, 999)
+
+      request.input('fromDate', sql.DateTime2, startOfDay)
+      request.input('toDate', sql.DateTime2, endOfDay)
 
       query = `
         SELECT

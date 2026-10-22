@@ -80,7 +80,7 @@ BEGIN
     RETURN @isAvailable;
 END;
 GO
---6. Danh sách N món bán chạy nhất trong khoảng thời gian 
+--6. Danh sách N món bán chạy nhất trong khoảng thời gian (Sử dụng Snapshot, bảo toàn lịch sử khi xóa mềm món)
 CREATE OR ALTER FUNCTION fn_GetTopSellingProducts (
     @topN INT,
     @fromDate DATETIME,
@@ -90,20 +90,19 @@ RETURNS TABLE
 AS
 RETURN (
     SELECT TOP (@topN)
-        p.id AS productId,
-        p.name AS productName,
+        MAX(COALESCE(p.id, pv.productId, 0)) AS productId,
+        COALESCE(p.name, od.itemSnapshotName) AS productName,
         SUM(od.quantity) AS totalQuantitySold,
         SUM(od.totalPrice) AS totalRevenue
     FROM OrderDetail od
     JOIN [Order] o ON od.orderId = o.id
-    JOIN ProductVariant pv ON od.variantId = pv.id
-    JOIN Product p ON pv.productId = p.id
+    LEFT JOIN ProductVariant pv ON od.variantId = pv.id
+    LEFT JOIN Product p ON pv.productId = p.id
     WHERE o.status = 'COMPLETED'
       AND o.deletedAt IS NULL
-      AND p.deletedAt IS NULL
       AND ISNULL(o.paidAt, o.createdAt) BETWEEN @fromDate AND @toDate
-    GROUP BY p.id, p.name
-    ORDER BY totalQuantitySold DESC
+    GROUP BY COALESCE(p.name, od.itemSnapshotName)
+    ORDER BY totalQuantitySold DESC, totalRevenue DESC
 );
 GO
 --7. Lấy danh sách lịch sử tích/ đổi điểm của một hội viên theo thời gian
