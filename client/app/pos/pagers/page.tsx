@@ -451,29 +451,42 @@ export default function PagersManagementPage() {
             </button>
           </div>
 
-          {/* Action button in Tab 2 */}
-          {activeTab === "all_devices" && (
-            <button
-              type="button"
-              disabled={!isManagerOrAdmin}
-              onClick={() => {
-                if (isManagerOrAdmin) setIsAddModalOpen(true);
-              }}
-              title={
-                isManagerOrAdmin
-                  ? "Thêm thiết bị thẻ rung mới"
-                  : "Chỉ Quản lý mới có quyền thêm thiết bị"
-              }
-              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold shadow-xs transition-colors ${
-                isManagerOrAdmin
-                  ? "bg-[#6F4E37] hover:bg-[#5A3F2C] cursor-pointer"
-                  : "bg-zinc-400 dark:bg-zinc-700 opacity-50 cursor-not-allowed"
-              }`}
-            >
-              <Plus className="w-4 h-4" />
-              <span>Thêm thẻ rung mới</span>
-            </button>
-          )}
+          {/* Actions & Navigation */}
+          <div className="flex items-center gap-2.5">
+            {isManagerOrAdmin && (
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200 text-xs font-bold shadow-2xs hover:bg-[#F5EBE6] hover:text-[#6F4E37] dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                <LayoutDashboard className="w-4 h-4 text-[#6F4E37] dark:text-[#D4A373]" />
+                <span>Quay về Dashboard</span>
+              </Link>
+            )}
+
+            {/* Action button in Tab 2 */}
+            {activeTab === "all_devices" && (
+              <button
+                type="button"
+                disabled={!isManagerOrAdmin}
+                onClick={() => {
+                  if (isManagerOrAdmin) setIsAddModalOpen(true);
+                }}
+                title={
+                  isManagerOrAdmin
+                    ? "Thêm thiết bị thẻ rung mới"
+                    : "Chỉ Quản lý mới có quyền thêm thiết bị"
+                }
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold shadow-xs transition-colors ${
+                  isManagerOrAdmin
+                    ? "bg-[#6F4E37] hover:bg-[#5A3F2C] cursor-pointer"
+                    : "bg-zinc-400 dark:bg-zinc-700 opacity-50 cursor-not-allowed"
+                }`}
+              >
+                <Plus className="w-4 h-4" />
+                <span>Thêm thẻ rung mới</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* 4. TOOLBAR TÌM KIẾM & BỘ LỌC */}
