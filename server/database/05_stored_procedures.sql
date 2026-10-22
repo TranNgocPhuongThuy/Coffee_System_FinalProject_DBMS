@@ -974,3 +974,67 @@ BEGIN
     END CATCH
 END;
 GO
+
+-- ============================================================================
+-- 5. MENU & CATALOG MODULE
+-- ============================================================================
+
+-- 5.1. sp_CreateProductWithVariants: Tạo món ăn mới cùng toàn bộ các biến thể kích cỡ (size) chuẩn ACID
+CREATE OR ALTER PROCEDURE sp_CreateProductWithVariants
+    @categoryId INT,
+    @name NVARCHAR(200),
+    @description NVARCHAR(MAX) = NULL,
+    @image NVARCHAR(500) = NULL,
+    @variantsJson NVARCHAR(MAX), -- Ví dụ JSON: '[{"size":"S","price":25000},{"size":"M","price":30000}]'
+    @newProductId INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- 1. Kiểm tra danh mục có tồn tại và đang hoạt động không
+        IF NOT EXISTS (SELECT 1 FROM Category WHERE id = @categoryId AND deletedAt IS NULL)
+        BEGIN
+            RAISERROR(N'Danh mục không tồn tại hoặc đã bị xóa!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END;
+
+        -- 2. Kiểm tra trùng tên món trong thực đơn
+        IF EXISTS (SELECT 1 FROM Product WHERE name = @name AND deletedAt IS NULL)
+        BEGIN
+            RAISERROR(N'Tên món này đã tồn tại trong thực đơn!', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END;
+
+        -- 3. Tạo sản phẩm cha
+        INSERT INTO Product (categoryId, name, description, image, status, createdAt)
+        VALUES (@categoryId, @name, @description, @image, 'ACTIVE', SYSDATETIME());
+
+        SET @newProductId = SCOPE_IDENTITY();
+
+        -- 4. Đọc chuỗi JSON và thêm hàng loạt các size con tương ứng
+        INSERT INTO ProductVariant (productId, size, price, createdAt)
+        SELECT 
+            @newProductId,
+            j.[size],
+            CAST(j.price AS DECIMAL(18, 2)),
+            SYSDATETIME()
+        FROM OPENJSON(@variantsJson)
+        WITH (
+            [size] NVARCHAR(20) '$.size',
+            price DECIMAL(18, 2) '$.price'
+        ) j;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
